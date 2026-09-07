@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +37,11 @@ function isAllowedOrigin(origin) {
     return false;
   }
   return allowedOrigins.includes(origin);
+}
+
+async function ensureBaseSchema() {
+  const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
+  await pool.query(schema);
 }
 
 const priceConfig = {
@@ -952,7 +958,8 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: error?.message || 'Server error' });
 });
 
-ensureGrowthSchema()
+ensureBaseSchema()
+  .then(() => ensureGrowthSchema())
   .then(() => {
     app.listen(port, () => {
       console.log(`Story Sprout is running at http://localhost:${port}`);
