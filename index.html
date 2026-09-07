@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff7ea">
+  <title>Story Sprout</title>
+  <style>
+    :root { --ink:#21383d; --muted:#607174; --paper:#fff7ea; --card:#fffdf9; --line:#eadbc9; --coral:#df7046; --sage:#dfead7; --sun:#f4c96d; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); background:linear-gradient(135deg,#fff7ea 0%,#f1efe3 50%,#dcece4 100%); font-family:Georgia, 'Times New Roman', serif; }
+    button,input,textarea { font:inherit; }
+    button { cursor:pointer; }
+    .app { width:min(1120px,100%); min-height:100vh; margin:auto; background:rgba(255,253,249,.78); box-shadow:0 0 48px rgba(46,73,65,.09); }
+    header { height:84px; padding:0 clamp(20px,5vw,58px); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:24px; font-weight:bold; }
+    .sprout { position:relative; width:32px; height:32px; border-radius:7px; background:var(--coral); }
+    .sprout:before,.sprout:after { content:''; position:absolute; width:10px; height:16px; border:2px solid #fff7ea; border-radius:12px 3px 12px 3px; top:7px; }
+    .sprout:before { left:8px; transform:rotate(-35deg); }.sprout:after { right:7px; transform:rotate(35deg); }
+    .nav { display:flex; gap:8px; }.nav button { border:0; background:transparent; color:var(--muted); font-weight:bold; padding:9px 12px; border-radius:5px; }.nav button.active { background:var(--sage); color:#325a41; }
+    main { padding:clamp(28px,6vw,68px); }.hidden { display:none!important; }
+    .eyebrow { color:#b95737; font-family:Arial,sans-serif; font-weight:bold; letter-spacing:1.5px; font-size:11px; }
+    h1 { font-size:clamp(36px,5vw,58px); line-height:1.05; max-width:690px; margin:13px 0; letter-spacing:0; }
+    .lede { color:var(--muted); font-size:18px; line-height:1.55; max-width:590px; margin:0 0 34px; }
+    .composer { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:clamp(20px,4vw,36px); display:grid; grid-template-columns:1fr 1fr; gap:23px; box-shadow:0 14px 22px rgba(40,65,54,.05); }
+    label { display:block; font-family:Arial,sans-serif; font-size:13px; color:var(--ink); font-weight:bold; margin-bottom:8px; } input,textarea { display:block; width:100%; border:1px solid #d8c8b5; background:#fffefa; border-radius:5px; color:var(--ink); padding:13px; font-size:16px; outline-color:var(--coral); } textarea { min-height:94px; resize:vertical; }
+    .wide { grid-column:1/-1; }.themes { display:flex; flex-wrap:wrap; gap:8px; }.theme { border:1px solid #d8c8b5; color:var(--muted); background:#fffefa; border-radius:5px; padding:10px 12px; display:flex; align-items:center; gap:7px; font-family:Arial,sans-serif; font-size:13px; font-weight:bold; }.theme.active { color:var(--ink); border-color:var(--ink); background:#f6f1e8; }.swatch { height:11px; width:11px; border-radius:50%; background:#2d526b; }.theme:nth-child(2) .swatch{background:#477e50}.theme:nth-child(3) .swatch{background:#287ea1}.theme:nth-child(4) .swatch{background:#a85f42}
+    .create { grid-column:1/-1; border:0; border-radius:5px; background:var(--coral); color:#fff; min-height:53px; font-family:Arial,sans-serif; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:space-between; padding:0 19px; }.create:hover{background:#c85e3a}.note{grid-column:1/-1;text-align:center;color:#907f70;font:12px/1.4 Arial,sans-serif;margin-top:-12px}
+    h2 { font-size:27px; margin:50px 0 15px; }.shelf { display:grid; grid-template-columns:repeat(auto-fit,minmax(245px,1fr)); gap:17px; }.book { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--card); padding:0; text-align:left; color:var(--ink); }.cover { height:157px; background:#2d526b; position:relative; overflow:hidden; }.cover .moon{position:absolute;width:58px;height:58px;background:#fce6aa;border-radius:50%;right:34px;top:23px}.cover .hill{position:absolute;width:130%;height:108px;border-radius:50%;bottom:-65px;left:-28px;background:#4f8969}.cover .house{position:absolute;width:57px;height:49px;bottom:28px;left:41%;background:#f0bd70}.cover .roof{position:absolute;width:0;height:0;border-left:37px solid transparent;border-right:37px solid transparent;border-bottom:30px solid #b95d42;top:-29px;left:-8px}.book-copy{padding:16px}.book h3{font-size:20px;line-height:1.15;margin:0 0 8px}.book p{font:14px Arial,sans-serif;color:var(--muted);margin:0}.open{font:13px Arial,sans-serif;color:#b95737;font-weight:bold;margin-top:14px;display:block}
+    .library-heading { margin-bottom:35px; }.library-heading h1{margin-bottom:8px}.reader { max-width:780px; margin:auto; }.reader-cover { height:min(40vw,285px); min-height:185px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }.reader h1{font-size:clamp(29px,4vw,43px); margin-top:28px}.page-number{font:11px Arial,sans-serif;color:#b95737;font-weight:bold;letter-spacing:1.3px;margin-top:31px}.story-text{font-size:24px;line-height:1.6;color:#41565a;min-height:155px}.reader-controls { display:flex; align-items:center; justify-content:space-between; margin-top:25px; }.reader-controls button { border:0; border-radius:5px; min-height:45px; min-width:79px; padding:0 16px; background:var(--ink); color:#fff; font-family:Arial,sans-serif; font-weight:bold; }.reader-controls button:disabled{background:#c5cec7}.dots{display:flex;gap:8px}.dot{height:8px;width:8px;border-radius:50%;background:#d7cab9}.dot.active{width:22px;border-radius:6px;background:var(--coral)}.reader-tools{display:flex;justify-content:space-between;align-items:center;margin-top:20px;gap:12px}.text-action{border:0;border-bottom:1px solid var(--ink);background:transparent;padding:0 0 3px;color:var(--ink);font:700 13px Arial,sans-serif}.danger{color:#a3402e;border-color:#a3402e}.library-empty{border:1px dashed #d7c8b7;padding:34px;text-align:center;color:var(--muted);font:16px/1.5 Arial,sans-serif}.toast{position:fixed;z-index:2;right:22px;bottom:22px;background:var(--ink);color:#fff;padding:13px 16px;border-radius:5px;font:13px Arial,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:0;transform:translateY(12px);transition:.2s}.toast.show{opacity:1;transform:translateY(0)}
+    @media(max-width:650px){header{height:72px}.composer{grid-template-columns:1fr}.wide{grid-column:auto}.create,.note{grid-column:auto}h1{font-size:38px}.story-text{font-size:20px}.reader-cover{height:210px}}
+  </style>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="enterprise.css">
+  <link rel="stylesheet" href="mobile-nav.css">
+  <link rel="stylesheet" href="story-preview.css">
+  <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="privacy.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><span class="sprout"></span>Story Sprout</div>
+      <nav class="nav" aria-label="Story Sprout sections"><button id="createNav" class="active">Create</button><button id="libraryNav">Library</button></nav>
+    </header>
+    <main>
+      <section id="createView">
+        <div class="eyebrow">A STORY MADE JUST FOR THEM</div>
+        <h1>Where will your reader go today?</h1>
+        <p class="lede">Choose a few details, then make a one-of-a-kind illustrated storybook together.</p>
+        <form class="composer" id="storyForm">
+          <div><label for="name">Who is the story about?</label><input id="name" value="Maya" maxlength="32" required></div>
+          <div><label>Choose a story world</label><div class="themes" id="themes"><button class="theme active" type="button" data-theme="Moonlight"><span class="swatch"></span>Moonlight</button><button class="theme" type="button" data-theme="Rainforest"><span class="swatch"></span>Rainforest</button><button class="theme" type="button" data-theme="Ocean"><span class="swatch"></span>Ocean</button><button class="theme" type="button" data-theme="Castle"><span class="swatch"></span>Castle</button></div></div>
+          <div class="wide"><label for="adventure">What happens in the adventure?</label><textarea id="adventure" maxlength="170">finding a lost starlight seed</textarea></div>
+          <button class="create" type="submit"><span>Create my story</span><span>→</span></button><div class="note">Stories stay in this browser until you choose to share them.</div>
+        </form>
+        <h2>Tonight's little spark</h2><div class="shelf" id="featured"></div>
+      </section>
+      <section id="libraryView" class="hidden"><div class="library-heading"><div class="eyebrow">YOUR SHELF</div><h1 id="libraryTitle">Stories for Maya</h1><p class="lede">Little worlds made for one very important reader.</p></div><div class="shelf" id="library"></div></section>
+      <section id="readerView" class="hidden"><div class="reader"><div id="readerCover" class="reader-cover cover"></div><div class="page-number" id="pageNumber"></div><h1 id="readerTitle"></h1><p class="story-text" id="readerText"></p><div class="reader-controls"><button id="back">Back</button><div class="dots" id="dots"></div><button id="next">Next</button></div><div class="reader-tools"><button class="text-action" id="returnToLibrary">Back to library</button><div><button class="text-action" id="printStory">Print story</button><button class="text-action danger" id="deleteStory">Delete</button></div></div></div></section>
+    </main>
+  </div><div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const initial={title:'Maya and the Lantern of Little Wishes',name:'Maya',theme:'Moonlight',pages:['One clear night, Maya found a tiny lantern waiting beneath the old garden gate.','Inside was a warm, golden light. It flickered once for every kind thought Maya had carried that day.','Maya held the lantern high. Its gentle glow helped the whole neighborhood find their way home.']};
+    let selectedTheme='Moonlight', current=initial, page=0;
+    let books=loadBooks();
+    const createView=document.querySelector('#createView'), libraryView=document.querySelector('#libraryView'), readerView=document.querySelector('#readerView');
+    const createNav=document.querySelector('#createNav'), libraryNav=document.querySelector('#libraryNav');
+    function loadBooks(){try{const saved=JSON.parse(localStorage.getItem('storySproutBooks')||'null');return Array.isArray(saved)&&saved.length?saved:[initial];}catch{return [initial];}}
+    function escapeHtml(value){const node=document.createElement('div');node.textContent=value;return node.innerHTML;}
+    function cover(book){const color={Moonlight:'#2d526b',Rainforest:'#477e50',Ocean:'#287ea1',Castle:'#a85f42'}[book.theme]||'#2d526b';return `<div class="cover" style="background:${color}"><span class="moon"></span><span class="hill"></span><span class="house"><span class="roof"></span></span></div>`}
+    function show(view){[createView,libraryView,readerView].forEach(item=>item.classList.add('hidden'));view.classList.remove('hidden');createNav.classList.toggle('active',view===createView);libraryNav.classList.toggle('active',view===libraryView);window.scrollTo({top:0,behavior:'smooth'});}
+    function save(){localStorage.setItem('storySproutBooks',JSON.stringify(books));}
+    function notify(message){const toast=document.querySelector('#toast');toast.textContent=message;toast.classList.add('show');window.setTimeout(()=>toast.classList.remove('show'),2200);}
+    function renderBooks(){const card=book=>`<button class="book" data-title="${encodeURIComponent(book.title)}">${cover(book)}<span class="book-copy"><h3>${escapeHtml(book.title)}</h3><p>${escapeHtml(book.theme)} adventure for ${escapeHtml(book.name)}</p><span class="open">Open book →</span></span></button>`;document.querySelector('#featured').innerHTML=card(books[0]);document.querySelector('#library').innerHTML=books.length?books.map(card).join(''):'<div class="library-empty">Your shelf is ready for its first story.</div>';document.querySelector('#libraryTitle').textContent=`Stories for ${books[0]?.name||'you'}`;document.querySelectorAll('.book').forEach(button=>button.addEventListener('click',()=>openBook(books.find(book=>book.title===decodeURIComponent(button.dataset.title)))));}
+    function openBook(book){current=book;page=0;renderReader();show(readerView);}
+    function renderReader(){document.querySelector('#readerCover').outerHTML=`<div id="readerCover" class="reader-cover">${cover(current)}</div>`;document.querySelector('#pageNumber').textContent=`PAGE ${page+1} OF ${current.pages.length}`;document.querySelector('#readerTitle').textContent=page===0?current.title:`Chapter ${page+1}`;document.querySelector('#readerText').textContent=current.pages[page];document.querySelector('#back').disabled=page===0;document.querySelector('#next').disabled=page===current.pages.length-1;document.querySelector('#dots').innerHTML=current.pages.map((_,index)=>`<span class="dot ${index===page?'active':''}"></span>`).join('');}
+    document.querySelector('#themes').addEventListener('click',event=>{const button=event.target.closest('.theme');if(!button)return;selectedTheme=button.dataset.theme;document.querySelectorAll('.theme').forEach(item=>item.classList.toggle('active',item===button));});
+    document.querySelector('#storyForm').addEventListener('submit',event=>{event.preventDefault();const name=document.querySelector('#name').value.trim()||'Your little reader';const adventure=document.querySelector('#adventure').value.trim()||'a brave little adventure';const place=selectedTheme.toLowerCase();const book={title:`${name} and the ${selectedTheme} Secret`,name,theme:selectedTheme,pages:[`On a bright ${place} morning, ${name} packed a small satchel and set out for ${adventure}.`,`Beyond the first winding path, ${name} discovered a hidden clue: being curious was the best kind of compass.`,`With a deep breath and a helpful idea, ${name} turned the clue into a wonderful new beginning.`]};books=[book,...books.filter(item=>item.title!==book.title)];save();renderBooks();openBook(book);});
+    createNav.addEventListener('click',()=>show(createView));libraryNav.addEventListener('click',()=>{renderBooks();show(libraryView)});document.querySelector('#back').addEventListener('click',()=>{if(page){page--;renderReader();}});document.querySelector('#next').addEventListener('click',()=>{if(page<current.pages.length-1){page++;renderReader();}});document.querySelector('#returnToLibrary').addEventListener('click',()=>{renderBooks();show(libraryView)});document.querySelector('#printStory').addEventListener('click',()=>window.print());document.querySelector('#deleteStory').addEventListener('click',()=>{if(!window.confirm(`Delete "${current.title}" from this browser?`))return;books=books.filter(book=>book.title!==current.title);if(!books.length)books=[initial];save();renderBooks();show(libraryView);notify('Story removed from your shelf.');});renderBooks();
+  </script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="api-app.js"></script>
+  <script src="privacy.js"></script>
+</body>
+</html>
