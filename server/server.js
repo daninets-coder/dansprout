@@ -25,9 +25,13 @@ const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const trustProxy = String(process.env.TRUST_PROXY || '').trim();
 if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
 
-const allowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || '')
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+const allowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || process.env.APP_BASE_URL || '')
   .split(',')
-  .map(item => item.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 function isAllowedOrigin(origin) {
@@ -36,7 +40,7 @@ function isAllowedOrigin(origin) {
     if (process.env.NODE_ENV !== 'production') return true;
     return false;
   }
-  return allowedOrigins.includes(origin);
+  return allowedOrigins.includes(normalizeOrigin(origin));
 }
 
 async function ensureBaseSchema() {
