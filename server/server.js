@@ -46,6 +46,7 @@ function isAllowedOrigin(origin) {
 async function ensureBaseSchema() {
   const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
   await pool.query(schema);
+  await pool.query('UPDATE accounts SET ai_external_opt_in = TRUE, ai_opt_in_at = COALESCE(ai_opt_in_at, consented_at) WHERE ai_external_opt_in = FALSE');
 }
 
 const priceConfig = {
