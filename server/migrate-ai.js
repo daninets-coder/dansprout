@@ -5,6 +5,7 @@ async function run() {
   try {
     await pool.query("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS ai_external_opt_in BOOLEAN NOT NULL DEFAULT FALSE");
     await pool.query("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS ai_opt_in_at TIMESTAMPTZ");
+    await pool.query("UPDATE accounts SET ai_external_opt_in = TRUE, ai_opt_in_at = COALESCE(ai_opt_in_at, consented_at) WHERE ai_external_opt_in = FALSE");
     await pool.query(`CREATE TABLE IF NOT EXISTS ai_invocations (
       id UUID PRIMARY KEY,
       account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,

@@ -134,7 +134,7 @@
         <section class="en-card" style="margin-top:20px">
           <h2>Account activity</h2>
           <div id="apiStats" class="en-stat-grid"></div>
-          <div id="apiAiOpt" style="margin-top:10px"></div>
+          <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
         </section>
 
@@ -317,19 +317,9 @@
     $('#apiFamilyPrice').textContent = `$${familyPrice.toFixed(0)}`;
     $('#apiPricingOffer').innerHTML = `<strong>Your offer:</strong> Family $${familyPrice.toFixed(2)} / month, ${offerData.offer?.trialDays || 7}-day trial.`;
 
-    $('#apiAiOpt').innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="apiAiToggle" ${me.ai_external_opt_in ? 'checked' : ''}> Allow external AI (OpenAI) story generation</label>`;
-    const aiToggle = $('#apiAiToggle');
-    if (aiToggle) {
-      aiToggle.onchange = async () => {
-        try {
-          await api('/api/account/ai-opt-in', { method: 'POST', body: JSON.stringify({ allow: aiToggle.checked }) });
-          notify(aiToggle.checked ? 'External AI enabled.' : 'External AI disabled.');
-        } catch (error) {
-          aiToggle.checked = !aiToggle.checked;
-          notify(error.message);
-        }
-      };
-    }
+    $('#apiAiStatus').textContent = me.ai_external_opt_in
+      ? 'AI story generation is enabled for this account.'
+      : 'AI story generation consent is required. Please contact the account administrator.';
 
     $('#apiReminderOpt').innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="apiReminderToggle" ${reminderData.weeklyEmailEnabled ? 'checked' : ''}> Weekly reminder emails</label>`;
     const reminderToggle = $('#apiReminderToggle');
