@@ -58,7 +58,6 @@
     '7': asset('images/buttons/7th Grade.jpg'),
     '8': asset('images/buttons/8th Grade.jpg'),
   };
-  const gradeLabels = { PreK: 'Pre-K', K: 'Kindergarten', '1': '1st Grade', '2': '2nd Grade', '3': '3rd Grade', '4': '4th Grade', '5': '5th Grade', '6': '6th Grade', '7': '7th Grade', '8': '8th Grade' };
   const themeBannerMap = {
     Moonlight: asset('images/banner/banner01.jpg'),
     Rainforest: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
@@ -112,8 +111,7 @@
             <select id="apiLearner" class="en-select"></select>
             <div style="width:100%">
               <label class="en-label">Grade level</label>
-              <select id="apiGradeLevel" class="en-select" aria-label="Grade level" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
-              <div id="apiGradeButtons" role="group" aria-label="Choose grade level" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:12px"></div>
+              <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
             </div>
             <div style="width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #e7d9c4">
               <label class="en-label">Reading skill for this grade</label>
@@ -219,19 +217,6 @@
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
   };
 
-  function renderGradeButtons() {
-    const select = $('#apiGradeLevel');
-    const container = $('#apiGradeButtons');
-    if (!select || !container) return;
-    container.innerHTML = Object.entries(gradeBadgeMap).map(([value, image]) => `<button type="button" class="apiGradeButton" data-grade="${value}" aria-label="${gradeLabels[value]}" aria-pressed="${select.value === value}" style="border:1px solid ${select.value === value ? '#43815b' : '#e7d9c4'};background:${select.value === value ? '#e2efdd' : '#fffdf9'};border-radius:6px;padding:6px;cursor:pointer"><img src="${image}" alt="${gradeLabels[value]}" style="display:block;width:100%;height:72px;object-fit:contain;border-radius:4px"></button>`).join('');
-    container.querySelectorAll('.apiGradeButton').forEach(button => {
-      button.onclick = () => {
-        select.value = button.dataset.grade;
-        select.dispatchEvent(new Event('change'));
-      };
-    });
-  }
-
   const domainNames = { oral_language: 'Oral Language', phonics: 'Phonics', fluency: 'Fluency', vocabulary: 'Vocabulary', comprehension: 'Comprehension', writing_response: 'Writing Response', social_emotional_reading: 'Reading Confidence & SEL' };
   async function loadCurriculumOptions(gradeLevel) {
     const goalSelect = $('#apiGoal');
@@ -298,7 +283,8 @@
     const assessmentMarkup = earlyReader ? '' : '<h3 class="book-modal-subtitle">Talk about it</h3><form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="book-modal-meta"></div>';
     const modalMeta = [story.learner_name || '', story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
-    inner.innerHTML = `<div class="book-modal-head"><h2 class="book-modal-title">${esc(story.title)}</h2><button id="closeApiStory" class="en-outline">Close</button></div><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}<img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
+    const modalGradeBadge = gradeBadgeMap[story?.content?.meta?.gradeLevel] || gradeBadgeMap['2'];
+    inner.innerHTML = `<div class="book-modal-head"><h2 class="book-modal-title">${esc(story.title)}</h2><button id="closeApiStory" class="en-outline">Close</button></div><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}<div style="display:flex;justify-content:center;margin-top:14px"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;width:min(260px,70%);height:82px;object-fit:contain;border-radius:8px"></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
 
@@ -507,11 +493,9 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
       if (id === 'apiGradeLevel') loadCurriculumOptions(el.value);
-      if (id === 'apiGradeLevel') renderGradeButtons();
       updateStoryVisual();
     });
   });
-  renderGradeButtons();
   loadCurriculumOptions($('#apiGradeLevel').value);
   $('#apiHome').onclick = () => show('home');
   $('#apiLogout').onclick = () => {
