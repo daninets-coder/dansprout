@@ -334,19 +334,30 @@
     const modalMeta = [story.learner_name || '', story.content?.meta?.customTheme || story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
     const modalGradeBadge = gradeBadgeMap[story?.content?.meta?.gradeLevel] || gradeBadgeMap['2'];
-    inner.innerHTML = `<div class="book-modal-head"><h2 class="book-modal-title">${esc(story.title)}</h2><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
+    inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eef5ec;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#597076">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
 
     const pagesEl = inner.querySelector('#apiStoryPages');
     const pages = story?.content?.pages || [];
     let idx = 0;
+    let textSize = 24;
+    const speak = text => {
+      if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    };
     const renderPage = () => {
-      pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text">${esc(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" ${idx === pages.length - 1 ? 'disabled' : ''}>Next</button></div></article>`;
+      pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text" style="font-size:${textSize}px">${esc(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count" aria-live="polite">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" ${idx === pages.length - 1 ? 'disabled' : ''}>Next</button></div></article>`;
       inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { idx -= 1; renderPage(); } };
       inner.querySelector('#nextPage').onclick = () => { if (idx < pages.length - 1) { idx += 1; renderPage(); } };
     };
     renderPage();
+    inner.querySelector('#apiReadPage').onclick = () => speak(pages[idx] || '');
+    inner.querySelector('#apiReadStory').onclick = () => speak(pages.join(' '));
+    inner.querySelector('#apiStopReading').onclick = () => window.speechSynthesis?.cancel();
+    inner.querySelector('#apiTextSmaller').onclick = () => { textSize = Math.max(18, textSize - 2); renderPage(); };
+    inner.querySelector('#apiTextLarger').onclick = () => { textSize = Math.min(34, textSize + 2); renderPage(); };
     const questions = story?.content?.questions || [];
     const assessment = inner.querySelector('#apiStoryAssessment');
     if (assessment) {
@@ -367,8 +378,8 @@
     }
     }
     inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div><strong>${esc(w.word)}</strong> — ${esc(w.meaning)}</div>`).join('') || '<p class="book-modal-empty">No words provided.</p>';
-    inner.querySelector('#closeApiStory').onclick = () => modal.remove();
-    modal.onclick = (event) => { if (event.target === modal) modal.remove(); };
+    inner.querySelector('#closeApiStory').onclick = () => { window.speechSynthesis?.cancel(); modal.remove(); };
+    modal.onclick = (event) => { if (event.target === modal) { window.speechSynthesis?.cancel(); modal.remove(); } };
     const revisionForm = inner.querySelector('#apiStoryRevision');
     if (revisionForm) revisionForm.onsubmit = async (event) => {
       event.preventDefault();
