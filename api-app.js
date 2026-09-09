@@ -141,6 +141,7 @@
             <div style="width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #e7d9c4">
               <label class="en-label">Reading skill for this grade</label>
               <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
+              <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
             </div>
             <label class="en-label">Choose a story world</label>
             <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
@@ -291,6 +292,8 @@
       const selectedStandard = goalSelect.value;
       goalSelect.innerHTML = rows.map(row => `<option value="${esc(row.standard_code)}" title="${esc(row.objective)}">${esc(row.strand)} (${esc(row.standard_code)})</option>`).join('');
       if ([...goalSelect.options].some(option => option.value === selectedStandard)) goalSelect.value = selectedStandard;
+      const selectedRow = rows.find(row => row.standard_code === goalSelect.value) || rows[0];
+      if (selectedRow) $('#apiGoalObjective').textContent = `${selectedRow.standard_code}: ${selectedRow.objective}`;
       updateStoryVisual();
     } catch (error) {
       notify(error.message);
@@ -617,6 +620,10 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
       if (id === 'apiGradeLevel') loadCurriculumOptions(el.value);
+      if (id === 'apiGoal') {
+        const selectedRow = curriculumOptions.find(row => row.standard_code === el.value);
+        if (selectedRow) $('#apiGoalObjective').textContent = `${selectedRow.standard_code}: ${selectedRow.objective}`;
+      }
       if (id === 'apiTheme') $('#apiCustomTheme').classList.toggle('hidden', el.value !== 'Custom');
       updateStoryVisual();
     });
