@@ -165,6 +165,18 @@
         </div>
 
         <section class="en-card" style="margin-top:20px">
+          <h2>Business scorecard</h2>
+          <div id="apiBusinessScore"></div>
+        </section>
+
+        <section class="en-card" style="margin-top:20px">
+          <h2>Saved stories</h2>
+          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Your most recent reports appear at the top.</p>
+          <input id="apiStorySearch" class="en-input" type="search" placeholder="Search stories by title, learner, world, or standard" aria-label="Search saved stories" style="margin-bottom:14px">
+          <div id="apiStoryList" class="story-list"></div>
+        </section>
+
+        <section class="en-card" style="margin-top:20px">
           <div class="en-eyebrow">FOR FAMILIES</div>
           <h2>How Story Sprout supports reading</h2>
           <p class="en-lede" style="font-size:15px;margin-top:8px">We turn reading practice into a story a child can understand, talk about, and return to.</p>
@@ -174,17 +186,6 @@
             <div class="en-stat"><strong>3</strong><span><b>Notice growth together.</b><br>Adults can listen, discuss the story, review difficult words, and follow completed reading work.</span></div>
           </div>
           <p style="margin:18px 0 0;color:#597076;font:13px/1.5 Arial,sans-serif">Our approach is conversation-first: the goal is not to rush a child through a score, but to help them build confidence, understanding, and a lasting relationship with reading.</p>
-        </section>
-
-        <section class="en-card" style="margin-top:20px">
-          <h2>Business scorecard</h2>
-          <div id="apiBusinessScore"></div>
-        </section>
-
-        <section class="en-card" style="margin-top:20px">
-          <h2>Saved stories</h2>
-          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Your most recent reports appear at the top.</p>
-          <div id="apiStoryList" class="story-list"></div>
         </section>
 
         <section class="en-card" style="margin-top:20px">
@@ -245,7 +246,7 @@
   showReadingSpark();
   setInterval(showReadingSpark, 8000);
 
-  const friendlySource = src => src === 'openai' ? 'OpenAI' : src === 'local_app' ? 'Local app' : src;
+  const friendlySource = src => src === 'openai' || src === 'openai_revision' ? 'AI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
     ['Home', 'Learners', 'Billing'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
     document.querySelectorAll('[data-api-view]').forEach(button => button.classList.toggle('active', button.dataset.apiView === name));
@@ -300,11 +301,30 @@
   function renderStoryList() {
     const container = $('#apiStoryList');
     if (!container) return;
+    const searchTerm = ($('#apiStorySearch')?.value || '').trim().toLowerCase();
+    const visibleStories = stories.filter(story => {
+      if (!searchTerm) return true;
+      const searchable = [
+        story.title,
+        story.learner_name,
+        story.theme,
+        story.prompt,
+        story.content?.meta?.customTheme,
+        story.content?.meta?.curriculumStandard,
+        story.content?.meta?.curriculumObjective,
+        ...(story.content?.pages || []),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return searchable.includes(searchTerm);
+    });
     if (!stories.length) {
       container.innerHTML = '<p>No saved stories yet.</p>';
       return;
     }
-    container.innerHTML = stories.map(s => {
+    if (!visibleStories.length) {
+      container.innerHTML = '<p>No stories match that search.</p>';
+      return;
+    }
+    container.innerHTML = visibleStories.map(s => {
       const gradeLabel = s?.content?.meta?.gradeLevel ? `Grade ${s.content.meta.gradeLevel}` : '';
       const domainLabel = s?.content?.meta?.domain ? s.content.meta.domain.replaceAll('_', ' ') : '';
       const objectiveLabel = s?.content?.meta?.curriculumObjective || '';
@@ -319,6 +339,8 @@
       };
     });
   }
+
+  $('#apiStorySearch').addEventListener('input', renderStoryList);
 
   async function openServerStory(story) {
     if (!story?.content?.words?.length) {
