@@ -171,7 +171,7 @@ app.use('/api/stories/generate', storyGenerationLimiter);
 
 const registerSchema = z.object({
   email: z.string().email().max(120).transform(value => value.trim().toLowerCase()),
-  password: z.string().min(12).max(128),
+  password: z.string().min(6).max(128),
   displayName: z.string().trim().min(2).max(60),
   role: z.enum(['parent', 'teacher']).default('parent'),
   guardianConsent: z.literal(true),
@@ -180,7 +180,7 @@ const registerSchema = z.object({
 });
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
-const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(12).max(128) });
+const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(6).max(128) });
 const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'family', 'classroom']) });
 const storySchema = z.object({
