@@ -393,7 +393,17 @@
     const speak = text => {
       if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
+        || voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
+        || voices.find(voice => /en-US/i.test(voice.lang));
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (femaleVoice) utterance.voice = femaleVoice;
+      utterance.lang = 'en-US';
+      utterance.rate = 0.92;
+      utterance.pitch = 1.05;
+      utterance.volume = 0.95;
+      window.speechSynthesis.speak(utterance);
     };
     const renderWordGarden = () => {
       inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div><strong>${esc(w.word)}</strong> — ${esc(w.meaning)}</div>`).join('') || '<p class="book-modal-empty">No words saved yet. Click a story word or refresh the garden.</p>';
@@ -467,9 +477,7 @@
         button.onclick = () => {
           const question = questions[Number(button.dataset.questionIndex)];
           const text = typeof question === 'string' ? question : question.prompt || '';
-          if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+          speak(text);
         };
       });
     }
