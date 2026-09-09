@@ -407,6 +407,14 @@
     reportButton.className = 'en-outline';
     reportButton.textContent = 'Report safety concern';
     inner.querySelector('.book-modal-actions').appendChild(reportButton);
+    const reportForm = document.createElement('form');
+    reportForm.id = 'apiSafetyReportForm';
+    reportForm.className = 'hidden';
+    reportForm.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding:10px;background:#fff4e3;border:1px solid #ead8bb;border-radius:8px';
+    reportForm.innerHTML = '<select id="apiSafetyCategory" class="en-select" aria-label="Safety report category" style="width:auto"><option value="unsafe_content">Unsafe content</option><option value="incorrect_content">Incorrect content</option><option value="privacy_concern">Privacy concern</option><option value="other">Other</option></select><input id="apiSafetyDetails" class="en-input" maxlength="1000" placeholder="What should we review?" aria-label="Safety report details" style="flex:1;min-width:190px"><button type="submit" class="en-button">Send report</button><button type="button" id="apiCancelSafetyReport" class="en-outline">Cancel</button>';
+    inner.querySelector('.book-modal-actions').after(reportForm);
+    reportButton.onclick = () => { reportForm.classList.remove('hidden'); reportButton.classList.add('hidden'); reportForm.querySelector('#apiSafetyDetails').focus(); };
+    reportForm.querySelector('#apiCancelSafetyReport').onclick = () => { reportForm.classList.add('hidden'); reportButton.classList.remove('hidden'); };
     if (story.completed_at) {
       const completeButton = inner.querySelector('#apiCompleteStory');
       completeButton.disabled = true;
@@ -568,11 +576,14 @@
         notify(error.message);
       }
     };
-    inner.querySelector('#apiReportSafety').onclick = async () => {
-      const details = window.prompt('Tell us what needs review. Do not include private child information.');
-      if (details === null) return;
+    reportForm.onsubmit = async event => {
+      event.preventDefault();
+      const details = reportForm.querySelector('#apiSafetyDetails').value.trim();
       try {
-        await api(`/api/stories/${story.id}/safety-report`, { method: 'POST', body: JSON.stringify({ category: 'unsafe_content', details }) });
+        await api(`/api/stories/${story.id}/safety-report`, { method: 'POST', body: JSON.stringify({ category: reportForm.querySelector('#apiSafetyCategory').value, details }) });
+        reportForm.classList.add('hidden');
+        reportButton.classList.remove('hidden');
+        reportForm.reset();
         notify('Safety report submitted for review.');
       } catch (error) {
         notify(error.message);
