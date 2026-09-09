@@ -80,6 +80,14 @@
     ['Sky', '☁️'], ['Space', '🚀'], ['Dinosaurs', '🦕'], ['Arctic', '❄️'], ['Farm', '🐄'],
     ['City', '🏙️'], ['Jungle', '🐒'], ['Desert', '🏜️'], ['Underwater', '🐠'], ['Fairytale', '🧚'],
   ];
+    const readingSparks = [
+      'Reading grows imagination one page at a time.',
+      'Reading helps us notice new ideas and different points of view.',
+      'Every story gives a reader another way to wonder.',
+      'Reading builds words, confidence, and curiosity.',
+      'A story can help a child name a feeling and find a possibility.',
+      'Reading lets us travel far while we stay right where we are.',
+    ];
   const domainIconMap = {
     comprehension: asset('images/Random2/book.png'),
     vocabulary: asset('images/Random2/alphabet-a.png'),
@@ -148,6 +156,10 @@
             <p>Only the signed-in parent or teacher can access their learner profiles and stories.</p>
             <img src="${asset('images/Speak/speakpanda.png')}" class="trial-mascot" alt="Friendly reading panda">
             <div id="apiPricingOffer" style="margin-top:10px;font-size:13px"></div>
+            <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e5d5bf">
+              <div class="en-eyebrow">A READING SPARK</div>
+              <p id="apiReadingSpark" style="margin:7px 0 0;color:#fff;font-size:17px;line-height:1.4"></p>
+            </div>
           </aside>
         </div>
 
@@ -209,6 +221,16 @@
     </main>
     <div id="apiToast" class="toast" role="status" aria-live="polite"></div>
   `;
+
+  let readingSparkIndex = 0;
+  const readingSpark = $('#apiReadingSpark');
+  const showReadingSpark = () => {
+    if (!readingSpark) return;
+    readingSpark.textContent = readingSparks[readingSparkIndex % readingSparks.length];
+    readingSparkIndex += 1;
+  };
+  showReadingSpark();
+  setInterval(showReadingSpark, 8000);
 
   const friendlySource = src => src === 'openai' ? 'OpenAI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
