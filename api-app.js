@@ -378,7 +378,10 @@
     const pages = story?.content?.pages || [];
     let idx = 0;
     let textSize = 24;
-    const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, word => `<button type="button" class="apiStoryWord" data-word="${esc(word.toLowerCase())}" style="border:0;border-bottom:1px dashed #b35d3e;background:transparent;color:inherit;padding:0;cursor:pointer">${esc(word)}</button>`);
+    const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, (word, offset, fullText) => {
+      const firstLetter = fullText.slice(0, offset).match(/[A-Za-z]/) ? '' : `<span style="font-size:1.85em;line-height:.8;color:#b35d3e;font-weight:700">${esc(word[0])}</span>`;
+      return `<button type="button" class="apiStoryWord" data-word="${esc(word.toLowerCase())}" style="border:0;border-bottom:1px dashed #b35d3e;background:transparent;color:inherit;padding:0;cursor:pointer">${firstLetter}${esc(firstLetter ? word.slice(1) : word)}</button>`;
+    });
     const speak = text => {
       if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
       window.speechSynthesis.cancel();
