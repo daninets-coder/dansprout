@@ -135,20 +135,21 @@
         </div>
 
         <section class="en-card" style="margin-top:20px">
-          <h2>Account activity</h2>
-          <div id="apiStats" class="en-stat-grid"></div>
-          <div id="apiAiStatus" style="margin-top:10px"></div>
-          <div id="apiReminderOpt" style="margin-top:10px"></div>
-        </section>
-
-        <section class="en-card" style="margin-top:20px">
           <h2>Business scorecard</h2>
           <div id="apiBusinessScore"></div>
         </section>
 
         <section class="en-card" style="margin-top:20px">
           <h2>Saved stories</h2>
+          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Your most recent reports appear at the top.</p>
           <div id="apiStoryList" class="story-list"></div>
+        </section>
+
+        <section class="en-card" style="margin-top:20px">
+          <h2>Account activity</h2>
+          <div id="apiStats" class="en-stat-grid"></div>
+          <div id="apiAiStatus" style="margin-top:10px"></div>
+          <div id="apiReminderOpt" style="margin-top:10px"></div>
         </section>
 
         <section class="en-card hidden" id="apiTeacherTools" style="margin-top:20px">
