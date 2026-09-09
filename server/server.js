@@ -199,11 +199,22 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
 });
 app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next) => {
   try {
+    const bodySchema = z.object({ word: z.string().trim().min(1).max(80).optional(), refresh: z.boolean().optional() });
+    const parsed = bodySchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid vocabulary request.' });
     const storyRes = await pool.query('SELECT s.id, s.content FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const story = storyRes.rows[0];
     const gradeLevel = story.content?.meta?.gradeLevel || 'K';
-    const words = await fillVocabulary(story.content?.words, story.content?.pages || [], gradeLevel, process.env.OPENAI_API_KEY);
+    const pages = story.content?.pages || [];
+    let words;
+    if (parsed.data.word) {
+      const selected = await defineStoryWord(parsed.data.word, pages, gradeLevel, process.env.OPENAI_API_KEY);
+      const existing = Array.isArray(story.content?.words) ? story.content.words.filter(item => item.word?.toLowerCase() !== selected.word) : [];
+      words = [selected, ...existing].slice(0, 12);
+    } else {
+      words = await fillVocabulary(parsed.data.refresh ? [] : story.content?.words, pages, gradeLevel, process.env.OPENAI_API_KEY);
+    }
     const content = { ...story.content, words };
     const updated = await pool.query('UPDATE stories SET content = $1 WHERE id = $2 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [content, story.id]);
     return res.json({ story: updated.rows[0] });
@@ -646,6 +657,28 @@ async function fillVocabulary(words, pages, gradeLevel, apiKey) {
     // Keep the story usable if the vocabulary follow-up is unavailable.
   }
   return cleanWords.length ? cleanWords : candidates.map(word => ({ word, meaning: 'A useful story word to learn and talk about.' }));
+}
+
+async function defineStoryWord(word, pages, gradeLevel, apiKey) {
+  const normalized = cleanText(word).toLowerCase();
+  if (!wordAppearsInPages(normalized, pages)) throw new Error('That word is not in this story.');
+  if (!apiKey) throw new Error('AI vocabulary help is not configured.');
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: 'Define one story word in one short, concrete, child-friendly sentence for the supplied grade. Return JSON with word and meaning.' }, { role: 'user', content: JSON.stringify({ word: normalized, gradeLevel, storyPages: pages }) }],
+    }),
+  });
+  if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
+  const payload = await response.json();
+  const result = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
+  const meaning = cleanText(result.meaning);
+  if (!meaning) throw new Error('A definition was not returned.');
+  return { word: normalized, meaning };
 }
 
 const blockedPromptPatterns = [
