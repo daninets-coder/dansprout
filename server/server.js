@@ -606,16 +606,24 @@ function extractTextValue(item) {
 }
 
 function vocabularyCandidates(pages) {
-  const stopWords = new Set('about after again all also and are around because been before being could every from have into just like more once only other over said some than that their them then there these they this through very were what when where which with would your'.split(' '));
-  return [...new Set(String(pages.join(' ')).toLowerCase().match(/[a-z]{6,}/g) || [])]
-    .filter(word => !stopWords.has(word))
-    .slice(0, 3);
+  const stopWords = new Set('about after again all also and are around because been before being could every first from have into just like little more once only other over said some than that their them then there these they this through very were what when where which with would your'.split(' '));
+  const wordsByPage = pages.map(page => [...new Set(String(page).toLowerCase().match(/[a-z]{5,}/g) || [])]);
+  const candidates = [...new Set(wordsByPage.flat())].filter(word => !stopWords.has(word));
+  return candidates
+    .sort((left, right) => right.length - left.length || left.localeCompare(right))
+    .slice(0, 8);
+}
+
+function wordAppearsInPages(word, pages) {
+  const normalized = String(word || '').toLowerCase().replace(/[^a-z']/g, '');
+  if (normalized.length < 5) return false;
+  return pages.some(page => new RegExp(`\\b${normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(page)));
 }
 
 async function fillVocabulary(words, pages, gradeLevel, apiKey) {
-  const cleanWords = (Array.isArray(words) ? words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning).slice(0, 3);
-  if (cleanWords.length >= 2) return cleanWords;
   const candidates = vocabularyCandidates(pages);
+  const cleanWords = (Array.isArray(words) ? words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning && wordAppearsInPages(item.word, pages) && candidates.includes(item.word.toLowerCase())).slice(0, 3);
+  if (cleanWords.length >= 2) return cleanWords;
   if (!candidates.length) return cleanWords;
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -625,13 +633,13 @@ async function fillVocabulary(words, pages, gradeLevel, apiKey) {
         model: 'gpt-4o-mini',
         temperature: 0.2,
         response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: 'Choose 2 or 3 useful vocabulary words from the story and define each in one short, child-friendly sentence. Return JSON with a words array containing word and meaning.' }, { role: 'user', content: JSON.stringify({ gradeLevel, wordsToExplain: candidates, storyPages: pages }) }],
+        messages: [{ role: 'system', content: 'Choose 2 or 3 of the most challenging and useful vocabulary words from the supplied story candidates. Every chosen word must appear in the story pages. Define each in one short, child-friendly sentence appropriate for the grade. Return JSON with a words array containing word and meaning.' }, { role: 'user', content: JSON.stringify({ gradeLevel, wordsToExplain: candidates, storyPages: pages }) }],
       }),
     });
     if (response.ok) {
       const payload = await response.json();
       const generated = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
-      const completed = (Array.isArray(generated.words) ? generated.words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning).slice(0, 3);
+      const completed = (Array.isArray(generated.words) ? generated.words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning && wordAppearsInPages(item.word, pages) && candidates.includes(item.word.toLowerCase())).slice(0, 3);
       if (completed.length >= 2) return completed;
     }
   } catch {
