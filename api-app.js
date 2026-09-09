@@ -165,6 +165,18 @@
         </div>
 
         <section class="en-card" style="margin-top:20px">
+          <div class="en-eyebrow">FOR FAMILIES</div>
+          <h2>How Story Sprout supports reading</h2>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">We turn reading practice into a story a child can understand, talk about, and return to.</p>
+          <div class="en-stat-grid" style="margin-top:18px">
+            <div class="en-stat"><strong>1</strong><span><b>Start with the right goal.</b><br>Choose a grade and a U.S. reading benchmark so the story has a clear learning purpose.</span></div>
+            <div class="en-stat"><strong>2</strong><span><b>Practice through a story.</b><br>AI adjusts the language, sentence length, questions, and vocabulary for the selected grade.</span></div>
+            <div class="en-stat"><strong>3</strong><span><b>Notice growth together.</b><br>Adults can listen, discuss the story, review difficult words, and follow completed reading work.</span></div>
+          </div>
+          <p style="margin:18px 0 0;color:#597076;font:13px/1.5 Arial,sans-serif">Our approach is conversation-first: the goal is not to rush a child through a score, but to help them build confidence, understanding, and a lasting relationship with reading.</p>
+        </section>
+
+        <section class="en-card" style="margin-top:20px">
           <h2>Business scorecard</h2>
           <div id="apiBusinessScore"></div>
         </section>
