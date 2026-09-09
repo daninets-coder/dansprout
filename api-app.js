@@ -110,13 +110,13 @@
             <p>Choose a learner, select a reading skill, and generate a story aligned to a reading objective.</p>
             <label class="en-label">Learner</label>
             <select id="apiLearner" class="en-select"></select>
-            <div>
+            <div style="width:100%">
               <label class="en-label">Grade level</label>
               <select id="apiGradeLevel" class="en-select" aria-label="Grade level" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
               <div id="apiGradeButtons" role="group" aria-label="Choose grade level" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:12px"></div>
             </div>
-            <div style="margin-top:20px">
-              <label class="en-label">Reading skill</label>
+            <div style="width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #e7d9c4">
+              <label class="en-label">Reading skill for this grade</label>
               <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
             </div>
             <label class="en-label">Story world</label>
