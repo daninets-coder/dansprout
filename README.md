@@ -69,6 +69,12 @@ placing illustrations in object storage/CDN rather than the database.
 - The direct-file demo stores its data only in the current browser's local
 	storage.
 - The server mode protects API actions with an authenticated adult account.
+- Public Privacy Policy and Terms of Service drafts are available before sign-in
+	and from the authenticated workspace.
+- Adult consent is required at registration, and the Privacy & data settings
+	provide account deletion and JSON data export.
+- Privacy disclosures identify OpenAI, Stripe, PostgreSQL, and Railway as
+	service providers and describe retention and deletion behavior.
 - Story prompts apply a basic local age-appropriateness screen in demo mode.
 - The product intentionally has no public story gallery, child messaging, or
 	advertising.
@@ -77,6 +83,8 @@ placing illustrations in object storage/CDN rather than the database.
 - Privacy & data settings explain collection and consent, keep payment details
 	with the payment provider, and provide subscription cancellation and account
 	deletion controls.
+- COPPA, FERPA, state privacy, and school procurement review remain required
+	before public or school deployment; the app does not claim legal certification.
 
 ## Quick Start: Browser Demo
 
