@@ -120,6 +120,7 @@
       <nav class="en-nav">
         <button data-api-view="home" class="active">Home</button>
         <button data-api-view="learners">Learners</button>
+        <button data-api-view="progress">Progress</button>
         <button data-api-view="billing">Plans & billing</button>
       </nav>
       <div style="display:flex;gap:8px">
@@ -175,11 +176,6 @@
         </div>
 
         <section class="en-card" style="margin-top:20px">
-          <h2>Business scorecard</h2>
-          <div id="apiBusinessScore"></div>
-        </section>
-
-        <section class="en-card" style="margin-top:20px">
           <h2>Saved stories</h2>
           <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Your most recent reports appear at the top.</p>
           <input id="apiStorySearch" class="en-input" type="search" placeholder="Search stories by title, learner, world, or standard" aria-label="Search saved stories" style="margin-bottom:14px">
@@ -199,21 +195,19 @@
         </section>
 
         <section class="en-card" style="margin-top:20px">
-          <h2>Account activity</h2>
+          <h2>Learner progress</h2>
           <div id="apiStats" class="en-stat-grid"></div>
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
         </section>
 
-        <section class="en-card hidden" id="apiTeacherTools" style="margin-top:20px">
-          <h2>School pilot tools</h2>
-          <p style="color:#555">Import learners with CSV rows: first_name,age_band,interests,topics_to_avoid</p>
-          <textarea id="apiRosterCsv" class="en-input" style="min-height:120px" placeholder="Maya,6-8,space,none\nJordan,9-11,oceans,storms"></textarea>
-          <div style="display:flex;gap:8px;margin-top:10px">
-            <button id="apiImportRoster" class="en-button">Import roster CSV</button>
-            <button id="apiDownloadPdf" class="en-outline">Download progress PDF</button>
-          </div>
-        </section>
+      </section>
+
+      <section id="apiProgressView" class="hidden">
+        <div class="en-eyebrow">ADULT PROGRESS TOOLS</div>
+        <h1 class="en-title">Progress and school tools.</h1>
+        <p class="en-lede">Review business signals, export classroom progress, and manage adult-facing reporting here.</p>
+        <div id="apiProgressDestination"></div>
       </section>
 
       <section id="apiLearnersView" class="hidden">
@@ -256,9 +250,20 @@
   showReadingSpark();
   setInterval(showReadingSpark, 8000);
 
+  const progressDestination = $('#apiProgressDestination');
+  if (progressDestination) {
+    const scorecard = $('#apiBusinessScore')?.closest('.en-card');
+    const teacherTools = $('#apiTeacherTools');
+    if (scorecard) progressDestination.appendChild(scorecard);
+    if (teacherTools) progressDestination.appendChild(teacherTools);
+  }
+  const homeFamilyGuidance = [...document.querySelectorAll('#apiHomeView .en-card')].find(card => card.querySelector('.en-eyebrow')?.textContent === 'FOR FAMILIES');
+  const learnerProgressCard = $('#apiStats')?.closest('.en-card');
+  if (homeFamilyGuidance && learnerProgressCard) learnerProgressCard.after(homeFamilyGuidance);
+
   const friendlySource = src => src === 'openai' || src === 'openai_revision' ? 'AI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
-    ['Home', 'Learners', 'Billing'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
+    ['Home', 'Learners', 'Progress', 'Billing'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
     document.querySelectorAll('[data-api-view]').forEach(button => button.classList.toggle('active', button.dataset.apiView === name));
   };
 
@@ -402,11 +407,25 @@
     reportButton.className = 'en-outline';
     reportButton.textContent = 'Report safety concern';
     inner.querySelector('.book-modal-actions').appendChild(reportButton);
+    if (story.completed_at) {
+      const completeButton = inner.querySelector('#apiCompleteStory');
+      completeButton.disabled = true;
+      completeButton.textContent = 'Story complete';
+    }
+    const voiceSelect = document.createElement('select');
+    voiceSelect.id = 'apiVoiceSelect';
+    voiceSelect.className = 'en-select';
+    voiceSelect.setAttribute('aria-label', 'Narration voice');
+    voiceSelect.style.width = 'auto';
+    voiceSelect.style.marginLeft = 'auto';
+    voiceSelect.innerHTML = '<option value="">Natural voice</option>';
+    inner.querySelector('.reader-toolbar').insertBefore(voiceSelect, inner.querySelector('.reader-toolbar span'));
 
     const pagesEl = inner.querySelector('#apiStoryPages');
     const pages = story?.content?.pages || [];
     let idx = 0;
     let textSize = 24;
+    const learnedWords = new Set();
     const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, (word, offset, fullText) => {
       const firstLetter = fullText.slice(0, offset).match(/[A-Za-z]/) ? '' : `<span style="font-size:1.85em;line-height:.8;color:#b35d3e;font-weight:700">${esc(word[0])}</span>`;
       return `<button type="button" class="apiStoryWord" data-word="${esc(word.toLowerCase())}" style="border:0;border-bottom:1px dashed #b35d3e;background:transparent;color:inherit;padding:0;cursor:pointer">${firstLetter}${esc(firstLetter ? word.slice(1) : word)}</button>`;
@@ -415,7 +434,8 @@
       if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
       window.speechSynthesis.cancel();
       const voices = window.speechSynthesis.getVoices();
-      const femaleVoice = voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
+      const selectedVoice = voices.find(voice => voice.name === voiceSelect.value);
+      const femaleVoice = selectedVoice || voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
         || voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
         || voices.find(voice => /en-US/i.test(voice.lang));
       const utterance = new SpeechSynthesisUtterance(text);
@@ -426,8 +446,19 @@
       utterance.volume = 0.95;
       window.speechSynthesis.speak(utterance);
     };
+    const populateVoiceChoices = () => {
+      const selected = voiceSelect.value;
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      voiceSelect.innerHTML = '<option value="">Natural voice</option>' + voices.filter(voice => /^en(-|_)/i.test(voice.lang)).map(voice => `<option value="${esc(voice.name)}">${esc(voice.name)}</option>`).join('');
+      if ([...voiceSelect.options].some(option => option.value === selected)) voiceSelect.value = selected;
+    };
+    populateVoiceChoices();
+    window.speechSynthesis?.addEventListener('voiceschanged', populateVoiceChoices);
     const renderWordGarden = () => {
-      inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div><strong>${esc(w.word)}</strong> — ${esc(w.meaning)}</div>`).join('') || '<p class="book-modal-empty">No words saved yet. Click a story word or refresh the garden.</p>';
+      inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div class="word-card ${learnedWords.has(w.word.toLowerCase()) ? 'learned' : ''}"><div><strong>${esc(w.word)}</strong><div style="margin-top:3px;color:#597076;font:13px/1.4 Arial,sans-serif">${esc(w.meaning)}</div></div><button type="button" class="apiLearnWord" data-word="${esc(w.word.toLowerCase())}">${learnedWords.has(w.word.toLowerCase()) ? 'Learned' : 'I learned this word'}</button></div>`).join('') || '<p class="book-modal-empty">No words saved yet. Click a story word or refresh the garden.</p>';
+      inner.querySelectorAll('.apiLearnWord').forEach(button => {
+        button.onclick = () => { learnedWords.add(button.dataset.word); renderWordGarden(); };
+      });
     };
     function bindStoryWords() {
       pagesEl.querySelectorAll('.apiStoryWord').forEach(button => {
@@ -550,7 +581,9 @@
     inner.querySelector('#apiCompleteStory').onclick = async () => {
       try {
         await api(`/api/stories/${story.id}/complete`, { method: 'PATCH' });
-        inner.querySelector('#apiUpgradeCta').innerHTML = '<div>Great work. Next step: choose Family plan to keep weekly story momentum.</div>';
+        inner.querySelector('#apiCompleteStory').disabled = true;
+        inner.querySelector('#apiCompleteStory').textContent = 'Story complete';
+        inner.querySelector('#apiUpgradeCta').innerHTML = '<div class="story-finished-state">Story finished. Nice reading work.</div>';
         await refresh();
         notify('Story marked completed.');
       } catch (error) {
