@@ -177,11 +177,11 @@
       <section id="apiBillingView" class="hidden">
         <div class="en-eyebrow">PLANS AND BILLING</div>
         <h1 class="en-title">Choose the right shelf size.</h1>
-        <p class="en-lede">Use demo selection for local testing, or launch Stripe checkout for paid pilots.</p>
+        <p class="en-lede">Choose a free demo or start a monthly subscription through Stripe.</p>
         <div class="plan-grid">
           <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
-          <article class="plan selected"><h3>Family</h3><div class="plan-price" id="apiFamilyPrice">$8</div><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
-          <article class="plan"><h3>Classroom</h3><div class="plan-price">$18</div><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
+          <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$8</span> <small>/ month</small></div><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
+          <article class="plan"><h3>Classroom</h3><div class="plan-price">$18 <small>/ month</small></div><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
         </div>
         <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p></div>
       </section>
