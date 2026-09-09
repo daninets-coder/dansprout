@@ -440,6 +440,24 @@
     const questions = story?.content?.questions || [];
     const assessment = inner.querySelector('#apiStoryAssessment');
     if (assessment) {
+      const reviewPanel = document.createElement('section');
+      reviewPanel.id = 'apiAdultReview';
+      reviewPanel.className = 'book-modal-edit hidden';
+      reviewPanel.innerHTML = '<h3 class="book-modal-subtitle">Adult review</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">The response is complete, but mastery is not determined automatically. Review the answer using the selected reading standard.</p><form id="apiAdultReviewForm"><label class="en-label">Review score (0-100)<input id="apiReviewScore" class="en-input" type="number" min="0" max="100" required></label><label class="en-label" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="apiReviewMastered" type="checkbox"> Mark this standard as mastered</label><label class="en-label" style="display:block;margin-top:10px">Review notes<textarea id="apiReviewNotes" class="en-input" rows="2" maxlength="1000" placeholder="What evidence did the reader show?"></textarea></label><button type="submit" class="en-outline" style="margin-top:10px">Save adult review</button></form><p id="apiReviewStatus" class="book-modal-meta"></p>';
+      inner.querySelector('#apiAssessmentResult').after(reviewPanel);
+      reviewPanel.querySelector('#apiAdultReviewForm').onsubmit = async event => {
+        event.preventDefault();
+        try {
+          const result = await api(`/api/stories/${story.id}/assessment/review`, { method: 'PATCH', body: JSON.stringify({ score: Number(reviewPanel.querySelector('#apiReviewScore').value), mastered: reviewPanel.querySelector('#apiReviewMastered').checked, notes: reviewPanel.querySelector('#apiReviewNotes').value }) });
+          reviewPanel.querySelector('#apiReviewStatus').textContent = result.assessment.mastered ? 'Reviewed: standard marked mastered.' : 'Reviewed: keep practicing this standard.';
+          await refresh();
+          notify('Adult review saved.');
+        } catch (error) {
+          notify(error.message);
+        }
+      };
+    }
+    if (assessment) {
     assessment.innerHTML = questions.map((question, questionIndex) => earlyReader
       ? `<div class="en-label" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><span style="flex:1">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}</span><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">Read aloud</button></div>`
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length && !earlyReader ? '<button type="submit" class="en-button" style="margin-top:14px">Save reading response</button>' : (!questions.length ? '<p class="book-modal-empty">No questions provided.</p>' : ''));
@@ -481,7 +499,8 @@
       try {
         const responses = [...assessment.querySelectorAll('.apiAssessmentAnswer')].map(input => earlyReader ? (input.checked ? input.value : '') : input.value);
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
-        inner.querySelector('#apiAssessmentResult').textContent = result.mastered ? `Saved. ${result.score}% mastery on this reading skill.` : `Saved. ${result.score}% answered. Keep practicing this skill.`;
+        inner.querySelector('#apiAssessmentResult').textContent = 'Reading response saved. Mastery is pending adult review.';
+        inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
         await refresh();
         notify('Reading response saved.');

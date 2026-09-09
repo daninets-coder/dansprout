@@ -195,11 +195,27 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
     const total = Math.min(questions.length, parsed.data.responses.length);
     const answered = parsed.data.responses.slice(0, total).filter(Boolean).length;
-    const score = total ? Math.round((answered / total) * 100) : 0;
-    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, parsed.data.responses.slice(0, total), score, score >= 80]);
+    const score = 0;
+    const storyMeta = storyRes.rows[0].content?.meta || {};
+    const evidence = { standardCode: storyMeta.curriculumStandard || null, objective: storyMeta.curriculumObjective || null, answered, questionCount: questions.length };
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, parsed.data.responses.slice(0, total), score, false, 'pending', 0.25, evidence]);
     await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1', [req.params.storyId]);
     await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId, assessmentScore: score });
-    return res.status(201).json({ score, mastered: score >= 80, answered: total });
+    return res.status(201).json({ score: null, mastered: false, reviewStatus: 'pending', confidence: 0.25, answered: total, message: 'Reading response saved for adult review.' });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.patch('/api/stories/:storyId/assessment/review', requireAuth, async (req, res, next) => {
+  try {
+    const bodySchema = z.object({ score: z.number().int().min(0).max(100), mastered: z.boolean(), notes: z.string().trim().max(1000).default('') });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Enter a score from 0 to 100 and choose a mastery result.' });
+    const storyRes = await pool.query('SELECT s.id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const updated = await pool.query("UPDATE reading_assessments SET score = $1, mastered = $2, review_status = CASE WHEN reviewed_at IS NULL THEN 'reviewed' ELSE 'corrected' END, reviewed_by = $3, reviewed_at = NOW(), review_notes = $4, confidence = 1.00 WHERE id = (SELECT id FROM reading_assessments WHERE story_id = $5 AND learner_id = (SELECT learner_id FROM stories WHERE id = $5) ORDER BY created_at DESC LIMIT 1) RETURNING score, mastered, review_status, review_notes, standards_evidence", [parsed.data.score, parsed.data.mastered, req.auth.sub, parsed.data.notes, req.params.storyId]);
+    if (!updated.rowCount) return res.status(404).json({ error: 'No reading response is waiting for review.' });
+    return res.json({ assessment: updated.rows[0] });
   } catch (error) {
     return next(error);
   }
@@ -230,7 +246,7 @@ app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next)
     return next(error);
   }
 });
-app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS average_assessment_score FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE AND ra.review_status IN ('reviewed', 'corrected')) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.review_status IN ('reviewed', 'corrected')), 0) AS average_assessment_score FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, next) => {
   try {
     const bodySchema = z.object({ category: z.enum(['unsafe_content', 'incorrect_content', 'privacy_concern', 'other']), details: z.string().trim().max(1000).default('') });
@@ -520,6 +536,13 @@ async function trackGrowthEvent(accountId, eventName, metadata = null) {
 
 async function ensureGrowthSchema() {
   await pool.query("ALTER TABLE stories ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'local_app'");
+  await pool.query("ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'pending'");
+  await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES accounts(id) ON DELETE SET NULL');
+  await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ');
+  await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS review_notes TEXT');
+  await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS confidence NUMERIC(3,2) NOT NULL DEFAULT 0.25');
+  await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS standards_evidence JSONB');
+  await pool.query("UPDATE reading_assessments SET mastered = FALSE, score = 0, review_status = 'pending', confidence = 0.25 WHERE reviewed_at IS NULL AND review_status = 'pending'");
   await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_customer_id TEXT');
   await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_subscription_id TEXT');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT');
