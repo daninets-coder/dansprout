@@ -149,7 +149,6 @@
             <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
             <button id="apiCreate" class="en-button" style="margin-top:16px;width:100%">Generate reading-aligned story</button>
             <div class="story-visual" id="apiStoryVisual"><img id="apiThemeImage" class="story-visual-banner" alt="Story world image"><div class="story-visual-overlay"><img id="apiGradeBadge" class="story-visual-grade" alt="Grade badge"><img id="apiDomainIcon" class="story-visual-icon" alt="Reading skill icon"></div></div>
-            <div id="apiNextStoryHint" style="margin-top:12px;color:#5d5d5d;font-size:13px"></div>
           </section>
           <aside class="en-card trial">
             <span class="en-badge" id="apiPlanBadge">PLAN</span>
@@ -557,16 +556,6 @@
 
     const teacherTools = $('#apiTeacherTools');
     if (teacherTools) teacherTools.classList.toggle('hidden', me.role !== 'teacher');
-
-    if (learners.length) {
-      try {
-        const nextData = await api(`/api/learners/${learners[0].id}/next-story`);
-        const suggestion = nextData.nextBestStory;
-        $('#apiNextStoryHint').textContent = suggestion ? `Next suggestion: ${suggestion.objective}` : '';
-      } catch {
-        $('#apiNextStoryHint').textContent = '';
-      }
-    }
 
     renderStoryList();
     updateStoryVisual();
