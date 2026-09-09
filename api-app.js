@@ -282,8 +282,20 @@
     const questions = story?.content?.questions || [];
     const assessment = inner.querySelector('#apiStoryAssessment');
     assessment.innerHTML = questions.map((question, questionIndex) => earlyReader
-      ? `<label class="en-label" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><input class="apiAssessmentAnswer" data-question-index="${questionIndex}" type="checkbox" value="Discussed" required><span>${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}</span></label>`
-      : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length ? `<button type="submit" class="en-button" style="margin-top:14px">${earlyReader ? 'Save discussion' : 'Save reading response'}</button>` : '<p class="book-modal-empty">No questions provided.</p>');
+      ? `<div class="en-label" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><span style="flex:1">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}</span><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">Read aloud</button></div>`
+      : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length && !earlyReader ? '<button type="submit" class="en-button" style="margin-top:14px">Save reading response</button>' : (!questions.length ? '<p class="book-modal-empty">No questions provided.</p>' : ''));
+    if (earlyReader) {
+      assessment.innerHTML += '<p class="book-modal-meta" style="margin-top:14px">Discuss these questions together, then use Mark completed when you are finished.</p>';
+      assessment.querySelectorAll('.apiSpeakQuestion').forEach(button => {
+        button.onclick = () => {
+          const question = questions[Number(button.dataset.questionIndex)];
+          const text = typeof question === 'string' ? question : question.prompt || '';
+          if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+        };
+      });
+    }
     inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div><strong>${esc(w.word)}</strong> — ${esc(w.meaning)}</div>`).join('') || '<p class="book-modal-empty">No words provided.</p>';
     inner.querySelector('#closeApiStory').onclick = () => modal.remove();
     modal.onclick = (event) => { if (event.target === modal) modal.remove(); };
@@ -305,6 +317,7 @@
     };
     assessment.onsubmit = async (event) => {
       event.preventDefault();
+      if (earlyReader) return;
       try {
         const responses = [...assessment.querySelectorAll('.apiAssessmentAnswer')].map(input => earlyReader ? (input.checked ? input.value : '') : input.value);
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
