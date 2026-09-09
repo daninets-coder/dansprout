@@ -123,7 +123,7 @@
         <p class="en-lede">Your learners and subscription are stored in your protected Story Sprout account.</p>
 
         <section class="en-card" style="margin-bottom:20px">
-          <h2>First-run success path</h2>
+          <h2>Getting started</h2>
           <div id="apiOnboarding"></div>
         </section>
 
@@ -242,7 +242,17 @@
     const doneLearner = learners.length > 0;
     const doneStory = stories.length > 0;
     const donePlan = ['demo', 'active'].includes(subscription.status) && ['family', 'classroom'].includes(subscription.plan);
-    $('#apiOnboarding').innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${doneLearner ? '✓' : '1'}</strong><span>Create first learner</span></div><div class="en-stat"><strong>${doneStory ? '✓' : '2'}</strong><span>Generate first story</span></div><div class="en-stat"><strong>${donePlan ? '✓' : '3'}</strong><span>Pick paid plan</span></div></div>`;
+    $('#apiOnboarding').innerHTML = `<div class="en-stat-grid"><button type="button" class="en-stat apiStartStep" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep" data-step="plan"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'Plan selected' : 'Choose a plan'}</span></button></div>`;
+    document.querySelectorAll('.apiStartStep').forEach(button => {
+      button.onclick = () => {
+        if (button.dataset.step === 'learner') show('learners');
+        if (button.dataset.step === 'plan') show('billing');
+        if (button.dataset.step === 'story') {
+          show('home');
+          $('#apiPrompt')?.focus();
+        }
+      };
+    });
   };
 
   const updateStoryVisual = () => {
