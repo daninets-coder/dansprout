@@ -705,7 +705,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
         response_format: { type: 'json_object' },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the curriculum objective exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -716,6 +716,8 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             language,
             prompt,
             curriculumObjective: curriculumRow?.objective || 'Support comprehension and confidence in reading.',
+            curriculumStandard: curriculumRow?.standard_code || null,
+            standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
             constraints: [
               'Warm, child-safe, age-appropriate language',
               'Short pages, 3-4 pages only',
@@ -990,6 +992,8 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
           gradeLevel: data.gradeLevel,
           domain: data.domain,
           language: data.language,
+          curriculumStandard: curriculumRow?.standard_code || null,
+          standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
           curriculumObjective: generated.curriculumObjective,
           model: 'gpt-4o-mini',
         },
