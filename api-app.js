@@ -53,6 +53,7 @@
     '7': asset('images/buttons/7th Grade.jpg'),
     '8': asset('images/buttons/8th Grade.jpg'),
   };
+  const gradeLabels = { PreK: 'Pre-K', K: 'Kindergarten', '1': '1st Grade', '2': '2nd Grade', '3': '3rd Grade', '4': '4th Grade', '5': '5th Grade', '6': '6th Grade', '7': '7th Grade', '8': '8th Grade' };
   const themeBannerMap = {
     Moonlight: asset('images/banner/banner01.jpg'),
     Rainforest: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
@@ -107,7 +108,8 @@
             <div class="en-form-grid">
               <div>
                 <label class="en-label">Grade level</label>
-                <select id="apiGradeLevel" class="en-select"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+                <select id="apiGradeLevel" class="en-select" aria-label="Grade level" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+                <div id="apiGradeButtons" role="group" aria-label="Choose grade level" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px"></div>
               </div>
               <div>
                 <label class="en-label">Reading skill</label>
@@ -213,6 +215,19 @@
     if (gradeBadge) gradeBadge.src = gradeBadgeMap[gradeLevel] || gradeBadgeMap['2'];
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
   };
+
+  function renderGradeButtons() {
+    const select = $('#apiGradeLevel');
+    const container = $('#apiGradeButtons');
+    if (!select || !container) return;
+    container.innerHTML = Object.entries(gradeBadgeMap).map(([value, image]) => `<button type="button" class="apiGradeButton" data-grade="${value}" aria-label="${gradeLabels[value]}" aria-pressed="${select.value === value}" style="border:1px solid ${select.value === value ? '#43815b' : '#e7d9c4'};background:${select.value === value ? '#e2efdd' : '#fffdf9'};border-radius:6px;padding:4px;cursor:pointer"><img src="${image}" alt="${gradeLabels[value]}" style="display:block;width:100%;height:54px;object-fit:contain;border-radius:4px"></button>`).join('');
+    container.querySelectorAll('.apiGradeButton').forEach(button => {
+      button.onclick = () => {
+        select.value = button.dataset.grade;
+        select.dispatchEvent(new Event('change'));
+      };
+    });
+  }
 
   const domainNames = { oral_language: 'Oral Language', phonics: 'Phonics', fluency: 'Fluency', vocabulary: 'Vocabulary', comprehension: 'Comprehension', writing_response: 'Writing Response', social_emotional_reading: 'Reading Confidence & SEL' };
   async function loadCurriculumOptions(gradeLevel) {
@@ -475,9 +490,11 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
       if (id === 'apiGradeLevel') loadCurriculumOptions(el.value);
+      if (id === 'apiGradeLevel') renderGradeButtons();
       updateStoryVisual();
     });
   });
+  renderGradeButtons();
   loadCurriculumOptions($('#apiGradeLevel').value);
   $('#apiHome').onclick = () => show('home');
   $('#apiLogout').onclick = () => {
