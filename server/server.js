@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
@@ -24,6 +25,9 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+const emailFrom = String(process.env.EMAIL_FROM || '').trim();
+const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
 const trustProxy = String(process.env.TRUST_PROXY || '').trim();
 if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
 
@@ -175,6 +179,8 @@ const registerSchema = z.object({
   policyVersion: z.string().trim().min(1).max(40).default('2026-09-01'),
 });
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
+const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
+const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(12).max(128) });
 const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'family', 'classroom']) });
 const storySchema = z.object({
@@ -204,6 +210,43 @@ function validate(schema, source) { return (req, res, next) => { const result = 
 
 app.post('/api/auth/register', validate(registerSchema, 'body'), async (req, res, next) => { try { const account = { id: randomUUID(), ...req.body }; const variant = pickPricingVariant(); const variantConfig = priceConfig[variant] || priceConfig.family_800; const passwordHash = await bcrypt.hash(account.password, 12); await pool.query('INSERT INTO accounts (id, email, password_hash, display_name, "role", consented_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, guardian_consent_version, pricing_variant, family_price_cents, trial_days) VALUES ($1, $2, $3, $4, $5, NOW(), TRUE, NOW(), $6, $7, $8, $9, $10)', [account.id, account.email, passwordHash, account.displayName, account.role, account.policyVersion, account.policyVersion, variant, variantConfig.cents, variantConfig.trialDays]); await pool.query('INSERT INTO reminder_preferences (account_id, weekly_email_enabled) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET weekly_email_enabled = EXCLUDED.weekly_email_enabled, updated_at = NOW()', [account.id, false]); await logConsentEvent(account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true }); await trackGrowthEvent(account.id, 'account_registered', { role: account.role, variant }); return res.status(201).json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.displayName, role: account.role } }); } catch (error) { if (error.code === '23505') return res.status(409).json({ error: 'An account already exists for this email.' }); return next(error); } });
 app.post('/api/auth/login', validate(loginSchema, 'body'), async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, password_hash, display_name, "role" FROM accounts WHERE email = $1', [req.body.email.trim().toLowerCase()]); const account = rows[0]; if (!account || !(await bcrypt.compare(req.body.password, account.password_hash))) return res.status(401).json({ error: 'Email or password is incorrect.' }); await trackGrowthEvent(account.id, 'account_login'); return res.json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.display_name, role: account.role } }); } catch (error) { return next(error); } });
+app.post('/api/auth/forgot-password', validate(passwordResetRequestSchema, 'body'), async (req, res, next) => {
+  try {
+    const genericMessage = 'If an account exists for that email, a password reset link has been sent.';
+    const accountRes = await pool.query('SELECT id, email FROM accounts WHERE email = $1', [req.body.email]);
+    if (!accountRes.rowCount) return res.json({ message: genericMessage });
+    const token = randomBytes(48).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [accountRes.rows[0].id]);
+    await pool.query('INSERT INTO password_reset_tokens (id, account_id, token_hash, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), accountRes.rows[0].id, tokenHash]);
+    const resetUrl = `${appBaseUrl}/?resetToken=${encodeURIComponent(token)}`;
+    if (emailProvider === 'resend' && resendApiKey && emailFrom) {
+      const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Reset your Story Sprout password', text: `Reset your Story Sprout password within 30 minutes: ${resetUrl}` }) });
+      if (!response.ok) await recordOpsEvent('password_reset_email_failed', 'error', `Email provider returned ${response.status}`);
+    } else if (process.env.NODE_ENV !== 'production') {
+      structuredLog('info', 'password_reset_link_dev_only', { emailDomain: accountRes.rows[0].email.split('@')[1], resetUrl });
+    } else {
+      await recordOpsEvent('password_reset_email_unconfigured', 'error', 'Password reset email provider is not configured.');
+    }
+    return res.json({ message: genericMessage });
+  } catch (error) { return next(error); }
+});
+app.post('/api/auth/reset-password', validate(passwordResetSchema, 'body'), async (req, res, next) => {
+  try {
+    const tokenHash = createHash('sha256').update(req.body.token).digest('hex');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const tokenRes = await client.query('SELECT id, account_id FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE', [tokenHash]);
+      if (!tokenRes.rowCount) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'This reset link is invalid or expired.' }); }
+      const passwordHash = await bcrypt.hash(req.body.password, 12);
+      await client.query('UPDATE accounts SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, tokenRes.rows[0].account_id]);
+      await client.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [tokenRes.rows[0].account_id]);
+      await client.query('COMMIT');
+      return res.json({ message: 'Password updated. You can now sign in.' });
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  } catch (error) { return next(error); }
+});
 app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, display_name, "role", created_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); return res.json({ account: { ...rows[0], isSiteOwner: ownerEmail.length > 0 && rows[0].email.toLowerCase() === ownerEmail } }); } catch (error) { return next(error); } });
 app.get('/api/learners', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.interests, l.topics_to_avoid, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid) VALUES ($1, $2, $3, $4, $5, $6)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });

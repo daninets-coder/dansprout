@@ -114,6 +114,9 @@ site data, using private browsing, or switching browsers may remove it.
 	 PORT=3000
 	 NODE_ENV=development
 	 APP_BASE_URL=http://localhost:3000
+	 EMAIL_PROVIDER=resend
+	 RESEND_API_KEY=
+	 EMAIL_FROM=Story Sprout <no-reply@yourdomain.com>
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
 	 STRIPE_PRICE_FAMILY_500=
