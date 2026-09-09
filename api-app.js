@@ -65,8 +65,21 @@
     Castle: asset('images/banner/bull start.png'),
     Garden: asset('images/banner/annie-spratt-faAef6F6luc-unsplash.jpg'),
     Sky: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
+    Space: asset('images/banner/banner01.jpg'),
+    Dinosaurs: asset('images/banner/bull start.png'),
+    Arctic: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
+    Farm: asset('images/banner/annie-spratt-faAef6F6luc-unsplash.jpg'),
+    City: asset('images/banner/Designer.jpeg'),
+    Jungle: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
+    Desert: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
+    Underwater: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
+    Fairytale: asset('images/banner/bull start.png'),
   };
-  const themeLabels = { Moonlight: 'Moonlight', Rainforest: 'Rainforest', Ocean: 'Ocean', Castle: 'Castle', Garden: 'Garden', Sky: 'Sky' };
+  const themeOptions = [
+    ['Moonlight', '🌙'], ['Rainforest', '🌿'], ['Ocean', '🌊'], ['Castle', '🏰'], ['Garden', '🌷'],
+    ['Sky', '☁️'], ['Space', '🚀'], ['Dinosaurs', '🦕'], ['Arctic', '❄️'], ['Farm', '🐄'],
+    ['City', '🏙️'], ['Jungle', '🐒'], ['Desert', '🏜️'], ['Underwater', '🐠'], ['Fairytale', '🧚'],
+  ];
   const domainIconMap = {
     comprehension: asset('images/Random2/book.png'),
     vocabulary: asset('images/Random2/alphabet-a.png'),
@@ -121,8 +134,7 @@
               <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
             </div>
             <label class="en-label">Choose a story world</label>
-            <select id="apiTheme" class="en-select" aria-label="Story world" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="Moonlight">Moonlight</option><option value="Rainforest">Rainforest</option><option value="Ocean">Ocean</option><option value="Castle">Castle</option><option value="Garden">Garden</option><option value="Sky">Sky</option></select>
-            <div id="apiThemeChoices" role="group" aria-label="Choose a story world" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px"></div>
+            <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}</select>
             <label class="en-label">Adventure</label>
             <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
             <button id="apiCreate" class="en-button" style="margin-top:16px;width:100%">Generate reading-aligned story</button>
@@ -221,19 +233,6 @@
     if (gradeBadge) gradeBadge.src = gradeBadgeMap[gradeLevel] || gradeBadgeMap['2'];
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
   };
-
-  function renderThemeChoices() {
-    const select = $('#apiTheme');
-    const container = $('#apiThemeChoices');
-    if (!select || !container) return;
-    container.innerHTML = Object.entries(themeBannerMap).map(([value, image]) => `<button type="button" class="apiThemeChoice" data-theme="${value}" aria-label="${themeLabels[value]} story world" aria-pressed="${select.value === value}" style="border:2px solid ${select.value === value ? '#43815b' : '#e7d9c4'};background:${select.value === value ? '#e2efdd' : '#fffdf9'};border-radius:8px;padding:5px;cursor:pointer;text-align:left"><img src="${image}" alt="" style="display:block;width:100%;height:72px;object-fit:cover;border-radius:5px"><span style="display:block;padding:6px 3px 2px;color:#173b42;font:700 12px Arial,sans-serif">${themeLabels[value]}</span></button>`).join('');
-    container.querySelectorAll('.apiThemeChoice').forEach(button => {
-      button.onclick = () => {
-        select.value = button.dataset.theme;
-        select.dispatchEvent(new Event('change'));
-      };
-    });
-  }
 
   const domainNames = { oral_language: 'Oral Language', phonics: 'Phonics', fluency: 'Fluency', vocabulary: 'Vocabulary', comprehension: 'Comprehension', writing_response: 'Writing Response', social_emotional_reading: 'Reading Confidence & SEL' };
   async function loadCurriculumOptions(gradeLevel) {
@@ -511,11 +510,9 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', () => {
       if (id === 'apiGradeLevel') loadCurriculumOptions(el.value);
-      if (id === 'apiTheme') renderThemeChoices();
       updateStoryVisual();
     });
   });
-  renderThemeChoices();
   loadCurriculumOptions($('#apiGradeLevel').value);
   $('#apiHome').onclick = () => show('home');
   $('#apiLogout').onclick = () => {

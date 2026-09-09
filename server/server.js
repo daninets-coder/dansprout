@@ -1000,7 +1000,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       prompt: z.string().trim().min(1).max(300),
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
-      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky']).default('Moonlight'),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale']).default('Moonlight'),
       language: storyLanguageSchema.default('English'),
     });
     const parsed = createSchema.safeParse(req.body);
