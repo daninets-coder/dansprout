@@ -216,16 +216,16 @@ app.post('/api/auth/forgot-password', validate(passwordResetRequestSchema, 'body
     const genericMessage = 'If an account exists for that email, a password reset link has been sent.';
     const accountRes = await pool.query('SELECT id, email FROM accounts WHERE email = $1', [req.body.email]);
     if (!accountRes.rowCount) return res.json({ message: genericMessage });
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const tokenHash = createHash('sha256').update(code).digest('hex');
+    const token = randomBytes(48).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
     await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [accountRes.rows[0].id]);
     await pool.query('INSERT INTO password_reset_tokens (id, account_id, token_hash, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), accountRes.rows[0].id, tokenHash]);
-    const resetUrl = `${appBaseUrl}/?resetToken=${encodeURIComponent(code)}`;
+    const resetUrl = `${appBaseUrl}/?resetToken=${encodeURIComponent(token)}`;
     if (emailProvider === 'resend' && resendApiKey && emailFrom) {
-      const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Your Story Sprout password reset code', text: `Your Story Sprout password reset code is ${code}. It expires in 30 minutes.` }) });
+      const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Reset your Story Sprout password', text: `Reset your Story Sprout password within 30 minutes: ${resetUrl}` }) });
       if (!response.ok) await recordOpsEvent('password_reset_email_failed', 'error', `Email provider returned ${response.status}`);
     } else if (process.env.NODE_ENV !== 'production') {
-      structuredLog('info', 'password_reset_code_dev_only', { emailDomain: accountRes.rows[0].email.split('@')[1], code });
+      structuredLog('info', 'password_reset_link_dev_only', { emailDomain: accountRes.rows[0].email.split('@')[1], resetUrl });
     } else {
       await recordOpsEvent('password_reset_email_unconfigured', 'error', 'Password reset email provider is not configured.');
     }
