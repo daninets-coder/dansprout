@@ -673,13 +673,13 @@ async function failsOpenAIModeration(value, apiKey) {
 
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, language, curriculumRow, allowExternalAI = false }) {
+async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, language, curriculumRow, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
   }
 
-  if (failsLocalSafetyCheck(prompt)) {
+  if (failsLocalSafetyCheck(`${prompt} ${customTheme || ''}`)) {
     throw new Error('Prompt rejected by child-safety filter. Please use a gentler adventure prompt.');
   }
   const moderationBlocked = await failsOpenAIModeration(prompt, apiKey);
@@ -763,6 +763,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             gradeLevel,
             domain,
             theme,
+            customTheme: customTheme || null,
             language,
             prompt,
             curriculumObjective: curriculumRow?.objective || 'Support comprehension and confidence in reading.',
@@ -1000,13 +1001,15 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       prompt: z.string().trim().min(1).max(300),
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
-      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale']).default('Moonlight'),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Moonlight'),
+      customTheme: z.string().trim().max(80).default(''),
       language: storyLanguageSchema.default('English'),
     });
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Please check the story generation details.', details: parsed.error.flatten() });
 
     const data = parsed.data;
+    if (data.theme === 'Custom' && !data.customTheme) return res.status(400).json({ error: 'Please name your story world.' });
     const learnerQuery = await pool.query('SELECT id, first_name, age_band FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
     if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const learner = learnerQuery.rows[0];
@@ -1027,6 +1030,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       gradeLevel: data.gradeLevel,
       domain: data.domain,
       theme: data.theme,
+      customTheme: data.customTheme,
       language: data.language,
       curriculumRow,
       allowExternalAI,
@@ -1047,6 +1051,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
           gradeLevel: data.gradeLevel,
           domain: data.domain,
           language: data.language,
+          customTheme: data.customTheme || null,
           curriculumStandard: curriculumRow?.standard_code || null,
           standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
           curriculumObjective: generated.curriculumObjective,
