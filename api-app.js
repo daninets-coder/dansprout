@@ -110,16 +110,14 @@
             <p>Choose a learner, select a reading skill, and generate a story aligned to a reading objective.</p>
             <label class="en-label">Learner</label>
             <select id="apiLearner" class="en-select"></select>
-            <div class="en-form-grid">
-              <div>
-                <label class="en-label">Grade level</label>
-                <select id="apiGradeLevel" class="en-select" aria-label="Grade level" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
-                <div id="apiGradeButtons" role="group" aria-label="Choose grade level" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px"></div>
-              </div>
-              <div>
-                <label class="en-label">Reading skill</label>
-                <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
-              </div>
+            <div>
+              <label class="en-label">Grade level</label>
+              <select id="apiGradeLevel" class="en-select" aria-label="Grade level" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+              <div id="apiGradeButtons" role="group" aria-label="Choose grade level" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:12px"></div>
+            </div>
+            <div style="margin-top:20px">
+              <label class="en-label">Reading skill</label>
+              <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
             </div>
             <label class="en-label">Story world</label>
             <select id="apiTheme" class="en-select"><option value="Moonlight">Moonlight</option><option value="Rainforest">Rainforest</option><option value="Ocean">Ocean</option><option value="Castle">Castle</option></select>
@@ -225,7 +223,7 @@
     const select = $('#apiGradeLevel');
     const container = $('#apiGradeButtons');
     if (!select || !container) return;
-    container.innerHTML = Object.entries(gradeBadgeMap).map(([value, image]) => `<button type="button" class="apiGradeButton" data-grade="${value}" aria-label="${gradeLabels[value]}" aria-pressed="${select.value === value}" style="border:1px solid ${select.value === value ? '#43815b' : '#e7d9c4'};background:${select.value === value ? '#e2efdd' : '#fffdf9'};border-radius:6px;padding:4px;cursor:pointer"><img src="${image}" alt="${gradeLabels[value]}" style="display:block;width:100%;height:54px;object-fit:contain;border-radius:4px"></button>`).join('');
+    container.innerHTML = Object.entries(gradeBadgeMap).map(([value, image]) => `<button type="button" class="apiGradeButton" data-grade="${value}" aria-label="${gradeLabels[value]}" aria-pressed="${select.value === value}" style="border:1px solid ${select.value === value ? '#43815b' : '#e7d9c4'};background:${select.value === value ? '#e2efdd' : '#fffdf9'};border-radius:6px;padding:6px;cursor:pointer"><img src="${image}" alt="${gradeLabels[value]}" style="display:block;width:100%;height:72px;object-fit:contain;border-radius:4px"></button>`).join('');
     container.querySelectorAll('.apiGradeButton').forEach(button => {
       button.onclick = () => {
         select.value = button.dataset.grade;
@@ -384,7 +382,7 @@
       api('/api/learners'),
       api('/api/stories'),
       api('/api/subscription'),
-      api('/api/business/scorecard'),
+      api('/api/business/scorecard').catch(() => ({ scorecard: null })),
       api('/api/subscription/offer'),
       api('/api/reminders/preferences'),
       api('/api/progress'),
@@ -414,7 +412,9 @@
     });
 
     const retentionPct = Math.round((score?.current?.retention4wRate || 0) * 100);
-    $('#apiBusinessScore').innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${score.current.pilotCustomers}</strong><span>pilot customers (target ${score.targets.pilotCustomers})</span></div><div class="en-stat"><strong>${retentionPct}%</strong><span>4-week retention (target ${Math.round(score.targets.retention4wRate * 100)}%)</span></div><div class="en-stat"><strong>${score.current.teacherAccounts}</strong><span>teacher accounts (target ${score.targets.schoolPilots})</span></div></div><p style="margin-top:8px;color:#4c4c4c">Reading streak: ${(score.myAccount?.currentReadingStreak || 0)} day(s).</p>`;
+    const scorecard = $('#apiBusinessScore')?.closest('.en-card');
+    if (scorecard) scorecard.classList.toggle('hidden', me.isSiteOwner !== true || !score);
+    if (score) $('#apiBusinessScore').innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${score.current.pilotCustomers}</strong><span>pilot customers (target ${score.targets.pilotCustomers})</span></div><div class="en-stat"><strong>${retentionPct}%</strong><span>4-week retention (target ${Math.round(score.targets.retention4wRate * 100)}%)</span></div><div class="en-stat"><strong>${score.current.teacherAccounts}</strong><span>teacher accounts (target ${score.targets.schoolPilots})</span></div></div><p style="margin-top:8px;color:#4c4c4c">Reading streak: ${(score.myAccount?.currentReadingStreak || 0)} day(s).</p>`;
 
     const familyPrice = Number(offerData.offer?.familyPriceCents || 800) / 100;
     $('#apiFamilyPrice').textContent = `$${familyPrice.toFixed(0)}`;
