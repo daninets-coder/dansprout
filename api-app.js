@@ -120,7 +120,7 @@
       <nav class="en-nav">
         <button data-api-view="home" class="active">Home</button>
         <button data-api-view="learners">Learners</button>
-        <button data-api-view="progress">Progress</button>
+        <button id="apiProgressNav" data-api-view="progress">Progress</button>
         <button data-api-view="billing">Plans & billing</button>
       </nav>
       <div style="display:flex;gap:8px">
@@ -207,6 +207,7 @@
         <div class="en-eyebrow">ADULT PROGRESS TOOLS</div>
         <h1 class="en-title">Progress and school tools.</h1>
         <p class="en-lede">Review business signals, export classroom progress, and manage adult-facing reporting here.</p>
+        <div id="apiProgressNotice" class="en-card" style="margin-top:20px"></div>
         <div id="apiProgressDestination"></div>
       </section>
 
@@ -620,6 +621,18 @@
     stories = storyData.stories || [];
     const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
     const score = scoreData.scorecard;
+    const progressNav = $('#apiProgressNav');
+    const canUseProgressTools = me.isSiteOwner === true || me.role === 'teacher';
+    if (progressNav) progressNav.classList.toggle('hidden', !canUseProgressTools);
+    if (!canUseProgressTools && !$('#apiProgressView').classList.contains('hidden')) show('home');
+    const progressNotice = $('#apiProgressNotice');
+    if (progressNotice) {
+      progressNotice.innerHTML = me.isSiteOwner === true
+        ? '<strong>Site owner reporting</strong><p style="margin:6px 0 0;color:#597076">This page contains business signals and operational metrics for the site owner. Learner progress remains on Home.</p>'
+        : me.role === 'teacher'
+          ? '<strong>Teacher reporting</strong><p style="margin:6px 0 0;color:#597076">Use the school tools below to import a roster and export classroom progress. Learner progress remains on Home.</p>'
+          : '<strong>Progress tools are adult-only</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
+    }
 
     $('#apiLearner').innerHTML = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
