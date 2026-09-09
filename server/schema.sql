@@ -204,6 +204,9 @@ CREATE TABLE IF NOT EXISTS ai_invocations (
     story_id UUID REFERENCES stories(id) ON DELETE SET NULL,
     provider TEXT NOT NULL,
     model TEXT,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    estimated_cost_usd NUMERIC(10,6),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

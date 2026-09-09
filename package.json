@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
-    "db:init": "node server/init-db.js"
+    "db:init": "node server/init-db.js",
+    "db:migrate": "node server/run-migrations.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

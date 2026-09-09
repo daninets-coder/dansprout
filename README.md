@@ -7,7 +7,9 @@ reading habits and begin useful conversations.
 
 The project has two ways to run:
 
+- **Local demo:** Open `index.html` in a browser and select **Continue with
 	local demo**. It works without a server, Node.js, account, or database.
+- **Authenticated app:** Start the Node.js server and connect PostgreSQL. An
 	adult can create a parent or teacher account and store learners, stories,
 	progress, and subscription selections in the database.
 
@@ -15,12 +17,18 @@ The project has two ways to run:
 
 ### Child Reading Experience
 
+- Generates stories with OpenAI through the authenticated API using selected
 	grade level, reading domain, theme, and prompt.
+- Applies grade-level tailoring rules (sentence complexity, vocabulary, and
 	structure) plus curriculum objective alignment per story.
+- Uses the supplied Maryland College and Career-Ready Standards (MCCRS) ELA
 	benchmark hierarchy from Pre-K through Grade 8, including standard codes,
 	strands, objectives, and evidence of learning.
+- Offers age bands for ages `3-5`, `6-8`, and `9-11`.
+- Supports learning focuses including kindness, bravery, big feelings,
 	curiosity, and early literacy.
-	vocabulary support, and open-ended discussion prompts.
+- Provides story worlds, vocabulary support, read-aloud controls, and
+	open-ended discussion prompts.
 
 ### Curated Story Library
 
@@ -38,24 +46,45 @@ placing illustrations in object storage/CDN rather than the database.
 
 ### Parent And Teacher Experience
 
+- Parent/guardian and teacher registration and sign-in.
+- Learner profiles with age band, interests, learning goals, and topics to
 	avoid.
+- Activity and progress views for stories created, stories completed, reading
 	minutes, and learning-goal coverage.
+- Adult controls for private local data and a guided conversation-first
 	approach to progress.
-	 Checkout (when configured).
-	 first plan.
-	 signal.
+- Explorer, Family, and Classroom plan selection as demo billing or Stripe
+	Checkout (when configured).
+- Onboarding funnel in the authenticated app: first learner, first story,
+	first plan.
+- Teacher pilot tools: CSV roster import and classroom progress PDF export.
+- Business scorecard: pilot customers, 4-week retention, and teacher-pilot
+	signal.
 
 ### Privacy And Safety
 
+- The direct-file demo stores its data only in the current browser's local
 	storage.
+- The server mode protects API actions with an authenticated adult account.
+- Public Privacy Policy and Terms of Service drafts are available before sign-in
 	and from the authenticated workspace.
+- Adult consent is required at registration, and the Privacy & data settings
 	provide account deletion and JSON data export.
+- Privacy disclosures identify OpenAI, Stripe, PostgreSQL, and Railway as
 	service providers and describe retention and deletion behavior.
+- Story prompts apply a basic local age-appropriateness screen in demo mode.
+- The product intentionally has no public story gallery, child messaging, or
 	advertising.
+- The account screen requires an adult guardian-consent acknowledgement during
 	registration.
+- Privacy & data settings explain collection and consent, keep payment details
 	with the payment provider, and provide subscription cancellation and account
 	deletion controls.
+- COPPA, FERPA, state privacy, and school procurement review remain required
 	before public or school deployment; the app does not claim legal certification.
+
+Operational health checks, migrations, backups, monitoring, and rollback guidance
+are documented in `OPERATIONS.md`.
 
 ## Quick Start: Browser Demo
 
@@ -197,4 +226,5 @@ is required before handling real families, schools, money, or child data:
 	 deployment pipeline.
 
 | `POST /api/stories/:storyId/safety-report` | Report unsafe, incorrect, or privacy-sensitive story content |
+| `GET /api/ops/metrics` | Owner-only operational, AI usage, and webhook metrics |
 	api-app.js             Authenticated PostgreSQL-backed workspace

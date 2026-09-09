@@ -13,6 +13,7 @@ import PDFDocument from 'pdfkit';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { pool } from './db.js';
+import { runMigrations } from './migrate.js';
 
 const app = express();
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,6 +26,30 @@ const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
 const trustProxy = String(process.env.TRUST_PROXY || '').trim();
 if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
+
+function structuredLog(level, event, metadata = {}) {
+  const entry = { timestamp: new Date().toISOString(), level, event, service: 'story-sprout-web', ...metadata };
+  const output = JSON.stringify(entry);
+  if (level === 'error') console.error(output); else console.log(output);
+}
+
+async function recordOpsEvent(eventType, severity, message, metadata = null, requestId = null) {
+  structuredLog(severity, eventType, { requestId, message, ...(metadata || {}) });
+  try {
+    await pool.query('INSERT INTO ops_events (id, event_type, severity, request_id, message, metadata) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), eventType, severity, requestId, message, metadata]);
+  } catch (error) {
+    structuredLog('error', 'ops_event_persist_failed', { message: error.message });
+  }
+}
+
+app.use((req, res, next) => {
+  const requestId = req.headers['x-request-id']?.toString().slice(0, 100) || randomUUID();
+  req.requestId = requestId;
+  res.setHeader('x-request-id', requestId);
+  const startedAt = Date.now();
+  res.on('finish', () => structuredLog(res.statusCode >= 500 ? 'error' : 'info', 'http_request', { requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt }));
+  next();
+});
 
 function normalizeOrigin(value) {
   return String(value || '').trim().replace(/\/+$/, '');
@@ -80,10 +105,13 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
   try {
     event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
   } catch (error) {
+    void recordOpsEvent('stripe_webhook_rejected', 'warn', error.message, { reason: 'signature' }, req.requestId);
     return res.status(400).send(`Webhook Error: ${error.message}`);
   }
 
   try {
+    const received = await pool.query('INSERT INTO stripe_webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING', [event.id, event.type]);
+    if (!received.rowCount) return res.json({ received: true, duplicate: true });
     const object = event.data?.object;
     if (event.type === 'checkout.session.completed') {
       const accountId = object?.metadata?.accountId;
@@ -118,9 +146,11 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
       }
     }
 
+    await pool.query("UPDATE stripe_webhook_events SET status = 'processed', processed_at = NOW() WHERE event_id = $1", [event.id]);
     return res.json({ received: true });
   } catch (error) {
-    console.error('Stripe webhook handler error:', error.message);
+    await pool.query("UPDATE stripe_webhook_events SET status = 'failed', error_message = $2 WHERE event_id = $1", [event?.id, error.message]);
+    void recordOpsEvent('stripe_webhook_failed', 'error', error.message, { eventType: event?.type }, req.requestId);
     return res.status(500).json({ error: 'Webhook handler failed.' });
   }
 });
@@ -542,6 +572,9 @@ async function ensureGrowthSchema() {
   await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS review_notes TEXT');
   await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS confidence NUMERIC(3,2) NOT NULL DEFAULT 0.25');
   await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS standards_evidence JSONB');
+  await pool.query('ALTER TABLE ai_invocations ADD COLUMN IF NOT EXISTS input_tokens INTEGER');
+  await pool.query('ALTER TABLE ai_invocations ADD COLUMN IF NOT EXISTS output_tokens INTEGER');
+  await pool.query('ALTER TABLE ai_invocations ADD COLUMN IF NOT EXISTS estimated_cost_usd NUMERIC(10,6)');
   await pool.query("UPDATE reading_assessments SET mastered = FALSE, score = 0, review_status = 'pending', confidence = 0.25 WHERE reviewed_at IS NULL AND review_status = 'pending'");
   await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_customer_id TEXT');
   await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_subscription_id TEXT');
@@ -783,6 +816,13 @@ function validateGeneratedStory(value) {
   return parsed.data;
 }
 
+function estimateOpenAICost(usage) {
+  if (!usage) return null;
+  const inputTokens = Number(usage.prompt_tokens || 0);
+  const outputTokens = Number(usage.completion_tokens || 0);
+  return Number(((inputTokens / 1000000 * 0.15) + (outputTokens / 1000000 * 0.60)).toFixed(6));
+}
+
 
 
 async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, language, curriculumRow, accountId, allowExternalAI = false }) {
@@ -920,6 +960,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
       curriculumObjective: curriculumRow?.objective || null,
       curriculumId: curriculumRow?.id || null,
       createdBy: 'openai',
+      usage: payload.usage || null,
     };
   } catch (error) {
     throw new Error(`OpenAI story generation failed: ${error.message}`);
@@ -966,6 +1007,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
     questions: Array.isArray(parsed.questions) ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
     words,
     readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
+    usage: payload.usage || null,
   };
 }
 
@@ -994,6 +1036,31 @@ app.get('/api/healthz', async (req, res) => {
     return res.json({ ok: true, service: 'story-sprout-web', time: new Date().toISOString() });
   } catch {
     return res.status(503).json({ ok: false, service: 'story-sprout-web' });
+  }
+});
+
+app.get('/api/readyz', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    return res.json({ ready: true, service: 'story-sprout-web' });
+  } catch {
+    return res.status(503).json({ ready: false, service: 'story-sprout-web' });
+  }
+});
+
+app.get('/api/ops/metrics', requireAuth, async (req, res, next) => {
+  try {
+    if (!ownerEmail) return res.status(403).json({ error: 'Operations owner is not configured.' });
+    const ownerRes = await pool.query('SELECT email FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (ownerRes.rows[0]?.email?.toLowerCase() !== ownerEmail) return res.status(403).json({ error: 'Operations metrics are restricted to the site owner.' });
+    const [errors, ai, webhooks] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS count FROM ops_events WHERE severity = 'error' AND created_at >= NOW() - INTERVAL '24 hours'"),
+      pool.query("SELECT COUNT(*)::int AS calls, COALESCE(SUM(CASE WHEN provider = 'openai' THEN 1 ELSE 0 END), 0)::int AS openai_calls, COALESCE(SUM(input_tokens), 0)::int AS input_tokens, COALESCE(SUM(output_tokens), 0)::int AS output_tokens, COALESCE(SUM(estimated_cost_usd), 0)::numeric AS estimated_cost_usd FROM ai_invocations WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+      pool.query("SELECT COUNT(*)::int AS received, COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM stripe_webhook_events WHERE received_at >= NOW() - INTERVAL '24 hours'"),
+    ]);
+    return res.json({ generatedAt: new Date().toISOString(), window: '24h', errors: errors.rows[0], ai: ai.rows[0], stripeWebhooks: webhooks.rows[0] });
+  } catch (error) {
+    return next(error);
   }
 });
 
@@ -1183,7 +1250,8 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
 
     if (generated.createdBy === 'openai') {
       try {
-        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), req.auth.sub, story.id, 'openai', 'gpt-4o-mini']);
+        const usage = generated.usage || {};
+        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, story.id, 'openai', 'gpt-4o-mini', usage.prompt_tokens || null, usage.completion_tokens || null, estimateOpenAICost(usage)]);
       } catch (logErr) {
         console.warn('Failed to log AI invocation', logErr.message);
       }
@@ -1223,6 +1291,7 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
     const revised = await reviseStoryContent({ story, revisionPrompt: parsed.data.revisionPrompt, gradeLevel, domain, curriculumRow: pickCurriculumRow(curriculumRes.rows, gradeLevel, domain), accountId: req.auth.sub, allowExternalAI: true });
     const content = { ...story.content, pages: revised.pages, questions: revised.questions, words: revised.words, meta: { ...story.content.meta, revisedAt: new Date().toISOString(), model: 'gpt-4o-mini' } };
     const updated = await pool.query('UPDATE stories SET title = $1, prompt = $2, content = $3, created_by = $4 WHERE id = $5 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [revised.title, parsed.data.revisionPrompt, content, 'openai_revision', story.id]);
+    await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, story.id, 'openai', 'gpt-4o-mini', revised.usage?.prompt_tokens || null, revised.usage?.completion_tokens || null, estimateOpenAICost(revised.usage)]);
     return res.json({ story: updated.rows[0] });
   } catch (error) {
     return res.status(503).json({ error: `Story revision failed: ${error.message}` });
@@ -1236,18 +1305,19 @@ app.use((req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  console.error('Error:', error?.message);
+  void recordOpsEvent('http_error', 'error', error?.message || 'Server error', { method: req.method, path: req.path }, req.requestId);
   res.status(500).json({ error: error?.message || 'Server error' });
 });
 
 ensureBaseSchema()
+  .then(() => runMigrations())
   .then(() => ensureGrowthSchema())
   .then(() => {
     app.listen(port, () => {
-      console.log(`Story Sprout is running at http://localhost:${port}`);
+      structuredLog('info', 'server_started', { port, environment: process.env.NODE_ENV || 'development' });
     });
   })
   .catch((error) => {
-    console.error('Startup schema error:', error?.message || error);
+    structuredLog('error', 'startup_failed', { message: error?.message || String(error) });
     process.exit(1);
   });
