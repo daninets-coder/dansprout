@@ -268,6 +268,16 @@
   }
 
   async function openServerStory(story) {
+    if (!story?.content?.words?.length) {
+      try {
+        const result = await api(`/api/stories/${story.id}/vocabulary`, { method: 'POST' });
+        story = result.story;
+        const storedStory = stories.find(item => item.id === story.id);
+        if (storedStory) Object.assign(storedStory, story);
+      } catch {
+        // The story remains readable even if vocabulary enrichment is unavailable.
+      }
+    }
     let modal = document.getElementById('apiStoryModal');
     if (modal) modal.remove();
     modal = document.createElement('div');

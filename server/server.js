@@ -196,6 +196,20 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     return next(error);
   }
 });
+app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next) => {
+  try {
+    const storyRes = await pool.query('SELECT s.id, s.content FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const story = storyRes.rows[0];
+    const gradeLevel = story.content?.meta?.gradeLevel || 'K';
+    const words = await fillVocabulary(story.content?.words, story.content?.pages || [], gradeLevel, process.env.OPENAI_API_KEY);
+    const content = { ...story.content, words };
+    const updated = await pool.query('UPDATE stories SET content = $1 WHERE id = $2 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [content, story.id]);
+    return res.json({ story: updated.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+});
 app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS average_assessment_score FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
@@ -590,6 +604,41 @@ function extractTextValue(item) {
   return cleanText(item);
 }
 
+function vocabularyCandidates(pages) {
+  const stopWords = new Set('about after again all also and are around because been before being could every from have into just like more once only other over said some than that their them then there these they this through very were what when where which with would your'.split(' '));
+  return [...new Set(String(pages.join(' ')).toLowerCase().match(/[a-z]{6,}/g) || [])]
+    .filter(word => !stopWords.has(word))
+    .slice(0, 3);
+}
+
+async function fillVocabulary(words, pages, gradeLevel, apiKey) {
+  const cleanWords = (Array.isArray(words) ? words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning).slice(0, 3);
+  if (cleanWords.length >= 2) return cleanWords;
+  const candidates = vocabularyCandidates(pages);
+  if (!candidates.length) return cleanWords;
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: 'Choose 2 or 3 useful vocabulary words from the story and define each in one short, child-friendly sentence. Return JSON with a words array containing word and meaning.' }, { role: 'user', content: JSON.stringify({ gradeLevel, wordsToExplain: candidates, storyPages: pages }) }],
+      }),
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      const generated = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
+      const completed = (Array.isArray(generated.words) ? generated.words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning).slice(0, 3);
+      if (completed.length >= 2) return completed;
+    }
+  } catch {
+    // Keep the story usable if the vocabulary follow-up is unavailable.
+  }
+  return cleanWords.length ? cleanWords : candidates.map(word => ({ word, meaning: 'A useful story word to learn and talk about.' }));
+}
+
 const blockedPromptPatterns = [
   /\b(sex|sexual|nude|porn)\b/i,
   /\b(kill|murder|suicide|self-harm|harm myself)\b/i,
@@ -745,11 +794,12 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
       throw new Error('OpenAI returned incomplete story data');
     }
     
+    const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
     return {
       title: cleanText(parsed.title),
       pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
       questions: Array.isArray(parsed.questions) && parsed.questions.length ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
-      words: Array.isArray(parsed.words) && parsed.words.length ? parsed.words.map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning) : [],
+      words,
       readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
       curriculumObjective: curriculumRow?.objective || null,
       curriculumId: curriculumRow?.id || null,
@@ -793,11 +843,12 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
   const payload = await response.json();
   const parsed = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
   if (!parsed.title || !Array.isArray(parsed.pages) || !parsed.pages.length) throw new Error('OpenAI returned incomplete revised story data.');
+  const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
   return {
     title: cleanText(parsed.title),
     pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
     questions: Array.isArray(parsed.questions) ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
-    words: Array.isArray(parsed.words) ? parsed.words.map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning) : [],
+    words,
     readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
   };
 }
