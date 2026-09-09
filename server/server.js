@@ -59,10 +59,11 @@ function normalizeOrigin(value) {
   return String(value || '').trim().replace(/\/+$/, '');
 }
 
-const allowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || process.env.APP_BASE_URL || '')
+const configuredOrigins = String(process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map(normalizeOrigin)
   .filter(Boolean);
+const allowedOrigins = [...new Set([...configuredOrigins, normalizeOrigin(appBaseUrl)].filter(Boolean))];
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
