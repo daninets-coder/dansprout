@@ -50,6 +50,7 @@ async function ensureBaseSchema() {
 }
 
 const priceConfig = {
+  family_500: { cents: 500, trialDays: 0, lookupEnv: 'STRIPE_PRICE_FAMILY_500' },
   family_800: { cents: 800, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_800' },
   family_1200: { cents: 1200, trialDays: 14, lookupEnv: 'STRIPE_PRICE_FAMILY_1200' },
   classroom_1800: { cents: 1800, trialDays: 14, lookupEnv: 'STRIPE_PRICE_CLASSROOM_1800' },
@@ -157,6 +158,7 @@ const storySchema = z.object({
     words: z.array(z.object({ word: z.string().trim().min(1).max(80), meaning: z.string().trim().min(1).max(300) })).max(12).default([]),
   }),
 });
+const storyLanguageSchema = z.literal('English');
 
 function tokenFor(account) { return jwt.sign({ sub: account.id, role: account.role }, jwtSecret, { expiresIn: '8h', issuer: 'story-sprout' }); }
 function requireAuth(req, res, next) { const token = req.headers.authorization?.replace(/^Bearer\s+/i, ''); if (!token) return res.status(401).json({ error: 'Authentication required.' }); try { req.auth = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' }); return next(); } catch { return res.status(401).json({ error: 'Session expired. Please sign in again.' }); } }
@@ -175,7 +177,26 @@ app.post('/api/stories', requireAuth, validate(storySchema, 'body'), async (req,
   });
 });
 app.patch('/api/stories/:storyId/complete', requireAuth, async (req, res, next) => { try { const result = await pool.query(`UPDATE stories s SET completed_at = COALESCE(s.completed_at, NOW()) FROM learners l WHERE s.id = $1 AND s.learner_id = l.id AND l.account_id = $2 RETURNING s.id, s.completed_at`, [req.params.storyId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Story not found.' }); await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId }); return res.json({ story: result.rows[0] }); } catch (error) { return next(error); } });
-app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next) => {
+  try {
+    const bodySchema = z.object({ responses: z.array(z.string().trim().max(1000)).min(1).max(8) });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Please answer at least one question.' });
+    const storyRes = await pool.query('SELECT s.id, s.content, s.learner_id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
+    const total = Math.min(questions.length, parsed.data.responses.length);
+    const answered = parsed.data.responses.slice(0, total).filter(Boolean).length;
+    const score = total ? Math.round((answered / total) * 100) : 0;
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, parsed.data.responses.slice(0, total), score, score >= 80]);
+    await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1', [req.params.storyId]);
+    await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId, assessmentScore: score });
+    return res.status(201).json({ score, mastered: score >= 80, answered: total });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS average_assessment_score FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancel', requireAuth, async (req, res, next) => { try { const result = await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2 AND status IN ($3, $4) RETURNING plan, status', ['canceled', req.auth.sub, 'active', 'demo']); return res.json({ subscription: result.rows[0] || { plan: 'explorer', status: 'canceled' } }); } catch (error) { return next(error); } });
@@ -227,9 +248,10 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
     const { rows } = await pool.query('SELECT pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]);
     const account = rows[0];
     if (!account) return res.status(404).json({ error: 'Account not found.' });
-    const variant = account.pricing_variant || 'family_800';
-    const cents = Number(account.family_price_cents || 800);
-    const trialDays = Number(account.trial_days || 7);
+    const variant = process.env.STRIPE_PRICE_FAMILY_500 ? 'family_500' : (account.pricing_variant || 'family_800');
+    const configuredOffer = priceConfig[variant] || priceConfig.family_800;
+    const cents = process.env.STRIPE_PRICE_FAMILY_500 ? configuredOffer.cents : Number(account.family_price_cents || configuredOffer.cents);
+    const trialDays = process.env.STRIPE_PRICE_FAMILY_500 ? configuredOffer.trialDays : Number(account.trial_days || configuredOffer.trialDays);
     return res.json({ offer: { variant, familyPriceCents: cents, familyPriceDollars: (cents / 100).toFixed(2), trialDays } });
   } catch (error) {
     return next(error);
@@ -248,7 +270,9 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     const account = accountRes.rows[0];
     const plan = parsed.data.plan;
 
-    const key = plan === 'classroom' ? 'classroom_1800' : (account.pricing_variant || 'family_800');
+    const key = plan === 'classroom'
+      ? 'classroom_1800'
+      : (process.env.STRIPE_PRICE_FAMILY_500 ? 'family_500' : (account.pricing_variant || 'family_800'));
     const cfg = priceConfig[key] || priceConfig.family_800;
     const priceId = process.env[cfg.lookupEnv];
     if (!priceId) return res.status(400).json({ error: `Missing ${cfg.lookupEnv} in environment.` });
@@ -501,6 +525,7 @@ async function ensureGrowthSchema() {
 }
 
 function pickPricingVariant() {
+  if (process.env.STRIPE_PRICE_FAMILY_500) return 'family_500';
   return Math.random() < 0.5 ? 'family_800' : 'family_1200';
 }
 
@@ -598,7 +623,7 @@ async function failsOpenAIModeration(value, apiKey) {
 
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, curriculumRow, allowExternalAI = false }) {
+async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, language, curriculumRow, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
@@ -680,7 +705,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
         response_format: { type: 'json_object' },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate stories for reading practice. Use the curriculum objective exactly. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the curriculum objective exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -688,12 +713,13 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             gradeLevel,
             domain,
             theme,
+            language,
             prompt,
             curriculumObjective: curriculumRow?.objective || 'Support comprehension and confidence in reading.',
             constraints: [
               'Warm, child-safe, age-appropriate language',
               'Short pages, 3-4 pages only',
-              'Include 3 discussion questions',
+              'Include exactly 3 open-ended comprehension questions that can be answered from the story',
               'Include 2-3 vocabulary words with meanings',
               'Keep it suitable for early elementary or middle-grade reading based on grade',
               'Focus on reading growth, confidence, and one clear learning goal',
@@ -730,6 +756,48 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
   } catch (error) {
     throw new Error(`OpenAI story generation failed: ${error.message}`);
   }
+}
+
+async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, language = 'English', curriculumRow, allowExternalAI = false }) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || !allowExternalAI) throw new Error('OpenAI is required for story revisions. Enable AI opt-in and configure the OpenAI key.');
+  if (failsLocalSafetyCheck(revisionPrompt)) throw new Error('Revision rejected by child-safety filter. Please request a gentler change.');
+  if (await failsOpenAIModeration(revisionPrompt, apiKey)) throw new Error('Revision blocked by safety moderation. Please rewrite the request.');
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
+      messages: [{
+        role: 'system',
+        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal.`
+      }, {
+        role: 'user',
+        content: JSON.stringify({
+          originalStory: { title: story.title, pages: story.content?.pages || [], questions: story.content?.questions || [], words: story.content?.words || [] },
+          revisionRequest: revisionPrompt,
+          gradeLevel,
+          domain,
+          curriculumObjective: curriculumRow?.objective || story.content?.meta?.curriculumObjective || 'Support comprehension and confidence in reading.',
+          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 answerable comprehension questions.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
+        }),
+      }],
+    }),
+  });
+  if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
+  const payload = await response.json();
+  const parsed = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
+  if (!parsed.title || !Array.isArray(parsed.pages) || !parsed.pages.length) throw new Error('OpenAI returned incomplete revised story data.');
+  return {
+    title: cleanText(parsed.title),
+    pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
+    questions: Array.isArray(parsed.questions) ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
+    words: Array.isArray(parsed.words) ? parsed.words.map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning) : [],
+    readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
+  };
 }
 
 app.get('/api/curriculum', requireAuth, async (req, res, next) => {
@@ -876,6 +944,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
       theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle']).default('Moonlight'),
+      language: storyLanguageSchema.default('English'),
     });
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Please check the story generation details.', details: parsed.error.flatten() });
@@ -901,6 +970,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       gradeLevel: data.gradeLevel,
       domain: data.domain,
       theme: data.theme,
+      language: data.language,
       curriculumRow,
       allowExternalAI,
     });
@@ -919,6 +989,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
         meta: {
           gradeLevel: data.gradeLevel,
           domain: data.domain,
+          language: data.language,
           curriculumObjective: generated.curriculumObjective,
           model: 'gpt-4o-mini',
         },
@@ -950,6 +1021,28 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     return res.status(503).json({ error: error.message || 'OpenAI story generation failed.' });
+  }
+});
+
+app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) => {
+  try {
+    const bodySchema = z.object({ revisionPrompt: z.string().trim().min(3).max(500) });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Describe the change you want to make to this story.' });
+    const storyRes = await pool.query('SELECT s.id, s.title, s.prompt, s.theme, s.learning_goal, s.content, s.learner_id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'OpenAI is required for story revisions. Please enable AI opt-in and add the OpenAI key.' });
+    const story = storyRes.rows[0];
+    const gradeLevel = story.content?.meta?.gradeLevel || 'K';
+    const domain = story.content?.meta?.domain || 'comprehension';
+    const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code', [gradeLevel, domain]);
+    const revised = await reviseStoryContent({ story, revisionPrompt: parsed.data.revisionPrompt, gradeLevel, domain, curriculumRow: pickCurriculumRow(curriculumRes.rows, gradeLevel, domain), allowExternalAI: true });
+    const content = { ...story.content, pages: revised.pages, questions: revised.questions, words: revised.words, meta: { ...story.content.meta, revisedAt: new Date().toISOString(), model: 'gpt-4o-mini' } };
+    const updated = await pool.query('UPDATE stories SET title = $1, prompt = $2, content = $3, created_by = $4 WHERE id = $5 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [revised.title, parsed.data.revisionPrompt, content, 'openai_revision', story.id]);
+    return res.json({ story: updated.rows[0] });
+  } catch (error) {
+    return res.status(503).json({ error: `Story revision failed: ${error.message}` });
   }
 });
 

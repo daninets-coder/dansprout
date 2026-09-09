@@ -41,6 +41,18 @@ CREATE TABLE IF NOT EXISTS stories (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS reading_assessments (
+    id UUID PRIMARY KEY,
+    story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    learner_id UUID NOT NULL REFERENCES learners(id) ON DELETE CASCADE,
+    responses JSONB NOT NULL,
+    score INTEGER NOT NULL DEFAULT 0 CHECK (score >= 0 AND score <= 100),
+    mastered BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reading_assessments_learner_created ON reading_assessments(learner_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

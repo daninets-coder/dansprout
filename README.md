@@ -108,6 +108,7 @@ site data, using private browsing, or switching browsers may remove it.
 	 APP_BASE_URL=http://localhost:3000
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
+	 STRIPE_PRICE_FAMILY_500=
 	 STRIPE_PRICE_FAMILY_800=
 	 STRIPE_PRICE_FAMILY_1200=
 	 STRIPE_PRICE_CLASSROOM_1800=
