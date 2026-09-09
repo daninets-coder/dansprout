@@ -261,12 +261,14 @@
     const inner = document.createElement('div');
     inner.className = 'book-modal-card';
     const modalGrade = story?.content?.meta?.gradeLevel ? `Grade ${story.content.meta.gradeLevel}` : '';
-    const earlyReader = ['PreK', 'K'].includes(story?.content?.meta?.gradeLevel);
+    const earlyReader = ['PreK', 'K', '1'].includes(story?.content?.meta?.gradeLevel);
     const modalDomain = story?.content?.meta?.domain ? story.content.meta.domain.replaceAll('_', ' ') : '';
     const modalObjective = story?.content?.meta?.curriculumObjective || '';
     const modalStandard = story?.content?.meta?.curriculumStandard || '';
+    const adultEditorMarkup = earlyReader ? '' : '<section class="book-modal-edit"><h3 class="book-modal-subtitle">Adult story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button></form></section>';
+    const assessmentMarkup = earlyReader ? '' : '<h3 class="book-modal-subtitle">Talk about it</h3><form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="book-modal-meta"></div>';
     const modalMeta = [story.learner_name || '', story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
-    inner.innerHTML = `<div class="book-modal-head"><h2 class="book-modal-title">${esc(story.title)}</h2><button id="closeApiStory" class="en-outline">Close</button></div><div class="book-modal-meta">${esc(modalMeta)}</div><div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}<img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><div id="apiUpgradeCta" class="book-modal-upgrade"></div><section class="book-modal-edit"><h3 class="book-modal-subtitle">Adult story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button></form></section><h3 class="book-modal-subtitle">${earlyReader ? 'Talk about it together' : 'Talk about it'}</h3>${earlyReader ? '<p class="book-modal-meta">Read each question aloud and check it after you discuss the answer together.</p>' : ''}<form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="book-modal-meta"></div><h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
+    inner.innerHTML = `<div class="book-modal-head"><h2 class="book-modal-title">${esc(story.title)}</h2><button id="closeApiStory" class="en-outline">Close</button></div><div class="book-modal-meta">${esc(modalMeta)}</div><div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}<img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<h3 class="book-modal-subtitle">Word garden</h3><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
 
@@ -281,6 +283,7 @@
     renderPage();
     const questions = story?.content?.questions || [];
     const assessment = inner.querySelector('#apiStoryAssessment');
+    if (assessment) {
     assessment.innerHTML = questions.map((question, questionIndex) => earlyReader
       ? `<div class="en-label" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><span style="flex:1">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}</span><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">Read aloud</button></div>`
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length && !earlyReader ? '<button type="submit" class="en-button" style="margin-top:14px">Save reading response</button>' : (!questions.length ? '<p class="book-modal-empty">No questions provided.</p>' : ''));
@@ -296,10 +299,12 @@
         };
       });
     }
+    }
     inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div><strong>${esc(w.word)}</strong> — ${esc(w.meaning)}</div>`).join('') || '<p class="book-modal-empty">No words provided.</p>';
     inner.querySelector('#closeApiStory').onclick = () => modal.remove();
     modal.onclick = (event) => { if (event.target === modal) modal.remove(); };
-    inner.querySelector('#apiStoryRevision').onsubmit = async (event) => {
+    const revisionForm = inner.querySelector('#apiStoryRevision');
+    if (revisionForm) revisionForm.onsubmit = async (event) => {
       event.preventDefault();
       const button = event.target.querySelector('button[type="submit"]');
       button.disabled = true;
@@ -315,7 +320,7 @@
         notify(error.message);
       }
     };
-    assessment.onsubmit = async (event) => {
+    if (assessment) assessment.onsubmit = async (event) => {
       event.preventDefault();
       if (earlyReader) return;
       try {
