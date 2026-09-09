@@ -21,6 +21,9 @@ The project has two ways to run:
 	grade level, reading domain, theme, and prompt.
 - Applies grade-level tailoring rules (sentence complexity, vocabulary, and
 	structure) plus curriculum objective alignment per story.
+- Uses the supplied Maryland College and Career-Ready Standards (MCCRS) ELA
+	benchmark hierarchy from Pre-K through Grade 8, including standard codes,
+	strands, objectives, and evidence of learning.
 - Offers age bands for ages `3-5`, `6-8`, and `9-11`.
 - Supports learning focuses including kindness, bravery, big feelings,
 	curiosity, and early literacy.
@@ -159,7 +162,7 @@ creating, completing, or deleting it.
 | `GET/POST /api/learners` | List or add the account's learners |
 | `DELETE /api/learners/:learnerId` | Remove an owned learner and their stories |
 | `GET /api/stories` | List owned learner stories |
-| `POST /api/stories/generate` | Generate and store an OpenAI-tailored learner story |
+| `POST /api/stories/generate` | Generate and store an OpenAI-tailored learner story using a selected standard code |
 | `PATCH /api/stories/:storyId/complete` | Mark an owned story as completed |
 | `GET /api/progress` | Retrieve learner progress summary |
 | `GET /api/subscription` | Retrieve the current plan |

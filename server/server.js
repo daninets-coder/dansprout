@@ -1009,6 +1009,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       prompt: z.string().trim().min(1).max(300),
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
+      standardCode: z.string().trim().min(1).max(40).optional(),
       theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Moonlight'),
       customTheme: z.string().trim().max(80).default(''),
       language: storyLanguageSchema.default('English'),
@@ -1028,7 +1029,9 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       return res.status(403).json({ error: 'OpenAI is required for story generation. Please enable AI opt-in and add the OpenAI key.' });
     }
 
-    const curriculumRows = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code', [data.gradeLevel, data.domain]);
+    const curriculumRows = data.standardCode
+      ? await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND standard_code = $2 ORDER BY standard_code', [data.gradeLevel, data.standardCode])
+      : await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code', [data.gradeLevel, data.domain]);
     const curriculumRow = pickCurriculumRow(curriculumRows.rows, data.gradeLevel, data.domain);
     
     // OpenAI ONLY - no fallback

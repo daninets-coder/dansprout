@@ -101,6 +101,7 @@
   let learners = [];
   let stories = [];
   let me = null;
+  let curriculumOptions = [];
 
   app.className = 'enterprise';
   app.innerHTML = `
@@ -258,7 +259,8 @@
   const updateStoryVisual = () => {
     const theme = $('#apiTheme')?.value || 'Moonlight';
     const gradeLevel = $('#apiGradeLevel')?.value || '2';
-    const domain = $('#apiGoal')?.value || 'comprehension';
+    const selectedStandard = $('#apiGoal')?.value || '';
+    const domain = curriculumOptions.find(row => row.standard_code === selectedStandard)?.domain || selectedStandard || 'comprehension';
     const themeImage = $('#apiThemeImage');
     const gradeBadge = $('#apiGradeBadge');
     const domainIcon = $('#apiDomainIcon');
@@ -267,16 +269,16 @@
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
   };
 
-  const domainNames = { oral_language: 'Oral Language', phonics: 'Phonics', fluency: 'Fluency', vocabulary: 'Vocabulary', comprehension: 'Comprehension', writing_response: 'Writing Response', social_emotional_reading: 'Reading Confidence & SEL' };
   async function loadCurriculumOptions(gradeLevel) {
     const goalSelect = $('#apiGoal');
     if (!goalSelect) return;
     try {
       const result = await api(`/api/curriculum?gradeLevel=${encodeURIComponent(gradeLevel)}`);
       const rows = result.curriculum || [];
-      const selectedDomain = goalSelect.value;
-      goalSelect.innerHTML = rows.map(row => `<option value="${esc(row.domain)}" title="${esc(row.objective)}">${esc(domainNames[row.domain] || row.domain)} (${esc(row.standard_code)})</option>`).join('');
-      if ([...goalSelect.options].some(option => option.value === selectedDomain)) goalSelect.value = selectedDomain;
+      curriculumOptions = rows;
+      const selectedStandard = goalSelect.value;
+      goalSelect.innerHTML = rows.map(row => `<option value="${esc(row.standard_code)}" title="${esc(row.objective)}">${esc(row.strand)} (${esc(row.standard_code)})</option>`).join('');
+      if ([...goalSelect.options].some(option => option.value === selectedStandard)) goalSelect.value = selectedStandard;
       updateStoryVisual();
     } catch (error) {
       notify(error.message);
@@ -534,14 +536,16 @@
     const learnerId = $('#apiLearner').value;
     const prompt = $('#apiPrompt').value.trim();
     const gradeLevel = $('#apiGradeLevel').value;
-    const domain = $('#apiGoal').value;
+    const selectedStandard = $('#apiGoal').value;
+    const selectedCurriculum = curriculumOptions.find(row => row.standard_code === selectedStandard);
+    const domain = selectedCurriculum?.domain || 'comprehension';
     const theme = $('#apiTheme').value;
     const customTheme = $('#apiCustomTheme').value.trim();
     if (!learnerId || !prompt) return notify('Choose a learner and add an adventure.');
     if (theme === 'Custom' && !customTheme) return notify('Name your story world first.');
     try {
       const learner = learners.find(item => item.id === learnerId);
-      const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, theme, customTheme }) });
+      const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme }) });
       if (!response.story) return notify('Story could not be generated.');
       $('#apiPrompt').value = '';
       await refresh();
