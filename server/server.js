@@ -160,6 +160,13 @@ const storySchema = z.object({
   }),
 });
 const storyLanguageSchema = z.literal('English');
+const aiStoryResponseSchema = z.object({
+  title: z.string().trim().min(1).max(140),
+  pages: z.array(z.string().trim().min(1).max(2000)).min(1).max(8),
+  questions: z.array(z.string().trim().min(1).max(500)).max(8).default([]),
+  words: z.array(z.object({ word: z.string().trim().min(1).max(80), meaning: z.string().trim().min(1).max(300) })).max(12).default([]),
+  readingGoal: z.string().trim().max(200).default('Reading practice'),
+});
 
 function tokenFor(account) { return jwt.sign({ sub: account.id, role: account.role }, jwtSecret, { expiresIn: '8h', issuer: 'story-sprout' }); }
 function requireAuth(req, res, next) { const token = req.headers.authorization?.replace(/^Bearer\s+/i, ''); if (!token) return res.status(401).json({ error: 'Authentication required.' }); try { req.auth = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' }); return next(); } catch { return res.status(401).json({ error: 'Session expired. Please sign in again.' }); } }
@@ -204,6 +211,7 @@ app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next)
     if (!parsed.success) return res.status(400).json({ error: 'Invalid vocabulary request.' });
     const storyRes = await pool.query('SELECT s.id, s.content FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    await assertAiBudget(req.auth.sub);
     const story = storyRes.rows[0];
     const gradeLevel = story.content?.meta?.gradeLevel || 'K';
     const pages = story.content?.pages || [];
@@ -223,6 +231,19 @@ app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next)
   }
 });
 app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS average_assessment_score FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, next) => {
+  try {
+    const bodySchema = z.object({ category: z.enum(['unsafe_content', 'incorrect_content', 'privacy_concern', 'other']), details: z.string().trim().max(1000).default('') });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Please choose a report category.' });
+    const storyRes = await pool.query('SELECT s.id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    await logSafetyEvent(req.auth.sub, 'safety_reported', { storyId: req.params.storyId, category: parsed.data.category, details: parsed.data.details });
+    return res.status(202).json({ reported: true });
+  } catch (error) {
+    return next(error);
+  }
+});
 app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancel', requireAuth, async (req, res, next) => { try { const result = await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2 AND status IN ($3, $4) RETURNING plan, status', ['canceled', req.auth.sub, 'active', 'demo']); return res.json({ subscription: result.rows[0] || { plan: 'explorer', status: 'canceled' } }); } catch (error) { return next(error); } });
@@ -650,6 +671,7 @@ async function fillVocabulary(words, pages, gradeLevel, apiKey) {
     if (response.ok) {
       const payload = await response.json();
       const generated = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
+      if (await failsOpenAIModeration(JSON.stringify(generated), apiKey)) return cleanWords;
       const completed = (Array.isArray(generated.words) ? generated.words : []).map(item => ({ word: cleanText(item.word), meaning: cleanText(item.meaning) })).filter(item => item.word && item.meaning && wordAppearsInPages(item.word, pages) && candidates.includes(item.word.toLowerCase())).slice(0, 3);
       if (completed.length >= 2) return completed;
     }
@@ -678,6 +700,7 @@ async function defineStoryWord(word, pages, gradeLevel, apiKey) {
   const result = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
   const meaning = cleanText(result.meaning);
   if (!meaning) throw new Error('A definition was not returned.');
+  if (await failsOpenAIModeration(JSON.stringify({ word: normalized, meaning }), apiKey)) throw new Error('The definition did not pass the safety review.');
   return { word: normalized, meaning };
 }
 
@@ -693,7 +716,7 @@ function failsLocalSafetyCheck(value) {
 }
 
 async function failsOpenAIModeration(value, apiKey) {
-  if (!apiKey || String(process.env.OPENAI_ENABLE_MODERATION || 'false') !== 'true') return false;
+  if (!apiKey || String(process.env.OPENAI_ENABLE_MODERATION || 'true') !== 'true') return false;
   try {
     const moderationModel = process.env.OPENAI_MODERATION_MODEL || 'omni-moderation-latest';
     const response = await fetch('https://api.openai.com/v1/moderations', {
@@ -712,19 +735,46 @@ async function failsOpenAIModeration(value, apiKey) {
   }
 }
 
+async function logSafetyEvent(accountId, eventType, metadata = null) {
+  try {
+    await pool.query('INSERT INTO ai_safety_events (id, account_id, event_type, metadata) VALUES ($1, $2, $3, $4)', [randomUUID(), accountId || null, eventType, metadata]);
+  } catch (error) {
+    console.warn('AI safety event log failed:', error.message);
+  }
+}
+
+async function assertAiBudget(accountId) {
+  const limit = Math.max(1, Number(process.env.AI_MONTHLY_INVOCATION_LIMIT || 100));
+  const result = await pool.query("SELECT COUNT(*)::int AS count FROM ai_invocations WHERE account_id = $1 AND created_at >= DATE_TRUNC('month', NOW())", [accountId]);
+  if (Number(result.rows[0]?.count || 0) >= limit) {
+    await logSafetyEvent(accountId, 'ai_budget_blocked', { limit });
+    throw new Error('This account has reached its monthly AI story limit. Please try again next month.');
+  }
+}
+
+function validateGeneratedStory(value) {
+  const parsed = aiStoryResponseSchema.safeParse(value);
+  if (!parsed.success) throw new Error('AI returned an invalid story structure.');
+  const totalCharacters = parsed.data.pages.reduce((total, page) => total + page.length, 0);
+  if (totalCharacters > 12000) throw new Error('AI returned a story that is too long.');
+  return parsed.data;
+}
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, language, curriculumRow, allowExternalAI = false }) {
+
+async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, language, curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
   }
 
   if (failsLocalSafetyCheck(`${prompt} ${customTheme || ''}`)) {
+    await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation', reason: 'local_filter' });
     throw new Error('Prompt rejected by child-safety filter. Please use a gentler adventure prompt.');
   }
   const moderationBlocked = await failsOpenAIModeration(prompt, apiKey);
   if (moderationBlocked) {
+    await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation' });
     throw new Error('Prompt blocked by safety moderation. Please rewrite and try again.');
   }
 
@@ -830,11 +880,11 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
     const payload = await response.json();
     const text = payload.choices?.[0]?.message?.content;
     if (!text) throw new Error('No content from OpenAI');
-    const parsed = JSON.parse(text);
-    
-    // Validate that OpenAI returned required fields - do NOT fall back to local stories
-    if (!parsed.title || !Array.isArray(parsed.pages) || parsed.pages.length === 0) {
-      throw new Error('OpenAI returned incomplete story data');
+    const parsed = validateGeneratedStory(JSON.parse(text));
+    const outputText = JSON.stringify({ title: parsed.title, pages: parsed.pages, questions: parsed.questions, words: parsed.words });
+    if (await failsOpenAIModeration(outputText, apiKey)) {
+      await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_generation' });
+      throw new Error('The generated story did not pass the safety review. Please try a different prompt.');
     }
     
     const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
@@ -853,11 +903,11 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
   }
 }
 
-async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, language = 'English', curriculumRow, allowExternalAI = false }) {
+async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, language = 'English', curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) throw new Error('OpenAI is required for story revisions. Enable AI opt-in and configure the OpenAI key.');
-  if (failsLocalSafetyCheck(revisionPrompt)) throw new Error('Revision rejected by child-safety filter. Please request a gentler change.');
-  if (await failsOpenAIModeration(revisionPrompt, apiKey)) throw new Error('Revision blocked by safety moderation. Please rewrite the request.');
+  if (failsLocalSafetyCheck(revisionPrompt)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'local_filter' }); throw new Error('Revision rejected by child-safety filter. Please request a gentler change.'); }
+  if (await failsOpenAIModeration(revisionPrompt, apiKey)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'moderation' }); throw new Error('Revision blocked by safety moderation. Please rewrite the request.'); }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -884,8 +934,8 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
   });
   if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
   const payload = await response.json();
-  const parsed = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
-  if (!parsed.title || !Array.isArray(parsed.pages) || !parsed.pages.length) throw new Error('OpenAI returned incomplete revised story data.');
+  const parsed = validateGeneratedStory(JSON.parse(payload.choices?.[0]?.message?.content || '{}'));
+  if (await failsOpenAIModeration(JSON.stringify(parsed), apiKey)) { await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_revision' }); throw new Error('The revised story did not pass the safety review.'); }
   const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
   return {
     title: cleanText(parsed.title),
@@ -1061,6 +1111,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     if (!allowExternalAI || !process.env.OPENAI_API_KEY) {
       return res.status(403).json({ error: 'OpenAI is required for story generation. Please enable AI opt-in and add the OpenAI key.' });
     }
+    await assertAiBudget(req.auth.sub);
 
     const curriculumRows = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND standard_code = $2 ORDER BY standard_code', [data.gradeLevel, data.standardCode]);
     const curriculumRow = curriculumRows.rows[0] || null;
@@ -1076,6 +1127,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       customTheme: data.customTheme,
       language: data.language,
       curriculumRow,
+      accountId: req.auth.sub,
       allowExternalAI,
     });
 
@@ -1140,11 +1192,12 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'OpenAI is required for story revisions. Please enable AI opt-in and add the OpenAI key.' });
+    await assertAiBudget(req.auth.sub);
     const story = storyRes.rows[0];
     const gradeLevel = story.content?.meta?.gradeLevel || 'K';
     const domain = story.content?.meta?.domain || 'comprehension';
     const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code', [gradeLevel, domain]);
-    const revised = await reviseStoryContent({ story, revisionPrompt: parsed.data.revisionPrompt, gradeLevel, domain, curriculumRow: pickCurriculumRow(curriculumRes.rows, gradeLevel, domain), allowExternalAI: true });
+    const revised = await reviseStoryContent({ story, revisionPrompt: parsed.data.revisionPrompt, gradeLevel, domain, curriculumRow: pickCurriculumRow(curriculumRes.rows, gradeLevel, domain), accountId: req.auth.sub, allowExternalAI: true });
     const content = { ...story.content, pages: revised.pages, questions: revised.questions, words: revised.words, meta: { ...story.content.meta, revisedAt: new Date().toISOString(), model: 'gpt-4o-mini' } };
     const updated = await pool.query('UPDATE stories SET title = $1, prompt = $2, content = $3, created_by = $4 WHERE id = $5 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [revised.title, parsed.data.revisionPrompt, content, 'openai_revision', story.id]);
     return res.json({ story: updated.rows[0] });

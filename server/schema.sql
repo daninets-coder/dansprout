@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS reading_assessments (
 
 CREATE INDEX IF NOT EXISTS idx_reading_assessments_learner_created ON reading_assessments(learner_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS ai_safety_events (
+    id UUID PRIMARY KEY,
+    account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN ('input_blocked', 'output_blocked', 'ai_budget_blocked', 'safety_reported')),
+    metadata JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_safety_events_created ON ai_safety_events(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

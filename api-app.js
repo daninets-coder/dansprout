@@ -375,6 +375,12 @@
     inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eef5ec;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#597076">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
+    const reportButton = document.createElement('button');
+    reportButton.id = 'apiReportSafety';
+    reportButton.type = 'button';
+    reportButton.className = 'en-outline';
+    reportButton.textContent = 'Report safety concern';
+    inner.querySelector('.book-modal-actions').appendChild(reportButton);
 
     const pagesEl = inner.querySelector('#apiStoryPages');
     const pages = story?.content?.pages || [];
@@ -479,6 +485,16 @@
         assessment.querySelector('button[type="submit"]').disabled = true;
         await refresh();
         notify('Reading response saved.');
+      } catch (error) {
+        notify(error.message);
+      }
+    };
+    inner.querySelector('#apiReportSafety').onclick = async () => {
+      const details = window.prompt('Tell us what needs review. Do not include private child information.');
+      if (details === null) return;
+      try {
+        await api(`/api/stories/${story.id}/safety-report`, { method: 'POST', body: JSON.stringify({ category: 'unsafe_content', details }) });
+        notify('Safety report submitted for review.');
       } catch (error) {
         notify(error.message);
       }
