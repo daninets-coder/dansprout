@@ -749,7 +749,7 @@ function cleanText(value) {
 function extractTextValue(item) {
   if (typeof item === 'string') return cleanText(item);
   if (item && typeof item === 'object') {
-    const candidate = item.text || item.content || item.page || item.value || '';
+    const candidate = item.text || item.content || item.page || item.value || item.question || item.prompt || item.description || '';
     return cleanText(candidate);
   }
   return cleanText(item);
@@ -879,8 +879,8 @@ function normalizeGeneratedStory(value) {
     pages: Array.isArray(source.pages) ? source.pages.map(extractTextValue) : source.pages,
     questions: Array.isArray(source.questions) ? source.questions.map(extractTextValue) : source.questions,
     words: Array.isArray(source.words) ? source.words.map(item => ({
-      word: extractTextValue(item?.word),
-      meaning: extractTextValue(item?.meaning),
+      word: extractTextValue(item?.word || item?.term),
+      meaning: extractTextValue(item?.meaning || item?.definition),
     })) : source.words,
     readingGoal: extractTextValue(source.readingGoal),
   };
