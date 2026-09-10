@@ -153,6 +153,7 @@
               <label class="en-label">Reading skill for this grade</label>
               <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
               <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
+              <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code is the reading benchmark; the sentence above explains the skill in family-friendly language.</p>
             </div>
             <label class="en-label">Choose a story world</label>
             <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
@@ -192,6 +193,23 @@
             <div class="en-stat"><strong>3</strong><span><b>Notice growth together.</b><br>Adults can listen, discuss the story, review difficult words, and follow completed reading work.</span></div>
           </div>
           <p style="margin:18px 0 0;color:#597076;font:13px/1.5 Arial,sans-serif">Our approach is conversation-first: the goal is not to rush a child through a score, but to help them build confidence, understanding, and a lasting relationship with reading.</p>
+        </section>
+
+        <section class="en-card" style="margin-top:20px">
+          <div class="en-eyebrow">CURRICULUM GUIDE</div>
+          <h2>What do the reading codes mean?</h2>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">Each story is connected to a U.S. reading benchmark. The code helps adults and teachers identify the skill; the story gives children a friendly way to practice it.</p>
+          <details>
+            <summary style="cursor:pointer;font-weight:700;color:#24515b">Open the family guide</summary>
+            <div style="display:grid;gap:12px;margin-top:16px;font:14px/1.5 Arial,sans-serif;color:#597076">
+              <div><strong>PreK-K</strong><br>Early language, letter sounds, book knowledge, story retelling, and simple comprehension.</div>
+              <div><strong>Grades 1-2</strong><br>Foundational reading, fluency, vocabulary, sequencing, main idea, and character understanding.</div>
+              <div><strong>Grades 3-5</strong><br>Reading evidence, theme, point of view, vocabulary, writing about reading, and comparing ideas.</div>
+              <div><strong>Grades 6-8</strong><br>Text structure, author craft, perspective, argument, evidence-based writing, and critical interpretation.</div>
+              <div><strong>Common abbreviations</strong><br><b>RF</b> = Reading Foundational Skills; <b>RL</b> = Reading Literature; <b>RI</b> = Reading Informational Text; <b>L</b> = Language; <b>W</b> = Writing.</div>
+              <div><strong>How to read a code</strong><br>In <b>RL.3.1</b>, <b>RL</b> names the reading-literature area, the first number is the grade, and the last number identifies the benchmark. Story Sprout also uses short internal labels such as <b>3-CMP-1</b>; the plain-English objective beside the code is the clearest description of the practice.</div>
+            </div>
+          </details>
         </section>
 
         <section class="en-card" style="margin-top:20px">
