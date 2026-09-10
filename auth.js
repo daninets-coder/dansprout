@@ -17,6 +17,7 @@
   confirmField.id = 'confirmPasswordField';
   confirmField.className = 'auth-field hidden';
   confirmField.innerHTML = '<label for="authConfirmPassword">Confirm password</label><input id="authConfirmPassword" type="password" minlength="6" maxlength="128" autocomplete="new-password" required><small class="auth-help">Passwords must match.</small>';
+  confirmField.querySelector('#authConfirmPassword').required = false;
   $('#authPassword').closest('.auth-field').after(confirmField);
   const resetToken = new URLSearchParams(location.search).get('resetToken');
   if (resetToken) {
@@ -25,6 +26,7 @@
     return;
   }
   function setMode(next) { mode = next; gate.querySelectorAll('.auth-tab').forEach(button => button.classList.toggle('active', button.dataset.mode === mode)); $('#registerFields').classList.toggle('hidden', mode !== 'register'); $('#consentField').classList.toggle('hidden', mode !== 'register'); $('#confirmPasswordField').classList.toggle('hidden', mode !== 'register'); $('#authConfirmPassword').required = mode === 'register'; $('#forgotPassword').classList.toggle('hidden', mode !== 'login'); $('#authSubmit').textContent = mode === 'register' ? 'Create secure account' : 'Sign in'; $('#authPassword').autocomplete = mode === 'register' ? 'new-password' : 'current-password'; $('#authError').textContent = ''; }
+  setMode('login');
   gate.querySelector('#authForm').addEventListener('submit', event => { if (mode === 'register' && $('#authPassword').value !== $('#authConfirmPassword').value) { event.preventDefault(); event.stopImmediatePropagation(); $('#authError').textContent = 'Passwords must match.'; } }, true);
   gate.querySelectorAll('.auth-tab').forEach(button => button.onclick = () => setMode(button.dataset.mode));
   $('#forgotPassword').onclick = async () => { const email = $('#authEmail').value.trim(); if (!email) { $('#authError').textContent = 'Enter your email first.'; return; } try { const response = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Unable to send reset link.'); $('#authError').textContent = result.message; } catch (error) { $('#authError').textContent = error.message; } };
