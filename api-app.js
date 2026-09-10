@@ -132,7 +132,7 @@
       <section id="apiHomeView">
         <div class="en-eyebrow">SECURE FAMILY WORKSPACE</div>
         <h1 class="en-title">Welcome, ${esc(account.displayName || 'Reader')}.</h1>
-        <p class="en-lede">Your learners and subscription are stored in your protected Story Sprout account.</p>
+        <p class="en-lede">Story Sprout helps adults create personalized stories that build a child's reading skills, confidence, and love of books.</p>
 
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
@@ -141,8 +141,8 @@
 
         <div class="en-grid">
           <section class="en-card">
-            <h2>Create a learning story</h2>
-            <p>Choose a learner, select a reading skill, and generate a story aligned to a reading objective.</p>
+            <h2>Create a reading story for your learner</h2>
+            <p>Choose a learner, select a reading skill, and generate a child-friendly story aligned to a clear reading objective.</p>
             <label class="en-label">Learner</label>
             <select id="apiLearner" class="en-select"></select>
             <div style="width:100%">
