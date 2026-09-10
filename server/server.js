@@ -1360,6 +1360,10 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
   }
 });
 
+app.use((req, res, next) => {
+  if (/\.(?:html?|js|css)$/i.test(req.path)) res.setHeader('Cache-Control', 'no-store, max-age=0');
+  next();
+});
 app.use(express.static(rootDir));
 app.use('/api/', (req, res, next) => next());
 app.use((req, res) => {
