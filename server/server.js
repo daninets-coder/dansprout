@@ -28,7 +28,7 @@ const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
-const trustProxy = String(process.env.TRUST_PROXY || '').trim();
+const trustProxy = String(process.env.TRUST_PROXY || (process.env.NODE_ENV === 'production' ? 'true' : '')).trim();
 if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
 
 function structuredLog(level, event, metadata = {}) {
