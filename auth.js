@@ -16,7 +16,7 @@
   const confirmField = document.createElement('div');
   confirmField.id = 'confirmPasswordField';
   confirmField.className = 'auth-field hidden';
-  confirmField.innerHTML = '<label for="authConfirmPassword">Confirm password</label><input id="authConfirmPassword" type="password" minlength="6" maxlength="128" autocomplete="new-password" required><small class="auth-help">Passwords must match.</small>';
+  confirmField.innerHTML = '<label for="authConfirmPassword">Confirm password</label><input id="authConfirmPassword" type="password" minlength="6" maxlength="128" autocomplete="new-password"><small class="auth-help">Passwords must match.</small>';
   confirmField.querySelector('#authConfirmPassword').required = false;
   $('#authPassword').closest('.auth-field').after(confirmField);
   const resetToken = new URLSearchParams(location.search).get('resetToken');
