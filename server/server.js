@@ -872,16 +872,17 @@ async function assertAiBudget(accountId) {
 
 function normalizeGeneratedStory(value) {
   if (!value || typeof value !== 'object') return value;
+  const source = value.story && typeof value.story === 'object' ? value.story : value;
   return {
-    ...value,
-    title: extractTextValue(value.title),
-    pages: Array.isArray(value.pages) ? value.pages.map(extractTextValue) : value.pages,
-    questions: Array.isArray(value.questions) ? value.questions.map(extractTextValue) : value.questions,
-    words: Array.isArray(value.words) ? value.words.map(item => ({
+    ...source,
+    title: extractTextValue(source.title),
+    pages: Array.isArray(source.pages) ? source.pages.map(extractTextValue) : source.pages,
+    questions: Array.isArray(source.questions) ? source.questions.map(extractTextValue) : source.questions,
+    words: Array.isArray(source.words) ? source.words.map(item => ({
       word: extractTextValue(item?.word),
       meaning: extractTextValue(item?.meaning),
-    })) : value.words,
-    readingGoal: extractTextValue(value.readingGoal),
+    })) : source.words,
+    readingGoal: extractTextValue(source.readingGoal),
   };
 }
 
