@@ -984,7 +984,25 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         temperature: 0.7,
-        response_format: { type: 'json_object' },
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'reading_story',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['title', 'pages', 'questions', 'words', 'readingGoal'],
+              properties: {
+                title: { type: 'string' },
+                pages: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
+                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
+                words: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['word', 'meaning'], properties: { word: { type: 'string' }, meaning: { type: 'string' } } } },
+                readingGoal: { type: 'string' },
+              },
+            },
+          },
+        },
         messages: [{
           role: 'system',
           content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
