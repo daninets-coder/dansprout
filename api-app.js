@@ -634,7 +634,9 @@
           : '<strong>Progress tools are adult-only</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
     }
 
+    const selectedLearnerId = $('#apiLearner')?.value;
     $('#apiLearner').innerHTML = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
+    if (learners.length) $('#apiLearner').value = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills mastered</span></div>`;
