@@ -870,8 +870,23 @@ async function assertAiBudget(accountId) {
   }
 }
 
+function normalizeGeneratedStory(value) {
+  if (!value || typeof value !== 'object') return value;
+  return {
+    ...value,
+    title: extractTextValue(value.title),
+    pages: Array.isArray(value.pages) ? value.pages.map(extractTextValue) : value.pages,
+    questions: Array.isArray(value.questions) ? value.questions.map(extractTextValue) : value.questions,
+    words: Array.isArray(value.words) ? value.words.map(item => ({
+      word: extractTextValue(item?.word),
+      meaning: extractTextValue(item?.meaning),
+    })) : value.words,
+    readingGoal: extractTextValue(value.readingGoal),
+  };
+}
+
 function validateGeneratedStory(value) {
-  const parsed = aiStoryResponseSchema.safeParse(value);
+  const parsed = aiStoryResponseSchema.safeParse(normalizeGeneratedStory(value));
   if (!parsed.success) throw new Error('AI returned an invalid story structure.');
   const totalCharacters = parsed.data.pages.reduce((total, page) => total + page.length, 0);
   if (totalCharacters > 12000) throw new Error('AI returned a story that is too long.');
