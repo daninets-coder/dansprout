@@ -1,6 +1,14 @@
 (() => {
   if (location.protocol === 'file:') document.body.classList.add('local-file');
   const token = localStorage.getItem('storySproutToken');
+  const deleteAccountToken = new URLSearchParams(location.search).get('deleteAccountToken');
+  if (deleteAccountToken) {
+    fetch('/api/auth/confirm-account-deletion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: deleteAccountToken }) })
+      .then(response => response.ok ? response.text() : response.json().then(data => Promise.reject(new Error(data.error || 'Deletion confirmation failed.'))))
+      .then(() => { ['storySproutToken', 'storySproutAccount', 'storySproutEnterprise', 'storySproutProfile', 'storySproutBooksV2', 'storySproutBooks'].forEach(key => localStorage.removeItem(key)); history.replaceState({}, '', location.pathname); document.body.innerHTML = '<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Account deleted</h1><p>Your Story Sprout account and learner data were permanently deleted.</p></main>'; })
+      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Deletion confirmation failed</h1><p>${error.message}</p></main>`; });
+    return;
+  }
   if (token) return;
   const gate = document.createElement('section');
   gate.className = 'auth-gate';

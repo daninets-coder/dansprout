@@ -23,7 +23,7 @@
     <h3>What we store</h3>
     <p>We store the account email and name, learner profile details, saved stories, progress, and subscription status needed to provide the service. Payment details belong to the payment provider and are never sent to Story Sprout.</p>
     <h3>Retention and deletion</h3>
-    <p>We retain account and learner data while the account is active or as needed to provide the service, meet legal obligations, resolve disputes, and maintain security records. Account deletion removes the account, learner profiles, stories, progress, and subscription records from the application database, subject to limited legally required records and provider retention.</p>
+    <p>We retain account and learner data while the account is active or as needed to provide the service, meet legal obligations, resolve disputes, and maintain security records. Account deletion removes the account, learner profiles, stories, progress, and subscription records from the application database after the adult confirms the request through a one-time email link, subject to limited legally required records and provider retention.</p>
     <h3>Data export</h3>
     <p>Adults can request an export of account, learner, story, consent, and reminder data from the authenticated account. Keep exported data secure because it may contain learner information.</p>
     <h3>Vendors and disclosures</h3>
@@ -72,10 +72,13 @@
   };
   modal.querySelector('[data-privacy-action="delete"]').onclick = async () => {
     if (!window.confirm('Delete this account and all learner profiles, stories, and progress? This cannot be undone.')) return;
+    const currentPassword = window.prompt('Enter your current password to continue.');
+    if (!currentPassword) return;
+    const confirmText = window.prompt('Type DELETE to request permanent account deletion.');
+    if (confirmText !== 'DELETE') { status('Account was not deleted. Type DELETE exactly to confirm.'); return; }
     try {
-      if (token) await api('/api/account', { method: 'DELETE' });
-      ['storySproutToken', 'storySproutAccount', 'storySproutEnterprise', 'storySproutProfile', 'storySproutBooksV2', 'storySproutBooks'].forEach(key => localStorage.removeItem(key));
-      location.reload();
+      if (token) await api('/api/account/deletion-request', { method: 'POST', body: JSON.stringify({ currentPassword, confirmText }) });
+      status('Check your email. The account will be deleted only after you open the confirmation link. The link expires in 30 minutes.');
     } catch (error) { status(error.message); }
   };
 })();
