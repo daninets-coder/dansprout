@@ -43,6 +43,24 @@
   background: #fff4d8;
 }
 
+.assessment-option.is-correct {
+  border-color: #43815b;
+  background: #e3f2df;
+}
+
+.assessment-option.is-incorrect {
+  border-color: #d46a4c;
+  background: #fff0e6;
+}
+
+.assessment-option[data-feedback]::after {
+  margin-left: auto;
+  color: #597076;
+  font-size: 11px;
+  white-space: nowrap;
+  content: attr(data-feedback);
+}
+
 .assessment-option input {
   flex: 0 0 auto;
   width: 18px;
@@ -187,6 +205,74 @@
   border-radius: inherit;
   background: linear-gradient(90deg, #db704b, #f1ba3e, #43815b);
   transition: width .45s ease;
+}
+
+.next-step-card {
+  background: linear-gradient(135deg, #e6f1df, #fff4d8);
+}
+
+.next-step-card h2 {
+  margin-top: 8px !important;
+}
+
+.next-step-card p {
+  max-width: 620px;
+}
+
+.progress-bars {
+  display: grid;
+  gap: 15px;
+  margin-top: 18px;
+}
+
+.progress-line > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #29424b;
+  font: 13px/1.4 Arial, sans-serif;
+}
+
+.progress-line span {
+  color: #687a7c;
+}
+
+.progress-track {
+  height: 9px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #e1eadf;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #db704b, #43815b);
+  transition: width .45s ease;
+}
+
+.achievement-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.achievement {
+  padding: 8px 10px;
+  border: 1px dashed #d7c7b2;
+  border-radius: 999px;
+  color: #687a7c;
+  font: 700 12px Arial, sans-serif;
+}
+
+.achievement.earned {
+  border-style: solid;
+  border-color: #43815b;
+  background: #e3f2df;
+  color: #2f6c50;
 }
 
 @media (max-width: 680px) {

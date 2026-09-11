@@ -140,6 +140,8 @@
           <div id="apiOnboarding"></div>
         </section>
 
+        <section id="apiNextStep" class="en-card next-step-card" style="margin-bottom:20px"></section>
+
         <div class="en-grid">
           <section class="en-card">
             <h2>Create a story together</h2>
@@ -223,6 +225,8 @@
         <section class="en-card" style="margin-top:20px">
           <h2>Learner progress</h2>
           <div id="apiStats" class="en-stat-grid"></div>
+          <div id="apiProgressBars" class="progress-bars"></div>
+          <div id="apiAchievements" class="achievement-row"></div>
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
         </section>
@@ -496,7 +500,8 @@
 
     const pagesEl = inner.querySelector('#apiStoryPages');
     const pages = story?.content?.pages || [];
-    let idx = 0;
+    const resumeKey = `storySproutResume:${story.id}`;
+    let idx = Math.min(Number(localStorage.getItem(resumeKey) || 0), Math.max(0, pages.length - 1));
     let textSize = 24;
     const learnedWords = new Set();
     const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, (word, offset, fullText) => {
@@ -551,8 +556,8 @@
     }
     const renderPage = () => {
       pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count" aria-live="polite">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" ${idx === pages.length - 1 ? 'disabled' : ''}>Next</button></div></article>`;
-      inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { idx -= 1; renderPage(); } };
-      inner.querySelector('#nextPage').onclick = () => { if (idx < pages.length - 1) { idx += 1; renderPage(); } };
+      inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { idx -= 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
+      inner.querySelector('#nextPage').onclick = () => { if (idx < pages.length - 1) { idx += 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
       bindStoryWords();
     };
     renderPage();
@@ -599,6 +604,17 @@
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length ? '<button type="submit" class="en-button" style="margin-top:14px">Check answers</button>' : '<p class="book-modal-empty">No questions provided.</p>');
     if (questions.length) {
       assessment.innerHTML += `<p class="book-modal-meta" style="margin-top:14px">${objectiveQuestions ? 'Choose the best answer from the story. Your score is calculated automatically.' : 'This older story uses written responses and still needs adult review.'}</p>`;
+      if (objectiveQuestions) {
+        assessment.querySelectorAll('.assessment-option input').forEach(input => {
+          input.addEventListener('change', () => {
+            const question = questions[Number(input.dataset.questionIndex)];
+            const option = input.closest('.assessment-option');
+            assessment.querySelectorAll(`input[name="assessment-${input.dataset.questionIndex}"]`).forEach(choice => choice.closest('.assessment-option')?.classList.remove('is-correct', 'is-incorrect'));
+            option.classList.add(input.value === question.answer ? 'is-correct' : 'is-incorrect');
+            option.setAttribute('data-feedback', input.value === question.answer ? 'Correct' : 'Try another answer');
+          });
+        });
+      }
       assessment.querySelectorAll('.apiSpeakQuestion').forEach(button => {
         button.onclick = () => {
           const question = questions[Number(button.dataset.questionIndex)];
@@ -716,6 +732,20 @@
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills mastered</span></div>`;
+    const completedStories = stories.filter(story => story.completed_at).length;
+    const answeredStories = stories.filter(story => story.content?.questions?.length && story.completed_at).length;
+    const progressPercent = stories.length ? Math.min(100, Math.round((completedStories / stories.length) * 100)) : 0;
+    $('#apiProgressBars').innerHTML = `<div class="progress-line"><div><strong>Reading practice</strong><span>${completedStories} of ${stories.length} stories completed</span></div><div class="progress-track"><span style="width:${progressPercent}%"></span></div></div><div class="progress-line"><div><strong>Story checks</strong><span>${answeredStories} completed checks</span></div><div class="progress-track"><span style="width:${stories.length ? Math.min(100, Math.round((answeredStories / stories.length) * 100)) : 0}%"></span></div></div>`;
+    const achievements = [completedStories >= 1 ? 'First story finished' : 'Your first story is waiting', stories.length >= 3 ? 'Three stories created' : 'Create three stories', masteredAssessments >= 1 ? 'Reading skill demonstrated' : 'Practice a reading skill'];
+    $('#apiAchievements').innerHTML = achievements.map((achievement, index) => `<span class="achievement ${((index === 0 && completedStories >= 1) || (index === 1 && stories.length >= 3) || (index === 2 && masteredAssessments >= 1)) ? 'earned' : ''}">${esc(achievement)}</span>`).join('');
+    const nextLearner = learners[0];
+    const lastStory = stories[0];
+    $('#apiNextStep').innerHTML = nextLearner ? `<div class="en-eyebrow">NEXT READING STEP</div><h2>${lastStory?.completed_at ? 'Make the next story together' : 'Continue your reading adventure'}</h2><p>${lastStory?.completed_at ? `Create another story for ${esc(nextLearner.first_name)} with a new interest or reading skill.` : `Open ${esc(lastStory?.title || 'your saved story')} and keep reading with ${esc(nextLearner.first_name)}.`}</p><button type="button" class="en-button" id="apiNextStepButton">${lastStory?.completed_at ? 'Create next story' : 'Open saved story'}</button>` : '<div class="en-eyebrow">NEXT READING STEP</div><h2>Add a learner to begin</h2><p>Create a learner profile before making your first personalized story.</p><button type="button" class="en-button" id="apiNextStepButton">Add a learner</button>';
+    $('#apiNextStepButton').onclick = () => {
+      if (!nextLearner) return show('learners');
+      if (lastStory?.completed_at) return show('home');
+      if (lastStory) return openServerStory(lastStory);
+    };
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
     $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
     renderOnboarding(subscription);
