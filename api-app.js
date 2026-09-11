@@ -164,7 +164,11 @@
             <label class="en-label">Story length</label>
             <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
             <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
-            <button id="apiCreate" class="en-button" style="margin-top:16px;width:100%">Generate reading-aligned story</button>
+            <div class="story-generation-panel" aria-live="polite">
+              <button id="apiCreate" class="en-button story-generation-button" type="button"><span class="story-generation-icon">✦</span><span><strong>Generate my story</strong><small>Build a personalized reading adventure</small></span><span class="story-generation-arrow">→</span></button>
+              <div id="apiGenerationStatus" class="story-generation-status">Your choices shape the story, questions, and vocabulary.</div>
+              <div id="apiGenerationProgress" class="story-generation-progress hidden" role="progressbar" aria-label="Story generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            </div>
             <div class="story-visual" id="apiStoryVisual"><img id="apiThemeImage" class="story-visual-banner" alt="Story world image"><div class="story-visual-overlay"><img id="apiGradeBadge" class="story-visual-grade" alt="Grade badge"><img id="apiDomainIcon" class="story-visual-icon" alt="Reading skill icon"></div></div>
           </section>
           <aside class="en-card trial">
@@ -787,6 +791,18 @@
     }
   };
 
+  let generationTimer = null;
+  const generationButton = $('#apiCreate');
+  const generationStatus = $('#apiGenerationStatus');
+  const generationProgress = $('#apiGenerationProgress');
+  const setGenerationProgress = (value, message) => {
+    const percent = Math.min(100, Math.max(0, value));
+    generationProgress.classList.remove('hidden');
+    generationProgress.setAttribute('aria-valuenow', String(percent));
+    generationProgress.querySelector('span').style.width = `${percent}%`;
+    generationStatus.textContent = message;
+  };
+
   $('#apiCreate').onclick = async () => {
     const learnerId = $('#apiLearner').value;
     const prompt = $('#apiPrompt').value.trim();
@@ -799,14 +815,38 @@
     const storyLength = $('#apiStoryLength').value;
     if (!learnerId || !prompt) return notify('Choose a learner and add an adventure.');
     if (theme === 'Custom' && !customTheme) return notify('Name your story world first.');
+    generationButton.disabled = true;
+    generationButton.classList.add('is-generating');
+    generationButton.querySelector('strong').textContent = 'Creating your story...';
+    setGenerationProgress(12, 'Setting the reading goal...');
+    generationTimer = window.setInterval(() => {
+      const current = Number(generationProgress.getAttribute('aria-valuenow') || 12);
+      if (current < 86) {
+        const next = current + (current < 45 ? 11 : 5);
+        const messages = ['Shaping the adventure...', 'Writing pages for this reader...', 'Adding questions and useful words...'];
+        setGenerationProgress(next, messages[Math.min(2, Math.floor(next / 35))]);
+      }
+    }, 900);
     try {
       const learner = learners.find(item => item.id === learnerId);
       const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength }) });
-      if (!response.story) return notify('Story could not be generated.');
+      if (!response.story) throw new Error('Story could not be generated.');
+      window.clearInterval(generationTimer);
+      setGenerationProgress(100, 'Story ready. Your reading adventure is complete.');
+      generationButton.classList.remove('is-generating');
+      generationButton.classList.add('is-complete');
+      generationButton.querySelector('strong').textContent = 'Story ready';
+      generationButton.querySelector('.story-generation-icon').textContent = '✓';
       $('#apiPrompt').value = '';
       await refresh();
       notify(`Story generated for ${learner?.first_name || 'learner'}.`);
     } catch (error) {
+      window.clearInterval(generationTimer);
+      generationButton.disabled = false;
+      generationButton.classList.remove('is-generating');
+      generationButton.querySelector('strong').textContent = 'Generate my story';
+      generationStatus.textContent = 'Generation could not finish. Check the details and try again.';
+      generationProgress.classList.add('hidden');
       notify(error.message);
     }
   };
