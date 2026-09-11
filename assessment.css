@@ -64,6 +64,42 @@
   margin-top: 11px;
 }
 
+.assessment-result {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 22px 18px;
+  border: 1px solid #e1cfb3;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e7f3df, #fff4d8);
+  text-align: center;
+}
+
+.assessment-score {
+  color: #173b42;
+  font: 700 54px/.95 Georgia, 'Times New Roman', serif;
+}
+
+.assessment-score span {
+  color: #597076;
+  font-size: 22px;
+}
+
+.assessment-score-detail {
+  max-width: 540px;
+  color: #29424b;
+  font: 700 15px/1.45 Arial, sans-serif;
+}
+
+.assessment-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 6px;
+}
+
 @media (max-width: 680px) {
   .assessment-options { grid-template-columns: 1fr; }
 }

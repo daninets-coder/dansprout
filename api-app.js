@@ -402,7 +402,7 @@
     const modalObjective = story?.content?.meta?.curriculumObjective || '';
     const modalStandard = story?.content?.meta?.curriculumStandard || '';
     const adultEditorMarkup = earlyReader ? '' : '<section class="book-modal-edit"><h3 class="book-modal-subtitle">Adult story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button></form></section>';
-    const assessmentMarkup = '<h3 class="book-modal-subtitle">Check understanding</h3><form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="book-modal-meta"></div>';
+    const assessmentMarkup = '<h3 class="book-modal-subtitle">Check understanding</h3><form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="assessment-result" aria-live="polite"></div>';
     const modalMeta = [story.learner_name || '', story.content?.meta?.customTheme || story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
     const modalGradeBadge = gradeBadgeMap[story?.content?.meta?.gradeLevel] || gradeBadgeMap['2'];
@@ -588,11 +588,19 @@
           ? assessment.querySelector(`input[name="assessment-${index}"]:checked`)?.value || ''
           : assessment.querySelector(`[data-question-index="${index}"]`)?.value || '');
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
-        inner.querySelector('#apiAssessmentResult').textContent = objectiveQuestions
-          ? `Score: ${result.score}/100 (${result.correct} of ${questions.length} correct). ${result.mastered ? 'This story check indicates the skill was demonstrated.' : 'Keep practicing this skill.'}`
-          : `Practice score: ${result.score}/100. Adult review is still required before marking mastery.`;
+        const resultPanel = inner.querySelector('#apiAssessmentResult');
+        resultPanel.innerHTML = objectiveQuestions
+          ? `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">${result.correct} of ${questions.length} correct. ${result.mastered ? 'Great work. This story check shows the skill was demonstrated.' : 'Keep practicing this skill and try again.'}</span><div class="assessment-result-actions"><button type="button" class="en-button" id="apiRetryAssessment">Try again</button><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`
+          : `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">Practice score saved. Adult review is still required for this older story format.</span><div class="assessment-result-actions"><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`;
         if (!objectiveQuestions) inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
+        inner.querySelector('#apiRetryAssessment')?.addEventListener('click', () => {
+          assessment.reset();
+          resultPanel.innerHTML = '';
+          assessment.querySelector('button[type="submit"]').disabled = false;
+          assessment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        inner.querySelector('#apiCloseAssessment')?.addEventListener('click', () => inner.querySelector('#closeApiStory').click());
         await refresh();
         notify('Reading response saved.');
       } catch (error) {
