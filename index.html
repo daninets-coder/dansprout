@@ -14,9 +14,8 @@
     .app { width:min(1120px,100%); min-height:100vh; margin:auto; background:rgba(255,253,249,.78); box-shadow:0 0 48px rgba(46,73,65,.09); }
     header { height:84px; padding:0 clamp(20px,5vw,58px); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
     .brand { display:flex; align-items:center; gap:11px; font-size:24px; font-weight:bold; }
-    .sprout { position:relative; width:32px; height:32px; border-radius:7px; background:var(--coral); }
-    .sprout:before,.sprout:after { content:''; position:absolute; width:10px; height:16px; border:2px solid #fff7ea; border-radius:12px 3px 12px 3px; top:7px; }
-    .sprout:before { left:8px; transform:rotate(-35deg); }.sprout:after { right:7px; transform:rotate(35deg); }
+    .sprout { position:relative; width:32px; height:32px; border-radius:7px; background:var(--coral); background-image:radial-gradient(circle at 5px 9px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 13px 6px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 19px 6px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 27px 9px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 17px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 13px 14px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 19px 14px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 27px 17px,#fff7ea 0 3px,transparent 3.5px); }
+    .sprout:before { content:''; position:absolute; width:8px; height:12px; border:2px solid var(--coral); border-left-color:#fff7ea; border-bottom-color:#fff7ea; border-radius:100% 0; left:12px; top:16px; transform:rotate(35deg); background:#fff7ea; }
     .nav { display:flex; gap:8px; }.nav button { border:0; background:transparent; color:var(--muted); font-weight:bold; padding:9px 12px; border-radius:5px; }.nav button.active { background:var(--sage); color:#325a41; }
     main { padding:clamp(28px,6vw,68px); }.hidden { display:none!important; }
     .eyebrow { color:#b95737; font-family:Arial,sans-serif; font-weight:bold; letter-spacing:1.5px; font-size:11px; }
