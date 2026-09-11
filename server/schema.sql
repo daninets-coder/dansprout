@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS reading_assessments (
     responses JSONB NOT NULL,
     score INTEGER NOT NULL DEFAULT 0 CHECK (score >= 0 AND score <= 100),
     mastered BOOLEAN NOT NULL DEFAULT FALSE,
-    review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'reviewed', 'corrected')),
+    review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'auto_scored', 'reviewed', 'corrected')),
     reviewed_by UUID REFERENCES accounts(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMPTZ,
     review_notes TEXT,

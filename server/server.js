@@ -202,7 +202,12 @@ const storyLanguageSchema = z.literal('English');
 const aiStoryResponseSchema = z.object({
   title: z.string().trim().min(1).max(140),
   pages: z.array(z.string().trim().min(1).max(2000)).min(1).max(8),
-  questions: z.array(z.string().trim().min(1).max(500)).max(8).default([]),
+  questions: z.array(z.object({
+    prompt: z.string().trim().min(1).max(500),
+    type: z.enum(['true_false', 'multiple_choice']),
+    options: z.array(z.string().trim().min(1).max(200)).min(2).max(3),
+    answer: z.string().trim().min(1).max(200),
+  })).max(8).default([]),
   words: z.array(z.object({ word: z.string().trim().min(1).max(80), meaning: z.string().trim().min(1).max(300) })).max(12).default([]),
   readingGoal: z.string().trim().max(200).default('Reading practice'),
 });
@@ -289,13 +294,16 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     const responses = parsed.data.responses.slice(0, total);
     const answered = responses.filter(Boolean).length;
     const pages = Array.isArray(storyRes.rows[0].content?.pages) ? storyRes.rows[0].content.pages.map(extractTextValue) : [];
-    const score = scoreReadingResponses(questions, responses, pages);
+    const objectiveQuestions = questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
+    const correct = objectiveQuestions ? questions.slice(0, total).filter((question, index) => responses[index] === question.answer).length : 0;
+    const score = objectiveQuestions ? (total ? Math.round((correct / total) * 100) : 0) : scoreReadingResponses(questions, responses, pages);
+    const autoScored = objectiveQuestions;
     const storyMeta = storyRes.rows[0].content?.meta || {};
     const evidence = { standardCode: storyMeta.curriculumStandard || null, objective: storyMeta.curriculumObjective || null, answered, questionCount: questions.length };
-    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, responses, score, false, 'pending', 0.5, evidence]);
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, reviewed_at, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8 THEN NOW() ELSE NULL END, $9, $10)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, responses, score, autoScored && score >= 80, autoScored ? 'auto_scored' : 'pending', autoScored, autoScored ? 0.95 : 0.5, evidence]);
     await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1', [req.params.storyId]);
     await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId, assessmentScore: score });
-    return res.status(201).json({ score, mastered: false, reviewStatus: 'pending', confidence: 0.5, answered: total, message: 'Practice score saved. Adult review is still required before marking mastery.' });
+    return res.status(201).json({ score, mastered: autoScored && score >= 80, reviewStatus: autoScored ? 'auto_scored' : 'pending', confidence: autoScored ? 0.95 : 0.5, answered: total, correct: autoScored ? correct : null, message: autoScored ? 'Story check scored automatically from the selected answers.' : 'Practice score saved. Adult review is still required for this older story format.' });
   } catch (error) {
     return next(error);
   }
@@ -900,12 +908,23 @@ function normalizeGeneratedStory(value) {
     ...source,
     title: extractTextValue(source.title),
     pages: Array.isArray(source.pages) ? source.pages.map(extractTextValue) : source.pages,
-    questions: Array.isArray(source.questions) ? source.questions.map(extractTextValue) : source.questions,
+    questions: Array.isArray(source.questions) ? source.questions.map(normalizeQuestion) : source.questions,
     words: Array.isArray(source.words) ? source.words.map(item => ({
       word: extractTextValue(item?.word || item?.term),
       meaning: extractTextValue(item?.meaning || item?.definition),
     })) : source.words,
     readingGoal: extractTextValue(source.readingGoal),
+  };
+}
+
+function normalizeQuestion(question) {
+  if (!question || typeof question !== 'object') return question;
+  const options = Array.isArray(question.options) ? question.options.map(extractTextValue).filter(Boolean).slice(0, 3) : [];
+  return {
+    prompt: extractTextValue(question.prompt || question.question),
+    type: question.type === 'true_false' ? 'true_false' : 'multiple_choice',
+    options,
+    answer: extractTextValue(question.answer || question.correctAnswer || question.correct_option),
   };
 }
 
@@ -1019,7 +1038,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
               properties: {
                 title: { type: 'string' },
                 pages: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
-                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
+                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['prompt', 'type', 'options', 'answer'], properties: { prompt: { type: 'string' }, type: { type: 'string', enum: ['true_false', 'multiple_choice'] }, options: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'string' } }, answer: { type: 'string' } } } },
                 words: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['word', 'meaning'], properties: { word: { type: 'string' }, meaning: { type: 'string' } } } },
                 readingGoal: { type: 'string' },
               },
@@ -1028,7 +1047,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
         },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal. Every question must be an objective quiz question with prompt, type (true_false or multiple_choice), 2 or 3 options, and answer matching one option exactly.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -1045,7 +1064,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             constraints: [
               'Warm, child-safe, age-appropriate language',
               'Short pages, 3-4 pages only',
-              'Include exactly 3 open-ended comprehension questions that can be answered from the story',
+              'Include exactly 3 objective comprehension questions that can be answered from the story; use true_false or multiple_choice with 2 or 3 options and one correct answer',
               'Include 2-3 vocabulary words with meanings',
               'Keep it suitable for early elementary or middle-grade reading based on grade',
               'Focus on reading growth, confidence, and one clear learning goal',
@@ -1073,7 +1092,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
     return {
       title: cleanText(parsed.title),
       pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
-      questions: Array.isArray(parsed.questions) && parsed.questions.length ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
+      questions: Array.isArray(parsed.questions) && parsed.questions.length ? parsed.questions.map(normalizeQuestion).filter(question => question?.prompt && question.options?.length >= 2 && question.answer) : [],
       words,
       readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
       curriculumObjective: curriculumRow?.objective || null,
@@ -1101,7 +1120,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
       response_format: { type: 'json_object' },
       messages: [{
         role: 'system',
-        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal.`
+        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be true_false or multiple_choice with 2 or 3 options and an answer matching one option exactly.`
       }, {
         role: 'user',
         content: JSON.stringify({
@@ -1110,7 +1129,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
           gradeLevel,
           domain,
           curriculumObjective: curriculumRow?.objective || story.content?.meta?.curriculumObjective || 'Support comprehension and confidence in reading.',
-          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 answerable comprehension questions.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
+          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 objective comprehension questions with 2 or 3 choices and one exact answer.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
         }),
       }],
     }),
@@ -1123,7 +1142,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
   return {
     title: cleanText(parsed.title),
     pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
-    questions: Array.isArray(parsed.questions) ? parsed.questions.map(item => extractTextValue(item)).filter(Boolean) : [],
+    questions: Array.isArray(parsed.questions) ? parsed.questions.map(normalizeQuestion).filter(question => question?.prompt && question.options?.length >= 2 && question.answer) : [],
     words,
     readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
     usage: payload.usage || null,
