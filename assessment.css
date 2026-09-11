@@ -1,0 +1,56 @@
+.assessment-question {
+  border: 0;
+  padding: 14px 0 18px;
+  margin: 0;
+  border-bottom: 1px solid #ead8bb;
+}
+
+.assessment-question legend {
+  width: 100%;
+  padding: 0;
+  color: #1e3d49;
+  font: 700 16px/1.4 Arial, sans-serif;
+}
+
+.assessment-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.assessment-option {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 0 !important;
+  padding: 11px 13px;
+  border: 1px solid #e1cfb3;
+  border-radius: 7px;
+  background: #fffdf9;
+  color: #29424b;
+  font: 15px/1.4 Arial, sans-serif !important;
+  cursor: pointer;
+}
+
+.assessment-option:hover {
+  border-color: #db704b;
+  background: #fff6e8;
+}
+
+.assessment-option input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #db704b;
+}
+
+.assessment-option span {
+  flex: 1;
+  min-width: 0;
+}
+
+.assessment-question .apiSpeakQuestion {
+  margin-top: 11px;
+}

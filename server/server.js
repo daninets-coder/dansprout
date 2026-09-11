@@ -204,7 +204,7 @@ const aiStoryResponseSchema = z.object({
   pages: z.array(z.string().trim().min(1).max(2000)).min(1).max(8),
   questions: z.array(z.object({
     prompt: z.string().trim().min(1).max(500),
-    type: z.enum(['true_false', 'multiple_choice']),
+    type: z.literal('multiple_choice'),
     options: z.array(z.string().trim().min(1).max(200)).min(2).max(3),
     answer: z.string().trim().min(1).max(200),
   })).max(8).default([]),
@@ -922,7 +922,7 @@ function normalizeQuestion(question) {
   const options = Array.isArray(question.options) ? question.options.map(extractTextValue).filter(Boolean).slice(0, 3) : [];
   return {
     prompt: extractTextValue(question.prompt || question.question),
-    type: question.type === 'true_false' ? 'true_false' : 'multiple_choice',
+    type: 'multiple_choice',
     options,
     answer: extractTextValue(question.answer || question.correctAnswer || question.correct_option),
   };
@@ -1038,7 +1038,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
               properties: {
                 title: { type: 'string' },
                 pages: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
-                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['prompt', 'type', 'options', 'answer'], properties: { prompt: { type: 'string' }, type: { type: 'string', enum: ['true_false', 'multiple_choice'] }, options: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'string' } }, answer: { type: 'string' } } } },
+                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['prompt', 'type', 'options', 'answer'], properties: { prompt: { type: 'string' }, type: { type: 'string', enum: ['multiple_choice'] }, options: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'string' } }, answer: { type: 'string' } } } },
                 words: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['word', 'meaning'], properties: { word: { type: 'string' }, meaning: { type: 'string' } } } },
                 readingGoal: { type: 'string' },
               },
@@ -1047,7 +1047,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
         },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal. Every question must be an objective quiz question with prompt, type (true_false or multiple_choice), 2 or 3 options, and answer matching one option exactly.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Never use true or false questions.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -1064,7 +1064,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             constraints: [
               'Warm, child-safe, age-appropriate language',
               'Short pages, 3-4 pages only',
-              'Include exactly 3 objective comprehension questions that can be answered from the story; use true_false or multiple_choice with 2 or 3 options and one correct answer',
+              'Include exactly 3 multiple-choice comprehension questions that can be answered from the story; use exactly 2 or 3 options and one correct answer',
               'Include 2-3 vocabulary words with meanings',
               'Keep it suitable for early elementary or middle-grade reading based on grade',
               'Focus on reading growth, confidence, and one clear learning goal',
@@ -1120,7 +1120,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
       response_format: { type: 'json_object' },
       messages: [{
         role: 'system',
-        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be true_false or multiple_choice with 2 or 3 options and an answer matching one option exactly.`
+        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be multiple_choice with exactly 2 or 3 options and an answer matching one option exactly. Never use true or false questions.`
       }, {
         role: 'user',
         content: JSON.stringify({
@@ -1129,7 +1129,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
           gradeLevel,
           domain,
           curriculumObjective: curriculumRow?.objective || story.content?.meta?.curriculumObjective || 'Support comprehension and confidence in reading.',
-          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 objective comprehension questions with 2 or 3 choices and one exact answer.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
+          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 multiple-choice comprehension questions with 2 or 3 choices and one exact answer. Do not use true or false.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
         }),
       }],
     }),
