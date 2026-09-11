@@ -115,7 +115,7 @@
 
   app.className = 'enterprise';
   app.innerHTML = `
-    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee)}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.last-activity-heading h2{margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:26px}.last-activity-story{display:grid;gap:5px;margin:18px 0;padding:14px 16px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:18px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 13px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:14px/1.45 Arial,sans-serif}.last-activity-details{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:7px;color:#597076;font:13px Arial,sans-serif}.last-activity-open{width:auto}</style>
+    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
@@ -140,8 +140,6 @@
           <h2>Getting started</h2>
           <div id="apiOnboarding"></div>
         </section>
-
-        <section id="apiLastActivity" class="en-card last-activity-card hidden" style="margin-bottom:20px"></section>
 
         <div class="en-grid">
           <section class="en-card">
@@ -174,13 +172,14 @@
             </div>
             <div class="story-visual" id="apiStoryVisual"><img id="apiThemeImage" class="story-visual-banner" alt="Story world image"><div class="story-visual-overlay"><img id="apiGradeBadge" class="story-visual-grade" alt="Grade badge"><img id="apiDomainIcon" class="story-visual-icon" alt="Reading skill icon"></div></div>
           </section>
-          <aside class="en-card trial">
+          <aside class="en-card trial privacy-card">
+            <section id="apiLastActivity" class="last-activity-card hidden"></section>
             <span class="en-badge" id="apiPlanBadge">PLAN</span>
-            <h2 style="margin-top:17px">Private by design.</h2>
-            <p>Only the signed-in parent or teacher can access their learner profiles and stories.</p>
+            <h2 style="margin-top:14px">Private by design.</h2>
+            <p>Only the signed-in adult can access learner profiles and stories.</p>
             <img src="${asset('images/Speak/speakpanda.png')}" class="trial-mascot" alt="Friendly reading panda">
             <div id="apiPricingOffer" style="margin-top:10px;font-size:13px"></div>
-            <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e5d5bf">
+            <div class="privacy-spark" style="border-top:1px solid #e5d5bf">
               <div class="en-eyebrow">A READING SPARK</div>
               <p id="apiReadingSpark" style="margin:7px 0 0;color:#fff;font-size:17px;line-height:1.4"></p>
             </div>
