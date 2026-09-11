@@ -207,18 +207,6 @@
   transition: width .45s ease;
 }
 
-.next-step-card {
-  background: linear-gradient(135deg, #e6f1df, #fff4d8);
-}
-
-.next-step-card h2 {
-  margin-top: 8px !important;
-}
-
-.next-step-card p {
-  max-width: 620px;
-}
-
 .progress-bars {
   display: grid;
   gap: 15px;
