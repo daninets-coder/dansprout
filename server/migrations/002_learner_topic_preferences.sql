@@ -1,0 +1,1 @@
+ALTER TABLE learners ADD COLUMN IF NOT EXISTS topics_to_avoid_options TEXT[] NOT NULL DEFAULT '{}';

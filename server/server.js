@@ -187,7 +187,7 @@ const loginSchema = z.object({ email: z.string().email(), password: z.string().m
 const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
 const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(6).max(128), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const passwordResetCodeSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()), code: z.string().regex(/^\d{6}$/), password: z.string().min(6).max(128) });
-const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
+const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'family', 'classroom']) });
 const storySchema = z.object({
   learnerId: z.string().uuid(),
@@ -281,8 +281,8 @@ app.post('/api/auth/reset-password', validate(passwordResetSchema, 'body'), asyn
   } catch (error) { return next(error); }
 });
 app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, display_name, "role", created_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); return res.json({ account: { ...rows[0], isSiteOwner: ownerEmail.length > 0 && rows[0].email.toLowerCase() === ownerEmail } }); } catch (error) { return next(error); } });
-app.get('/api/learners', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.interests, l.topics_to_avoid, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
-app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid) VALUES ($1, $2, $3, $4, $5, $6)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
+app.get('/api/learners', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options) VALUES ($1, $2, $3, $4, $5, $6, $7)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
 app.delete('/api/learners/:learnerId', requireAuth, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
 app.get('/api/stories', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name FROM stories s INNER JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 ORDER BY s.created_at DESC`, [req.auth.sub]); return res.json({ stories: rows }); } catch (error) { return next(error); } });
 app.post('/api/stories', requireAuth, validate(storySchema, 'body'), async (req, res) => {
@@ -954,7 +954,7 @@ function estimateOpenAICost(usage) {
 
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
+async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
@@ -1029,6 +1029,8 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
     long: { pages: '4-6 pages', words: '350-700 words total' },
   };
   const lengthProfile = lengthProfiles[storyLength] || lengthProfiles.standard;
+  const topicLabels = { scary_creatures: 'scary creatures', storms: 'storms', getting_lost: 'getting lost', separation: 'separation', loud_noises: 'loud noises', medical_topics: 'medical topics', death_or_grief: 'death or grief', fighting: 'fighting' };
+  const avoidedTopics = topicsToAvoid.map(topic => topicLabels[topic] || topic);
 
   try {
     const safeLearner = 'A curious reader';
@@ -1076,6 +1078,8 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             curriculumObjective: curriculumRow?.objective || 'Support comprehension and confidence in reading.',
             curriculumStandard: curriculumRow?.standard_code || null,
             standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
+            topicsToAvoid: avoidedTopics,
+            customTopicsToAvoid: customTopicsToAvoid || null,
             constraints: [
               'Warm, child-safe, age-appropriate language',
               `Length target: ${lengthProfile.pages}, approximately ${lengthProfile.words}.`,
@@ -1086,6 +1090,8 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
               `Sentence guidance: ${gradeProfile.sentenceStyle}`,
               `Vocabulary guidance: ${gradeProfile.vocabularyLevel}`,
               `Structure guidance: ${gradeProfile.structure}`,
+              avoidedTopics.length || customTopicsToAvoid ? `Avoid these parent-selected sensitivities: ${[...avoidedTopics, customTopicsToAvoid].filter(Boolean).join('; ')}.` : 'No additional parent-selected sensitivities were provided.',
+              'Never include a parent-selected avoided topic unless it is necessary to discuss the avoidance in a gentle, parent-approved context.',
             ],
           })
         }],
@@ -1346,7 +1352,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
 
     const data = parsed.data;
     if (data.theme === 'Custom' && !data.customTheme) return res.status(400).json({ error: 'Please name your story world.' });
-    const learnerQuery = await pool.query('SELECT id, first_name, age_band FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
+    const learnerQuery = await pool.query('SELECT id, first_name, age_band, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
     if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const learner = learnerQuery.rows[0];
 
@@ -1371,6 +1377,8 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       customTheme: data.customTheme,
       storyLength: data.storyLength,
       language: data.language,
+      topicsToAvoid: learner.topics_to_avoid_options || [],
+      customTopicsToAvoid: learner.topics_to_avoid || '',
       curriculumRow,
       accountId: req.auth.sub,
       allowExternalAI,

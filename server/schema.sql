@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS learners (
     age_band TEXT NOT NULL CHECK (age_band IN ('3-5', '6-8', '9-11')),
     interests TEXT NOT NULL DEFAULT '',
     topics_to_avoid TEXT NOT NULL DEFAULT '',
+    topics_to_avoid_options TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

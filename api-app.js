@@ -115,7 +115,7 @@
 
   app.className = 'enterprise';
   app.innerHTML = `
-    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}</style>
+    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr}}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
@@ -290,7 +290,7 @@
             <h2>Add a learner</h2>
             <label class="en-label">First name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
             <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160"></div></div>
-            <label class="en-label">Topics to avoid</label><input id="apiAvoid" class="en-input" maxlength="160">
+            <label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Choose any sensitivities, then add a personal note if needed.</p><div id="apiAvoidOptions" class="avoid-options"><label><input type="checkbox" value="scary_creatures"> Scary creatures</label><label><input type="checkbox" value="storms"> Storms</label><label><input type="checkbox" value="getting_lost"> Getting lost</label><label><input type="checkbox" value="separation"> Separation</label><label><input type="checkbox" value="loud_noises"> Loud noises</label><label><input type="checkbox" value="medical_topics"> Medical topics</label><label><input type="checkbox" value="death_or_grief"> Death or grief</label><label><input type="checkbox" value="fighting"> Fighting</label></div><input id="apiAvoid" class="en-input" maxlength="160" placeholder="Something else to avoid, such as parents leaving">
             <button class="en-button" style="width:100%;margin-top:18px">Save learner</button>
           </form>
         </div>
@@ -833,6 +833,7 @@
           ageBand: $('#apiAgeBand').value,
           interests: $('#apiInterests').value,
           topicsToAvoid: $('#apiAvoid').value,
+          topicsToAvoidOptions: [...document.querySelectorAll('#apiAvoidOptions input:checked')].map(input => input.value),
           goals: ['Kindness', 'Curiosity'],
         }),
       });
