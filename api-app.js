@@ -115,6 +115,7 @@
 
   app.className = 'enterprise';
   app.innerHTML = `
+    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee)}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.last-activity-heading h2{margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:26px}.last-activity-story{display:grid;gap:5px;margin:18px 0;padding:14px 16px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:18px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 13px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:14px/1.45 Arial,sans-serif}.last-activity-details{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:7px;color:#597076;font:13px Arial,sans-serif}.last-activity-open{width:auto}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
@@ -139,6 +140,8 @@
           <h2>Getting started</h2>
           <div id="apiOnboarding"></div>
         </section>
+
+        <section id="apiLastActivity" class="en-card last-activity-card hidden" style="margin-bottom:20px"></section>
 
         <div class="en-grid">
           <section class="en-card">
@@ -427,6 +430,7 @@
   }
 
   $('#apiStorySearch').addEventListener('input', renderStoryList);
+  $('#apiLearner').addEventListener('change', event => renderLastActivity(window.__storySproutProgressLearners || [], event.target.value));
 
   async function openServerStory(story) {
     if (!story?.content?.words?.length) {
@@ -729,6 +733,8 @@
     const selectedLearnerId = $('#apiLearner')?.value;
     $('#apiLearner').innerHTML = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
     if (learners.length) $('#apiLearner').value = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
+    window.__storySproutProgressLearners = progressData.learners || [];
+    renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills mastered</span></div>`;
@@ -746,6 +752,28 @@
     $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
     renderOnboarding(subscription);
 
+
+  function renderLastActivity(progressLearners, learnerId) {
+    const container = $('#apiLastActivity');
+    if (!container) return;
+    const item = progressLearners.find(learner => learner.id === learnerId);
+    const activity = item?.last_activity;
+    if (!activity) {
+      container.classList.remove('hidden');
+      container.innerHTML = '<div class="last-activity-eyebrow">WELCOME BACK</div><h2>Start your first reading adventure</h2><p>Choose a learner, a reading goal, and an idea to create a personalized story together.</p>';
+      return;
+    }
+    const assessment = activity.assessment;
+    const vocabulary = (activity.vocabulary || []).slice(0, 3).map(word => typeof word === 'string' ? word : word.word).filter(Boolean);
+    const status = assessment ? `${assessment.score}/100 story check (${assessment.answered} of ${assessment.questionCount} questions answered)` : activity.completedAt ? 'Story completed' : 'Story in progress';
+    const nextAction = assessment ? 'Review story' : activity.completedAt ? 'Review story' : 'Continue story';
+    container.classList.remove('hidden');
+    container.innerHTML = `<div class="last-activity-eyebrow">WELCOME BACK</div><div class="last-activity-heading"><div><h2>${esc(item.first_name)}'s latest reading activity</h2><p class="last-activity-date">${esc(formatStoryDate(activity.completedAt || activity.createdAt))}</p></div><span class="last-activity-mark">✦</span></div><div class="last-activity-story"><strong>${esc(activity.title)}</strong><span>${esc(activity.learningGoal || 'Reading practice')}</span>${activity.objective ? `<p>${esc(activity.objective)}</p>` : ''}<div class="last-activity-details"><span>${esc(status)}</span>${vocabulary.length ? `<span>Words: ${esc(vocabulary.join(', '))}</span>` : ''}</div></div><button type="button" class="en-button last-activity-open" data-story-id="${esc(activity.storyId)}">${nextAction}</button>`;
+    container.querySelector('.last-activity-open').onclick = () => {
+      const story = stories.find(savedStory => savedStory.id === activity.storyId);
+      if (story) openServerStory(story);
+    };
+  }
     document.querySelectorAll('.apiRemove').forEach(button => {
       button.onclick = async () => {
         if (!confirm('Remove this learner and their saved stories?')) return;
