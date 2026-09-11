@@ -275,6 +275,68 @@
   color: #2f6c50;
 }
 
+.habit-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 13px 15px;
+  border-left: 4px solid #f1ba3e;
+  background: #fff7df;
+}
+
+.habit-card strong {
+  grid-row: span 2;
+  color: #b85435;
+  font: 700 25px Georgia, 'Times New Roman', serif;
+}
+
+.habit-card span,
+.habit-card small {
+  color: #29424b;
+  font: 700 13px/1.35 Arial, sans-serif;
+}
+
+.habit-card small {
+  color: #687a7c;
+  font-weight: 400;
+}
+
+.learner-report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 17px;
+}
+
+.learner-report {
+  padding: 12px;
+  border: 1px solid #e5d5bf;
+  border-radius: 7px;
+  background: #fffdf9;
+}
+
+.learner-report strong,
+.learner-report span {
+  display: block;
+}
+
+.learner-report strong {
+  color: #173b42;
+  font: 700 15px Georgia, 'Times New Roman', serif;
+}
+
+.learner-report span {
+  margin-top: 4px;
+  color: #687a7c;
+  font: 12px/1.4 Arial, sans-serif;
+}
+
+.learner-report .progress-track {
+  margin-top: 9px;
+}
+
 @media (max-width: 680px) {
   .assessment-options { grid-template-columns: 1fr; }
 }

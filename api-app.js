@@ -227,6 +227,8 @@
           <div id="apiStats" class="en-stat-grid"></div>
           <div id="apiProgressBars" class="progress-bars"></div>
           <div id="apiAchievements" class="achievement-row"></div>
+          <div id="apiHabit" class="habit-card"></div>
+          <div id="apiLearnerReport" class="learner-report-grid"></div>
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
         </section>
@@ -738,6 +740,10 @@
     $('#apiProgressBars').innerHTML = `<div class="progress-line"><div><strong>Reading practice</strong><span>${completedStories} of ${stories.length} stories completed</span></div><div class="progress-track"><span style="width:${progressPercent}%"></span></div></div><div class="progress-line"><div><strong>Story checks</strong><span>${answeredStories} completed checks</span></div><div class="progress-track"><span style="width:${stories.length ? Math.min(100, Math.round((answeredStories / stories.length) * 100)) : 0}%"></span></div></div>`;
     const achievements = [completedStories >= 1 ? 'First story finished' : 'Your first story is waiting', stories.length >= 3 ? 'Three stories created' : 'Create three stories', masteredAssessments >= 1 ? 'Reading skill demonstrated' : 'Practice a reading skill'];
     $('#apiAchievements').innerHTML = achievements.map((achievement, index) => `<span class="achievement ${((index === 0 && completedStories >= 1) || (index === 1 && stories.length >= 3) || (index === 2 && masteredAssessments >= 1)) ? 'earned' : ''}">${esc(achievement)}</span>`).join('');
+    const weekStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const weekCompleted = stories.filter(story => story.completed_at && new Date(story.completed_at).getTime() >= weekStart).length;
+    $('#apiHabit').innerHTML = `<strong>${weekCompleted}/1</strong><span>stories completed this week</span><small>${weekCompleted ? 'Nice reading rhythm. Keep it going.' : 'A small weekly goal: finish one story together.'}</small>`;
+    $('#apiLearnerReport').innerHTML = (progressData.learners || []).map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
     const nextLearner = learners[0];
     const lastStory = stories[0];
     $('#apiNextStep').innerHTML = nextLearner ? `<div class="en-eyebrow">NEXT READING STEP</div><h2>${lastStory?.completed_at ? 'Make the next story together' : 'Continue your reading adventure'}</h2><p>${lastStory?.completed_at ? `Create another story for ${esc(nextLearner.first_name)} with a new interest or reading skill.` : `Open ${esc(lastStory?.title || 'your saved story')} and keep reading with ${esc(nextLearner.first_name)}.`}</p><button type="button" class="en-button" id="apiNextStepButton">${lastStory?.completed_at ? 'Create next story' : 'Open saved story'}</button>` : '<div class="en-eyebrow">NEXT READING STEP</div><h2>Add a learner to begin</h2><p>Create a learner profile before making your first personalized story.</p><button type="button" class="en-button" id="apiNextStepButton">Add a learner</button>';
