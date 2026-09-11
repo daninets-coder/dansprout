@@ -325,6 +325,24 @@
   margin-top: 9px;
 }
 
+.reminder-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: #29424b;
+  font: 700 13px/1.4 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.reminder-toggle input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #43815b;
+}
+
 @media (max-width: 680px) {
   .assessment-options { grid-template-columns: 1fr; }
 }

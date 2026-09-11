@@ -768,7 +768,7 @@
       ? 'AI story generation is enabled for this account.'
       : 'AI story generation consent is required. Please contact the account administrator.';
 
-    $('#apiReminderOpt').innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="apiReminderToggle" ${reminderData.weeklyEmailEnabled ? 'checked' : ''}> Weekly reminder emails</label>`;
+    $('#apiReminderOpt').innerHTML = `<label class="reminder-toggle"><input type="checkbox" id="apiReminderToggle" ${reminderData.weeklyEmailEnabled ? 'checked' : ''}><span>Weekly reminder emails</span></label>`;
     const reminderToggle = $('#apiReminderToggle');
     if (reminderToggle) {
       reminderToggle.onchange = async () => {
