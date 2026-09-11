@@ -816,7 +816,9 @@
     if (!learnerId || !prompt) return notify('Choose a learner and add an adventure.');
     if (theme === 'Custom' && !customTheme) return notify('Name your story world first.');
     generationButton.disabled = true;
+    generationButton.classList.remove('is-complete');
     generationButton.classList.add('is-generating');
+    generationButton.querySelector('.story-generation-icon').textContent = '✦';
     generationButton.querySelector('strong').textContent = 'Creating your story...';
     setGenerationProgress(12, 'Setting the reading goal...');
     generationTimer = window.setInterval(() => {
@@ -832,7 +834,10 @@
       const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength }) });
       if (!response.story) throw new Error('Story could not be generated.');
       window.clearInterval(generationTimer);
+      generationTimer = null;
       setGenerationProgress(100, 'Story ready. Your reading adventure is complete.');
+      generationProgress.classList.add('hidden');
+      generationButton.disabled = false;
       generationButton.classList.remove('is-generating');
       generationButton.classList.add('is-complete');
       generationButton.querySelector('strong').textContent = 'Story ready';
@@ -842,6 +847,7 @@
       notify(`Story generated for ${learner?.first_name || 'learner'}.`);
     } catch (error) {
       window.clearInterval(generationTimer);
+      generationTimer = null;
       generationButton.disabled = false;
       generationButton.classList.remove('is-generating');
       generationButton.querySelector('strong').textContent = 'Generate my story';
