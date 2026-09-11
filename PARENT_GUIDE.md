@@ -49,6 +49,8 @@ If you are already signed in, Story Sprout opens the family workspace automatica
 
 Use **Forgot password?** if you need to request a password reset. Password reset email delivery must be configured by the service operator in production.
 
+New accounts must verify the email address before signing in. Open the verification email from Story Sprout and select its link. If the email does not arrive, return to the sign-in screen and select **Resend verification email**. Existing pilot accounts may already be verified.
+
 ## 4. Add A Learner
 
 The first setup step is to create a learner profile.
