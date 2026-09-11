@@ -1,6 +1,6 @@
 .assessment-question {
   border: 0;
-  padding: 14px 0 18px;
+  padding: 20px 0 22px;
   margin: 0;
   border-bottom: 1px solid #ead8bb;
 }
@@ -8,34 +8,39 @@
 .assessment-question legend {
   width: 100%;
   padding: 0;
-  color: #1e3d49;
-  font: 700 16px/1.4 Arial, sans-serif;
+  color: #173b42;
+  font: 700 18px/1.35 Georgia, 'Times New Roman', serif;
 }
 
 .assessment-options {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .assessment-option {
   display: flex !important;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   margin: 0 !important;
+  min-height: 54px;
   padding: 11px 13px;
-  border: 1px solid #e1cfb3;
-  border-radius: 7px;
+  border: 1px solid #d8c8b5;
+  border-radius: 8px;
   background: #fffdf9;
   color: #29424b;
-  font: 15px/1.4 Arial, sans-serif !important;
+  font: 700 14px/1.3 Arial, sans-serif !important;
   cursor: pointer;
+  box-shadow: 0 3px 0 rgba(23,59,66,.08);
+  transition: transform .15s ease, border-color .15s ease, background .15s ease;
 }
 
 .assessment-option:hover {
+  transform: translateY(-2px);
   border-color: #db704b;
-  background: #fff6e8;
+  background: #fff4d8;
 }
 
 .assessment-option input {
@@ -46,6 +51,10 @@
   accent-color: #db704b;
 }
 
+.assessment-option:nth-child(3n + 1) { border-top: 4px solid #efb72f; }
+.assessment-option:nth-child(3n + 2) { border-top: 4px solid #44a45b; }
+.assessment-option:nth-child(3n + 3) { border-top: 4px solid #168fb7; }
+
 .assessment-option span {
   flex: 1;
   min-width: 0;
@@ -53,4 +62,8 @@
 
 .assessment-question .apiSpeakQuestion {
   margin-top: 11px;
+}
+
+@media (max-width: 680px) {
+  .assessment-options { grid-template-columns: 1fr; }
 }
