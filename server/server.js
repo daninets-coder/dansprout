@@ -286,14 +286,16 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
     const total = Math.min(questions.length, parsed.data.responses.length);
-    const answered = parsed.data.responses.slice(0, total).filter(Boolean).length;
-    const score = 0;
+    const responses = parsed.data.responses.slice(0, total);
+    const answered = responses.filter(Boolean).length;
+    const pages = Array.isArray(storyRes.rows[0].content?.pages) ? storyRes.rows[0].content.pages.map(extractTextValue) : [];
+    const score = scoreReadingResponses(questions, responses, pages);
     const storyMeta = storyRes.rows[0].content?.meta || {};
     const evidence = { standardCode: storyMeta.curriculumStandard || null, objective: storyMeta.curriculumObjective || null, answered, questionCount: questions.length };
-    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, parsed.data.responses.slice(0, total), score, false, 'pending', 0.25, evidence]);
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, responses, score, false, 'pending', 0.5, evidence]);
     await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1', [req.params.storyId]);
     await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId, assessmentScore: score });
-    return res.status(201).json({ score: null, mastered: false, reviewStatus: 'pending', confidence: 0.25, answered: total, message: 'Reading response saved for adult review.' });
+    return res.status(201).json({ score, mastered: false, reviewStatus: 'pending', confidence: 0.5, answered: total, message: 'Practice score saved. Adult review is still required before marking mastery.' });
   } catch (error) {
     return next(error);
   }
@@ -753,6 +755,27 @@ function extractTextValue(item) {
     return cleanText(candidate);
   }
   return cleanText(item);
+}
+
+function meaningfulWords(value) {
+  return new Set(cleanText(value).toLowerCase().match(/[a-z]{3,}/g) || []);
+}
+
+function scoreReadingResponses(questions, responses, pages) {
+  const storyWords = meaningfulWords(pages.join(' '));
+  const scores = questions.map((question, index) => {
+    const answer = cleanText(responses[index] || '');
+    if (!answer) return 0;
+    const answerWords = meaningfulWords(answer);
+    const questionWords = meaningfulWords(extractTextValue(question));
+    const storyEvidence = [...answerWords].filter(word => storyWords.has(word)).length;
+    const questionEvidence = [...answerWords].filter(word => questionWords.has(word)).length;
+    const completeness = Math.min(answerWords.size / 12, 1) * 30;
+    const evidence = Math.min(storyEvidence / 3, 1) * 50;
+    const relevance = Math.min(questionEvidence / 2, 1) * 20;
+    return Math.round(completeness + evidence + relevance);
+  });
+  return scores.length ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length) : 0;
 }
 
 function vocabularyCandidates(pages) {

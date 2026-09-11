@@ -586,7 +586,7 @@
       try {
         const responses = [...assessment.querySelectorAll('.apiAssessmentAnswer')].map(input => earlyReader ? (input.checked ? input.value : '') : input.value);
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
-        inner.querySelector('#apiAssessmentResult').textContent = 'Reading response saved. Mastery is pending adult review.';
+        inner.querySelector('#apiAssessmentResult').textContent = `Practice score: ${result.score}/100. Adult review is still required before marking mastery.`;
         inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
         await refresh();
