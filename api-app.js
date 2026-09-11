@@ -775,10 +775,18 @@
   }
     document.querySelectorAll('.apiRemove').forEach(button => {
       button.onclick = async () => {
-        if (!confirm('Remove this learner and their saved stories?')) return;
+        const learner = learners.find(item => item.id === button.dataset.id);
+        const learnerName = learner?.first_name || 'this learner';
+        const confirmed = confirm(`Delete ${learnerName}'s learner profile?\n\nThis permanently deletes the profile, preferences, saved stories, reading progress, story-check results, vocabulary, and reading goals.\n\nThis cannot be undone.`);
+        if (!confirmed) return;
+        const typedConfirmation = prompt(`To permanently delete ${learnerName}'s learner data, type DELETE.`);
+        if (typedConfirmation !== 'DELETE') {
+          notify('Learner was not deleted. Type DELETE exactly to confirm.');
+          return;
+        }
         await api(`/api/learners/${button.dataset.id}`, { method: 'DELETE' });
         await refresh();
-        notify('Learner removed.');
+        notify(`${learnerName}'s learner data was permanently deleted.`);
       };
     });
 
