@@ -122,6 +122,7 @@
         <button data-api-view="learners">Learners</button>
         <button id="apiProgressNav" data-api-view="progress">Progress</button>
         <button data-api-view="billing">Plans & billing</button>
+        <button data-api-view="guide">Parent guide</button>
       </nav>
       <div style="display:flex;gap:8px">
         <button class="en-family" id="apiClearCache" title="Clear cache">Clear cache</button>
@@ -224,6 +225,44 @@
 
       </section>
 
+      <section id="apiGuideView" class="hidden">
+        <div class="en-eyebrow">PARENT GUIDE</div>
+        <h1 class="en-title">How Story Sprout works.</h1>
+        <p class="en-lede">Adults guide the learning. Children bring the imagination. Use this quick guide to create a story, read it together, and see what the child understood.</p>
+        <div class="en-grid" style="margin-top:30px">
+          <section class="en-card">
+            <h2>Start here</h2>
+            <ol style="font:15px/1.65 Arial,sans-serif;color:#597076;padding-left:22px">
+              <li>Add a learner and choose an age range.</li>
+              <li>Choose a grade and reading skill.</li>
+              <li>Choose a story world and adventure together.</li>
+              <li>Select Quick read, Standard story, or Longer adventure.</li>
+              <li>Generate the story and read or listen together.</li>
+              <li>Answer the multiple-choice questions and check the score.</li>
+            </ol>
+          </section>
+          <section class="en-card">
+            <h2>What the score means</h2>
+            <p>The score shows how many questions the child answered correctly from that story. It is useful practice feedback, not a complete reading assessment.</p>
+            <p>Use <strong>Try again</strong> to repeat the questions, or <strong>Close</strong> to finish the activity.</p>
+          </section>
+        </div>
+        <section class="en-card" style="margin-top:20px">
+          <h2>What the reading code means</h2>
+          <p>Each story uses a grade-level reading objective. The plain-English objective explains the skill; the code helps identify the curriculum area.</p>
+          <div class="en-stat-grid" style="margin-top:16px">
+            <div class="en-stat"><strong>RF</strong><span>Reading Foundational Skills</span></div>
+            <div class="en-stat"><strong>RL</strong><span>Reading Literature</span></div>
+            <div class="en-stat"><strong>RI</strong><span>Reading Informational Text</span></div>
+            <div class="en-stat"><strong>L / W</strong><span>Language / Writing</span></div>
+          </div>
+        </section>
+        <section class="en-card" style="margin-top:20px">
+          <h2>Keep the adult in control</h2>
+          <p>Review stories before using them, supervise the child's use, and avoid entering unnecessary sensitive information. Privacy & data settings let you export or delete account and learner data.</p>
+        </section>
+      </section>
+
       <section id="apiProgressView" class="hidden">
         <div class="en-eyebrow">ADULT PROGRESS TOOLS</div>
         <h1 class="en-title">Progress and school tools.</h1>
@@ -285,7 +324,7 @@
 
   const friendlySource = src => src === 'openai' || src === 'openai_revision' ? 'AI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
-    ['Home', 'Learners', 'Progress', 'Billing'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
+    ['Home', 'Learners', 'Progress', 'Billing', 'Guide'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
     document.querySelectorAll('[data-api-view]').forEach(button => button.classList.toggle('active', button.dataset.apiView === name));
   };
 
