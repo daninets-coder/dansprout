@@ -143,7 +143,7 @@
         <section id="apiNextStep" class="en-card next-step-card" style="margin-bottom:20px"></section>
 
         <div class="en-grid">
-          <section class="en-card">
+          <section id="apiStoryCreator" class="en-card">
             <h2>Create a story together</h2>
             <p>Choose your learner's interests, reading goal, and adventure to make a child-friendly story you can read, discuss, and explore together.</p>
             <label class="en-label">Learner</label>
@@ -746,10 +746,17 @@
     $('#apiLearnerReport').innerHTML = (progressData.learners || []).map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
     const nextLearner = learners[0];
     const lastStory = stories[0];
-    $('#apiNextStep').innerHTML = nextLearner ? `<div class="en-eyebrow">NEXT READING STEP</div><h2>${lastStory?.completed_at ? 'Make the next story together' : 'Continue your reading adventure'}</h2><p>${lastStory?.completed_at ? `Create another story for ${esc(nextLearner.first_name)} with a new interest or reading skill.` : `Open ${esc(lastStory?.title || 'your saved story')} and keep reading with ${esc(nextLearner.first_name)}.`}</p><button type="button" class="en-button" id="apiNextStepButton">${lastStory?.completed_at ? 'Create next story' : 'Open saved story'}</button>` : '<div class="en-eyebrow">NEXT READING STEP</div><h2>Add a learner to begin</h2><p>Create a learner profile before making your first personalized story.</p><button type="button" class="en-button" id="apiNextStepButton">Add a learner</button>';
+    $('#apiNextStep').innerHTML = nextLearner ? `<div class="en-eyebrow">NEXT READING STEP</div><h2>${lastStory?.completed_at ? 'Start the next story together' : 'Continue your reading adventure'}</h2><p>${lastStory?.completed_at ? `Create another story for ${esc(nextLearner.first_name)} with a new interest or reading skill.` : `Open ${esc(lastStory?.title || 'your saved story')} and keep reading with ${esc(nextLearner.first_name)}.`}</p><button type="button" class="en-button" id="apiNextStepButton">${lastStory?.completed_at ? 'Start next story' : 'Open saved story'}</button>` : '<div class="en-eyebrow">NEXT READING STEP</div><h2>Add a learner to begin</h2><p>Create a learner profile before making your first personalized story.</p><button type="button" class="en-button" id="apiNextStepButton">Add a learner</button>';
     $('#apiNextStepButton').onclick = () => {
       if (!nextLearner) return show('learners');
-      if (lastStory?.completed_at) return show('home');
+      if (lastStory?.completed_at) {
+        show('home');
+        window.requestAnimationFrame(() => {
+          $('#apiStoryCreator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          $('#apiPrompt').focus();
+        });
+        return;
+      }
       if (lastStory) return openServerStory(lastStory);
     };
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
