@@ -36,8 +36,20 @@
       <button class="privacy-action danger" data-privacy-action="delete" type="button">Delete account and learner data</button>
     </div>
     <div class="privacy-status" role="status" aria-live="polite"></div>
+    <div class="privacy-delete-panel hidden" aria-labelledby="privacyDeleteTitle">
+      <h3 id="privacyDeleteTitle">Confirm account deletion</h3>
+      <p>This permanently deletes your account, learner profiles, stories, progress, and subscription records. This cannot be undone.</p>
+      <label for="privacyDeletePassword">Current password</label>
+      <input id="privacyDeletePassword" type="password" autocomplete="current-password">
+      <label for="privacyDeleteConfirm">Type DELETE to continue</label>
+      <input id="privacyDeleteConfirm" type="text" autocomplete="off">
+      <div class="privacy-delete-actions"><button class="privacy-action secondary" data-privacy-delete-cancel type="button">Cancel</button><button class="privacy-action danger" data-privacy-delete-submit type="button">Send confirmation email</button></div>
+    </div>
   </section>`;
   document.body.appendChild(modal);
+  const deleteStyle = document.createElement('style');
+  deleteStyle.textContent = '.privacy-delete-panel{margin-top:18px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2}.privacy-delete-panel h3{margin:0 0 7px;color:#8f352b}.privacy-delete-panel p{margin:0 0 14px;line-height:1.45}.privacy-delete-panel label{display:block;margin:10px 0 5px;font-weight:700}.privacy-delete-panel input{width:100%;padding:10px;border:1px solid #cdbeb2;border-radius:5px;font:14px Arial,sans-serif}.privacy-delete-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}';
+  document.head.appendChild(deleteStyle);
 
   const close = () => modal.classList.add('hidden');
   const status = text => { modal.querySelector('.privacy-status').textContent = text; };
@@ -71,11 +83,15 @@
     } catch (error) { status(error.message); }
   };
   modal.querySelector('[data-privacy-action="delete"]').onclick = async () => {
-    if (!window.confirm('Delete this account and all learner profiles, stories, and progress? This cannot be undone.')) return;
-    const currentPassword = window.prompt('Enter your current password to continue.');
-    if (!currentPassword) return;
-    const confirmText = window.prompt('Type DELETE to request permanent account deletion.');
-    if (confirmText !== 'DELETE') { status('Account was not deleted. Type DELETE exactly to confirm.'); return; }
+    modal.querySelector('.privacy-delete-panel').classList.remove('hidden');
+    modal.querySelector('#privacyDeletePassword').focus();
+  };
+  modal.querySelector('[data-privacy-delete-cancel]').onclick = () => modal.querySelector('.privacy-delete-panel').classList.add('hidden');
+  modal.querySelector('[data-privacy-delete-submit]').onclick = async () => {
+    const currentPassword = modal.querySelector('#privacyDeletePassword').value;
+    const confirmText = modal.querySelector('#privacyDeleteConfirm').value;
+    if (!currentPassword) { status('Enter your current password to continue.'); return; }
+    if (confirmText !== 'DELETE') { status('Type DELETE exactly to confirm.'); return; }
     try {
       if (token) await api('/api/account/deletion-request', { method: 'POST', body: JSON.stringify({ currentPassword, confirmText }) });
       status('Check your email. The account will be deleted only after you open the confirmation link. The link expires in 30 minutes.');

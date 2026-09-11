@@ -777,16 +777,24 @@
       button.onclick = async () => {
         const learner = learners.find(item => item.id === button.dataset.id);
         const learnerName = learner?.first_name || 'this learner';
-        const confirmed = confirm(`Delete ${learnerName}'s learner profile?\n\nThis permanently deletes the profile, preferences, saved stories, reading progress, story-check results, vocabulary, and reading goals.\n\nThis cannot be undone.`);
-        if (!confirmed) return;
-        const typedConfirmation = prompt(`To permanently delete ${learnerName}'s learner data, type DELETE.`);
-        if (typedConfirmation !== 'DELETE') {
-          notify('Learner was not deleted. Type DELETE exactly to confirm.');
-          return;
-        }
-        await api(`/api/learners/${button.dataset.id}`, { method: 'DELETE' });
-        await refresh();
-        notify(`${learnerName}'s learner data was permanently deleted.`);
+        const overlay = document.createElement('div');
+        overlay.className = 'learner-delete-overlay';
+        overlay.innerHTML = `<style>.learner-delete-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(20,63,74,.38)}.learner-delete-dialog{width:min(520px,100%);padding:26px;background:#fffdf9;border:1px solid #dfb9a8;border-radius:10px;box-shadow:0 20px 50px rgba(20,63,74,.25)}.learner-delete-dialog h2{margin:8px 0;color:#8f352b}.learner-delete-dialog p{color:#597076;font:14px/1.5 Arial,sans-serif}.learner-delete-dialog label{display:block;margin:16px 0 6px;color:#28444c;font:700 13px Arial,sans-serif}.learner-delete-dialog input{width:100%;padding:11px;border:1px solid #cdbeb2;border-radius:5px;font:14px Arial,sans-serif}.learner-delete-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}.learner-delete-error{min-height:18px;margin:10px 0 0!important;color:#a63e31!important}</style><section class="learner-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="learnerDeleteTitle"><div class="last-activity-eyebrow">PERMANENT ACTION</div><h2 id="learnerDeleteTitle">Delete ${esc(learnerName)}'s learner profile?</h2><p>This permanently deletes the profile, preferences, saved stories, reading progress, story-check results, vocabulary, and reading goals. This cannot be undone.</p><label for="learnerDeleteConfirm">Type DELETE to continue</label><input id="learnerDeleteConfirm" type="text" autocomplete="off"><div class="learner-delete-actions"><button type="button" class="en-outline" data-delete-cancel>Cancel</button><button type="button" class="en-button" data-delete-submit>Delete learner</button></div><p class="learner-delete-error" role="alert"></p></section>`;
+        document.body.appendChild(overlay);
+        const closeOverlay = () => overlay.remove();
+        overlay.querySelector('[data-delete-cancel]').onclick = closeOverlay;
+        overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(); });
+        overlay.querySelector('#learnerDeleteConfirm').focus();
+        overlay.querySelector('[data-delete-submit]').onclick = async () => {
+          const error = overlay.querySelector('.learner-delete-error');
+          if (overlay.querySelector('#learnerDeleteConfirm').value !== 'DELETE') { error.textContent = 'Type DELETE exactly to confirm.'; return; }
+          try {
+            await api(`/api/learners/${button.dataset.id}`, { method: 'DELETE' });
+            closeOverlay();
+            await refresh();
+            notify(`${learnerName}'s learner data was permanently deleted.`);
+          } catch (requestError) { error.textContent = requestError.message; }
+        };
       };
     });
 
