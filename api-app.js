@@ -160,6 +160,9 @@
             <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
             <label class="en-label">Adventure</label>
             <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
+            <label class="en-label">Story length</label>
+            <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
+            <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
             <button id="apiCreate" class="en-button" style="margin-top:16px;width:100%">Generate reading-aligned story</button>
             <div class="story-visual" id="apiStoryVisual"><img id="apiThemeImage" class="story-visual-banner" alt="Story world image"><div class="story-visual-overlay"><img id="apiGradeBadge" class="story-visual-grade" alt="Grade badge"><img id="apiDomainIcon" class="story-visual-icon" alt="Reading skill icon"></div></div>
           </section>
@@ -754,11 +757,12 @@
     const domain = selectedCurriculum?.domain || 'comprehension';
     const theme = $('#apiTheme').value;
     const customTheme = $('#apiCustomTheme').value.trim();
+    const storyLength = $('#apiStoryLength').value;
     if (!learnerId || !prompt) return notify('Choose a learner and add an adventure.');
     if (theme === 'Custom' && !customTheme) return notify('Name your story world first.');
     try {
       const learner = learners.find(item => item.id === learnerId);
-      const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme }) });
+      const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength }) });
       if (!response.story) return notify('Story could not be generated.');
       $('#apiPrompt').value = '';
       await refresh();

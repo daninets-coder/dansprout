@@ -945,7 +945,7 @@ function estimateOpenAICost(usage) {
 
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, language, curriculumRow, accountId, allowExternalAI = false }) {
+async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
@@ -1014,6 +1014,12 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
     },
   };
   const gradeProfile = gradeProfiles[gradeLevel] || gradeProfiles['2'];
+  const lengthProfiles = {
+    quick: { pages: '3 short pages', words: '100-180 words total' },
+    standard: { pages: '3-4 pages', words: '180-350 words total' },
+    long: { pages: '4-6 pages', words: '350-700 words total' },
+  };
+  const lengthProfile = lengthProfiles[storyLength] || lengthProfiles.standard;
 
   try {
     const safeLearner = 'A curious reader';
@@ -1063,7 +1069,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
             standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
             constraints: [
               'Warm, child-safe, age-appropriate language',
-              'Short pages, 3-4 pages only',
+              `Length target: ${lengthProfile.pages}, approximately ${lengthProfile.words}.`,
               'Include exactly 3 multiple-choice comprehension questions that can be answered from the story; use exactly 2 or 3 options and one correct answer',
               'Include 2-3 vocabulary words with meanings',
               'Keep it suitable for early elementary or middle-grade reading based on grade',
@@ -1323,6 +1329,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       standardCode: z.string().trim().min(1).max(40),
       theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Moonlight'),
       customTheme: z.string().trim().max(80).default(''),
+      storyLength: z.enum(['quick', 'standard', 'long']).default('standard'),
       language: storyLanguageSchema.default('English'),
     });
     const parsed = createSchema.safeParse(req.body);
@@ -1353,6 +1360,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       domain: curriculumRow.domain,
       theme: data.theme,
       customTheme: data.customTheme,
+      storyLength: data.storyLength,
       language: data.language,
       curriculumRow,
       accountId: req.auth.sub,
