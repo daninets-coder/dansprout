@@ -29,7 +29,8 @@
     <h3>Vendors and disclosures</h3>
     <p>Stripe handles payment details and subscription billing. OpenAI processes enabled AI story requests. Railway hosts the application. PostgreSQL stores application data. Story Sprout does not store payment card numbers.</p>
     <h3>After cancellation</h3>
-    <p>Cancellation stops future subscription access but does not delete learner data. An adult can delete the account at any time; deletion removes the account, learners, stories, and subscription records from the application database.</p>
+    <p>Cancellation stops future renewal but does not delete learner data. Your learner profiles, stories, and progress remain saved. An adult can delete the account at any time; deletion removes the account, learners, stories, and subscription records from the application database.</p>
+    <p><button type="button" class="privacy-action secondary" data-privacy-action="billing">Manage subscription and billing</button></p>
     <div class="privacy-actions">
       <button class="privacy-action secondary" data-privacy-action="export" type="button">Download my data</button>
       <button class="privacy-action secondary" data-privacy-action="cancel" type="button">Cancel subscription</button>
@@ -66,6 +67,10 @@
   modal.querySelector('[data-privacy-action="cancel"]').onclick = async () => {
     if (!token) { status('The local demo has no paid subscription to cancel.'); return; }
     try { await api('/api/subscription/cancel', { method: 'POST' }); status('Subscription canceled. Future billing should be handled by the payment provider.'); } catch (error) { status(error.message); }
+  };
+  modal.querySelector('[data-privacy-action="billing"]').onclick = () => {
+    close();
+    document.querySelector('[data-api-view="billing"]')?.click();
   };
   modal.querySelector('[data-privacy-action="export"]').onclick = async () => {
     if (!token) { status('Sign in to download account data.'); return; }
