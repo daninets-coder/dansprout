@@ -20,7 +20,7 @@
     <h3>Children and schools</h3>
     <p>Story Sprout is an adult-managed service. Before use with children under 13 or by a school, the responsible organization must complete its required privacy, parental-consent, procurement, COPPA, FERPA, and state-law reviews. This policy is not a certification of legal compliance.</p>
     <h3>Contact and changes</h3>
-    <p>For privacy questions or requests, contact <a href="mailto:admin@dansprout.com">admin@dansprout.com</a>. We may update this policy and will publish the new effective date.</p>`;
+    <p>For privacy questions or requests, use the Support form. We may update this policy and will publish the new effective date.</p>`;
   const termsContent = `
     <h2>Terms of Service</h2>
     ${reviewStatus}
@@ -38,7 +38,7 @@
     <h3>Changes and availability</h3>
     <p>Features, curriculum data, pricing, and availability may change. We will take reasonable steps to protect data and communicate material changes through the service.</p>
     <h3>Legal review</h3>
-    <p>These terms are a product draft and should be reviewed by qualified counsel before public launch, especially for child privacy, school use, subscriptions, and the jurisdictions where the service operates. Questions can be sent to <a href="mailto:admin@dansprout.com">admin@dansprout.com</a>.</p>`;
+    <p>These terms are a product draft and should be reviewed by qualified counsel before public launch, especially for child privacy, school use, subscriptions, and the jurisdictions where the service operates. Questions can be sent through the Support form.</p>`;
 
   const openLegal = (title, content) => {
     let modal = document.querySelector('#legalModal');
@@ -53,6 +53,35 @@
     }
     modal.querySelector('#legalBody').innerHTML = content;
     modal.classList.remove('hidden');
+  };
+
+  const openSupport = () => {
+    let modal = document.querySelector('#legalModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'legalModal';
+      modal.className = 'privacy-backdrop hidden';
+      modal.innerHTML = '<section class="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="legalTitle"><button class="privacy-close" type="button" aria-label="Close support form">&times;</button><div id="legalBody"></div></section>';
+      document.body.appendChild(modal);
+      modal.querySelector('.privacy-close').onclick = () => modal.classList.add('hidden');
+      modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    }
+    modal.querySelector('#legalBody').innerHTML = '<h2>Contact Story Sprout support</h2><p>Send a question about your account, billing, privacy, story safety, or technical issues. Do not include passwords, payment-card numbers, or secret keys.</p><form id="supportForm"><label class="en-label" for="supportName">Your name</label><input id="supportName" class="en-input" maxlength="80" required><label class="en-label" for="supportEmail">Email for our reply</label><input id="supportEmail" class="en-input" type="email" maxlength="120" required><label class="en-label" for="supportCategory">What do you need help with?</label><select id="supportCategory" class="en-select"><option value="account">Account</option><option value="billing">Billing</option><option value="privacy">Privacy & data</option><option value="story_safety">Story safety</option><option value="technical">Technical problem</option><option value="other">Other</option></select><label class="en-label" for="supportMessage">Message</label><textarea id="supportMessage" class="en-input" rows="5" maxlength="2000" required></textarea><button class="en-button" type="submit" style="margin-top:14px">Send support request</button><p id="supportStatus" role="status" style="margin-top:12px"></p></form>';
+    modal.classList.remove('hidden');
+    modal.querySelector('#supportForm').onsubmit = async event => {
+      event.preventDefault();
+      const status = modal.querySelector('#supportStatus');
+      const submit = modal.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      status.textContent = 'Sending...';
+      try {
+        const response = await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: modal.querySelector('#supportName').value, email: modal.querySelector('#supportEmail').value, category: modal.querySelector('#supportCategory').value, message: modal.querySelector('#supportMessage').value }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Support request failed.');
+        status.textContent = result.message;
+        event.target.reset();
+      } catch (error) { status.textContent = error.message; } finally { submit.disabled = false; }
+    };
   };
 
   const addLink = (parent, label, content) => {
@@ -70,10 +99,11 @@
     links.className = 'legal-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms of Service', termsContent);
-    const authSupport = document.createElement('a');
+    const authSupport = document.createElement('button');
     authSupport.className = 'legal-link';
-    authSupport.href = 'mailto:admin@dansprout.com';
     authSupport.textContent = 'Support';
+    authSupport.type = 'button';
+    authSupport.onclick = openSupport;
     links.appendChild(authSupport);
     authCard.appendChild(links);
   }
@@ -84,10 +114,11 @@
     links.className = 'legal-links legal-header-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms', termsContent);
-    const support = document.createElement('a');
+    const support = document.createElement('button');
     support.className = 'legal-link';
-    support.href = 'mailto:admin@dansprout.com';
     support.textContent = 'Support';
+    support.type = 'button';
+    support.onclick = openSupport;
     links.appendChild(support);
     enterpriseHeader.appendChild(links);
   }

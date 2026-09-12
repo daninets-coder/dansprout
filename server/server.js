@@ -28,6 +28,7 @@ const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
+const supportEmail = String(process.env.SUPPORT_EMAIL || 'admin@dansprout.com').trim();
 const trustProxy = String(process.env.TRUST_PROXY || (process.env.NODE_ENV === 'production' ? 'true' : '')).trim();
 if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
 
@@ -164,6 +165,7 @@ app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHe
 const registrationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many registration attempts. Please try again later.' } });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Please try again later.' } });
 const verificationEmailLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 3, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many verification emails requested. Please try again later.' } });
+const supportLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many support requests. Please try again later.' } });
 const storyGenerationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: Number(process.env.STORY_GEN_RATE_LIMIT || 30),
@@ -172,6 +174,24 @@ const storyGenerationLimiter = rateLimit({
   message: { error: 'Too many story requests. Please try again shortly.' },
 });
 app.use('/api/stories/generate', storyGenerationLimiter);
+
+app.post('/api/support', supportLimiter, async (req, res, next) => {
+  try {
+    const supportSchema = z.object({
+      name: z.string().trim().min(1).max(80),
+      email: z.string().email().max(120).transform(value => value.trim().toLowerCase()),
+      category: z.enum(['account', 'billing', 'privacy', 'story_safety', 'technical', 'other']),
+      message: z.string().trim().min(5).max(2000),
+    });
+    const parsed = supportSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Please complete all support fields.' });
+    if (/(password|passcode|card number|credit card|cvv|security code|api key|secret)/i.test(parsed.data.message)) return res.status(400).json({ error: 'For your security, do not include passwords, payment-card details, or secret keys.' });
+    if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Support email is not configured yet.' });
+    const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [supportEmail], reply_to: parsed.data.email, subject: `Story Sprout support: ${parsed.data.category}`, text: `Name: ${parsed.data.name}\nEmail: ${parsed.data.email}\nCategory: ${parsed.data.category}\n\n${parsed.data.message}` }) });
+    if (!response.ok) return res.status(503).json({ error: 'Support is temporarily unavailable. Please try again later.' });
+    return res.status(202).json({ message: 'Your support request was sent. We will reply by email.' });
+  } catch (error) { return next(error); }
+});
 
 const registerSchema = z.object({
   email: z.string().email().max(120).transform(value => value.trim().toLowerCase()),
