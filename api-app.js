@@ -306,7 +306,7 @@
           <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$15</span> <small>/ month</small></div><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
           <article class="plan"><h3>Classroom</h3><div class="plan-price">$18 <small>/ month</small></div><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
         </div>
-        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p></div>
+        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p><div id="apiCancelPanel" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2"><h3 style="margin:0 0 7px;color:#8f352b">Before you cancel</h3><p style="margin:0;color:#597076;font:14px/1.5 Arial,sans-serif">Your learner profiles, stories, and progress will remain saved. No future renewal will be charged after cancellation is confirmed.</p><label class="en-label" style="margin-top:12px">Why are you canceling? <span style="font-weight:400">Optional</span></label><select id="apiCancelReason" class="en-select"><option value="">Choose a reason</option><option>Too expensive</option><option>Not using it right now</option><option>Needs a different learning experience</option><option>Technical problem</option><option>Other</option></select><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="en-outline" id="apiKeepSubscription">Keep my plan</button><button type="button" class="en-button" id="apiConfirmCancel">Confirm cancellation</button></div><p id="apiCancelError" role="alert" style="margin:10px 0 0;color:#a63e31;font:13px Arial,sans-serif"></p></div><button type="button" class="en-outline" id="apiStartCancel" style="margin-top:12px">Cancel subscription</button></div>
       </section>
     </main>
     <div id="apiToast" class="toast" role="status" aria-live="polite"></div>
@@ -750,6 +750,11 @@
     $('#apiLearnerReport').innerHTML = (progressData.learners || []).map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
     $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
+    const cancelButton = $('#apiStartCancel');
+    const cancelPanel = $('#apiCancelPanel');
+    const canCancel = ['active', 'demo'].includes(subscription.status) && subscription.plan !== 'explorer';
+    if (cancelButton) cancelButton.classList.toggle('hidden', !canCancel);
+    if (cancelPanel && !canCancel) cancelPanel.classList.add('hidden');
     renderOnboarding(subscription);
 
 
@@ -774,6 +779,19 @@
       if (story) openServerStory(story);
     };
   }
+
+  $('#apiStartCancel').onclick = () => { $('#apiCancelPanel').classList.remove('hidden'); $('#apiCancelError').textContent = ''; $('#apiCancelReason').focus(); };
+  $('#apiKeepSubscription').onclick = () => $('#apiCancelPanel').classList.add('hidden');
+  $('#apiConfirmCancel').onclick = async () => {
+    const error = $('#apiCancelError');
+    error.textContent = '';
+    try {
+      const result = await api('/api/subscription/cancel', { method: 'POST', body: JSON.stringify({ reason: $('#apiCancelReason').value }) });
+      $('#apiCancelPanel').classList.add('hidden');
+      await refresh();
+      notify(result.message || 'Cancellation confirmed.');
+    } catch (requestError) { error.textContent = requestError.message; }
+  };
     document.querySelectorAll('.apiRemove').forEach(button => {
       button.onclick = async () => {
         const learner = learners.find(item => item.id === button.dataset.id);
