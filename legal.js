@@ -1,13 +1,14 @@
 (() => {
-  const policyVersion = '2026-09-09';
+  const policyVersion = '2026-09-12';
+  const reviewStatus = '<p><strong>Effective date:</strong> 2026-09-12 &nbsp; <strong>Status:</strong> Draft for controlled pilot; qualified privacy, child-data, education, and legal review is required before public advertising or school use.</p>';
   const privacyContent = `
     <h2>Privacy Policy</h2>
-    <p><strong>Last updated:</strong> ${policyVersion}</p>
+    ${reviewStatus}
     <p>Story Sprout is designed for adults to create and manage reading experiences for children. An adult parent, guardian, or authorized educator must create the account and enter learner information.</p>
     <h3>Information we collect</h3>
     <p>We collect the adult account email, display name, account role, learner first name, age range, interests, topics to avoid, generated stories, reading progress, consent records, and subscription status. We do not ask children to create accounts.</p>
     <h3>How we use information</h3>
-    <p>We use this information to authenticate adults, create age- and grade-appropriate stories, align stories to selected U.S. reading standards, save reading activity, provide support, process subscriptions, and improve safety and reliability.</p>
+    <p>We use this information to authenticate adults, create age- and grade-appropriate stories, connect stories to selected reading practice objectives, save reading activity, provide support, process subscriptions, and improve safety and reliability. These connections are instructional aids, not formal educational determinations.</p>
     <h3>AI processing</h3>
     <p>When an adult enables AI story generation, story prompts and the information needed to tailor a story are sent to OpenAI for processing. Do not enter a child's full name, contact information, medical information, or other unnecessary sensitive information.</p>
     <h3>Payments and vendors</h3>
@@ -19,15 +20,15 @@
     <h3>Children and schools</h3>
     <p>Story Sprout is an adult-managed service. Before use with children under 13 or by a school, the responsible organization must complete its required privacy, parental-consent, procurement, COPPA, FERPA, and state-law reviews. This policy is not a certification of legal compliance.</p>
     <h3>Contact and changes</h3>
-    <p>For privacy questions or requests, contact the service owner through the support channel provided with your account. We may update this policy and will publish the new effective date.</p>`;
+    <p>For privacy questions or requests, contact <a href="mailto:admin@dansprout.com">admin@dansprout.com</a>. We may update this policy and will publish the new effective date.</p>`;
   const termsContent = `
     <h2>Terms of Service</h2>
-    <p><strong>Last updated:</strong> ${policyVersion}</p>
-    <p>Story Sprout provides adult-managed reading tools, curriculum-aligned story generation, saved stories, progress features, and optional subscription services.</p>
+    ${reviewStatus}
+    <p>Story Sprout provides adult-managed reading tools, curriculum-informed story generation, saved stories, progress features, and optional subscription services.</p>
     <h3>Adult responsibility</h3>
     <p>You must be an adult or authorized educator to create an account. You are responsible for the learner information you enter, reviewing generated content before use, and supervising children's use of the service.</p>
     <h3>AI-generated content</h3>
-    <p>AI stories are educational support materials, not professional educational, medical, psychological, or legal advice. Review stories for suitability and accuracy. Curriculum alignment is an instructional aid and does not replace a school or educator's curriculum review.</p>
+    <p>AI stories are educational support materials, not professional educational, medical, psychological, or legal advice. Review stories for suitability and accuracy. Curriculum connections are instructional aids pending qualified educator review and do not replace a school or educator's curriculum review.</p>
     <h3>Acceptable use</h3>
     <p>Do not use the service to submit unlawful, hateful, sexual, dangerous, or otherwise inappropriate content; attempt to access another account; bypass safety controls; or use the service to make high-stakes decisions about a child.</p>
     <h3>Subscriptions</h3>
@@ -37,7 +38,7 @@
     <h3>Changes and availability</h3>
     <p>Features, curriculum data, pricing, and availability may change. We will take reasonable steps to protect data and communicate material changes through the service.</p>
     <h3>Legal review</h3>
-    <p>These terms are a product draft and should be reviewed by qualified counsel before public launch, especially for child privacy, school use, subscriptions, and the jurisdictions where the service operates.</p>`;
+    <p>These terms are a product draft and should be reviewed by qualified counsel before public launch, especially for child privacy, school use, subscriptions, and the jurisdictions where the service operates. Questions can be sent to <a href="mailto:admin@dansprout.com">admin@dansprout.com</a>.</p>`;
 
   const openLegal = (title, content) => {
     let modal = document.querySelector('#legalModal');
@@ -69,6 +70,11 @@
     links.className = 'legal-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms of Service', termsContent);
+    const authSupport = document.createElement('a');
+    authSupport.className = 'legal-link';
+    authSupport.href = 'mailto:admin@dansprout.com';
+    authSupport.textContent = 'Support';
+    links.appendChild(authSupport);
     authCard.appendChild(links);
   }
 
@@ -78,6 +84,11 @@
     links.className = 'legal-links legal-header-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms', termsContent);
+    const support = document.createElement('a');
+    support.className = 'legal-link';
+    support.href = 'mailto:admin@dansprout.com';
+    support.textContent = 'Support';
+    links.appendChild(support);
     enterpriseHeader.appendChild(links);
   }
 })();

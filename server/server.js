@@ -82,8 +82,8 @@ async function ensureBaseSchema() {
 
 const priceConfig = {
   family_500: { cents: 500, trialDays: 0, lookupEnv: 'STRIPE_PRICE_FAMILY_500' },
-  family_800: { cents: 800, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_800' },
-  family_1200: { cents: 1200, trialDays: 14, lookupEnv: 'STRIPE_PRICE_FAMILY_1200' },
+  family_800: { cents: 1500, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_800' },
+  family_1200: { cents: 1500, trialDays: 14, lookupEnv: 'STRIPE_PRICE_FAMILY_1200' },
   classroom_1800: { cents: 1800, trialDays: 14, lookupEnv: 'STRIPE_PRICE_CLASSROOM_1800' },
 };
 
@@ -321,7 +321,7 @@ app.patch('/api/stories/:storyId/assessment/review', requireAuth, async (req, re
   try {
     const bodySchema = z.object({ score: z.number().int().min(0).max(100), mastered: z.boolean(), notes: z.string().trim().max(1000).default('') });
     const parsed = bodySchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Enter a score from 0 to 100 and choose a mastery result.' });
+    if (!parsed.success) return res.status(400).json({ error: 'Enter a score from 0 to 100 and choose a review result.' });
     const storyRes = await pool.query('SELECT s.id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const updated = await pool.query("UPDATE reading_assessments SET score = $1, mastered = $2, review_status = CASE WHEN reviewed_at IS NULL THEN 'reviewed' ELSE 'corrected' END, reviewed_by = $3, reviewed_at = NOW(), review_notes = $4, confidence = 1.00 WHERE id = (SELECT id FROM reading_assessments WHERE story_id = $5 AND learner_id = (SELECT learner_id FROM stories WHERE id = $5) ORDER BY created_at DESC LIMIT 1) RETURNING score, mastered, review_status, review_notes, standards_evidence", [parsed.data.score, parsed.data.mastered, req.auth.sub, parsed.data.notes, req.params.storyId]);
@@ -425,7 +425,7 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
     if (!account) return res.status(404).json({ error: 'Account not found.' });
     const variant = process.env.STRIPE_PRICE_FAMILY_500 ? 'family_500' : (account.pricing_variant || 'family_800');
     const configuredOffer = priceConfig[variant] || priceConfig.family_800;
-    const cents = process.env.STRIPE_PRICE_FAMILY_500 ? configuredOffer.cents : Number(account.family_price_cents || configuredOffer.cents);
+    const cents = configuredOffer.cents;
     const trialDays = process.env.STRIPE_PRICE_FAMILY_500 ? configuredOffer.trialDays : Number(account.trial_days || configuredOffer.trialDays);
     return res.json({ offer: { variant, familyPriceCents: cents, familyPriceDollars: (cents / 100).toFixed(2), trialDays } });
   } catch (error) {
@@ -663,7 +663,7 @@ async function ensureGrowthSchema() {
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS guardian_consent_version TEXT');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS pricing_variant TEXT');
-  await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS family_price_cents INTEGER NOT NULL DEFAULT 800');
+  await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS family_price_cents INTEGER NOT NULL DEFAULT 1500');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS trial_days INTEGER NOT NULL DEFAULT 7');
 
   await pool.query(`

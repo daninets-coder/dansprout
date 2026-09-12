@@ -72,18 +72,18 @@
     Moonlight: asset('images/banner/banner01.jpg'),
     Rainforest: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
     Ocean: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
-    Castle: asset('images/banner/bull start.png'),
+    Castle: asset('images/banner/matheus-viana-uMgMukqE-pg-unsplash.jpg'),
     Garden: asset('images/banner/annie-spratt-faAef6F6luc-unsplash.jpg'),
     Sky: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
     Space: asset('images/banner/banner01.jpg'),
-    Dinosaurs: asset('images/banner/bull start.png'),
+    Dinosaurs: asset('images/banner/matheus-viana-uMgMukqE-pg-unsplash.jpg'),
     Arctic: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
     Farm: asset('images/banner/annie-spratt-faAef6F6luc-unsplash.jpg'),
     City: asset('images/banner/Designer.jpeg'),
     Jungle: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
     Desert: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
     Underwater: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
-    Fairytale: asset('images/banner/bull start.png'),
+    Fairytale: asset('images/banner/matheus-viana-uMgMukqE-pg-unsplash.jpg'),
   };
   const themeOptions = [
     ['Moonlight', '🌙'], ['Rainforest', '🌿'], ['Ocean', '🌊'], ['Castle', '🏰'], ['Garden', '🌷'],
@@ -135,6 +135,7 @@
         <div class="en-eyebrow">SECURE FAMILY WORKSPACE</div>
         <h1 class="en-title">Welcome, ${esc(account.displayName || 'Reader')}.</h1>
         <p class="en-lede">Story Sprout helps adults and children create personalized stories that build reading skills, confidence, and a love of books.</p>
+        <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Adults should review each story before sharing it with a child.</p>
 
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
@@ -155,7 +156,7 @@
               <label class="en-label">Reading skill for this grade</label>
               <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
               <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
-              <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code is the reading benchmark; the sentence above explains the skill in family-friendly language.</p>
+              <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code identifies the practice area; the sentence above explains the skill in family-friendly language. Curriculum alignment is an instructional aid pending qualified educator review.</p>
             </div>
             <label class="en-label">Choose a story world</label>
             <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
@@ -178,7 +179,7 @@
             <h2 style="margin-top:14px">Private by design.</h2>
             <p>Only the signed-in adult can access learner profiles and stories.</p>
             <img src="${asset('images/Speak/speakpanda.png')}" class="trial-mascot" alt="Friendly reading panda">
-            <div id="apiPricingOffer" style="margin-top:10px;font-size:13px"></div>
+            <div id="apiPricingOffer" style="margin-top:10px;font-size:13px"></div><p class="print-notice" style="margin:10px 0 0;color:#fff;font:12px/1.4 Arial,sans-serif"><strong>Printed storybooks are coming later.</strong> Digital stories are available now.</p>
             <div class="privacy-spark" style="border-top:1px solid #e5d5bf">
               <div class="en-eyebrow">A READING SPARK</div>
               <p id="apiReadingSpark" style="margin:7px 0 0;color:#fff;font-size:17px;line-height:1.4"></p>
@@ -208,7 +209,7 @@
         <section class="en-card" style="margin-top:20px">
           <div class="en-eyebrow">CURRICULUM GUIDE</div>
           <h2>What do the reading codes mean?</h2>
-          <p class="en-lede" style="font-size:15px;margin-top:8px">Each story is connected to a U.S. reading benchmark. The code helps adults and teachers identify the skill; the story gives children a friendly way to practice it.</p>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">Each story is connected to a reading practice objective. The code helps adults and teachers identify the skill; the story gives children a friendly way to practice it. These connections are instructional aids and should be reviewed by a qualified educator before being used for school decisions.</p>
           <details>
             <summary style="cursor:pointer;font-weight:700;color:#24515b">Open the family guide</summary>
             <div style="display:grid;gap:12px;margin-top:16px;font:14px/1.5 Arial,sans-serif;color:#597076">
@@ -302,7 +303,7 @@
         <p class="en-lede">Choose a free demo or start a monthly subscription through Stripe.</p>
         <div class="plan-grid">
           <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
-          <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$8</span> <small>/ month</small></div><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
+          <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$15</span> <small>/ month</small></div><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
           <article class="plan"><h3>Classroom</h3><div class="plan-price">$18 <small>/ month</small></div><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
         </div>
         <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p></div>
@@ -587,13 +588,13 @@
       const reviewPanel = document.createElement('section');
       reviewPanel.id = 'apiAdultReview';
       reviewPanel.className = 'book-modal-edit hidden';
-      reviewPanel.innerHTML = '<h3 class="book-modal-subtitle">Adult review</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">The response is complete, but mastery is not determined automatically. Review the answer using the selected reading standard.</p><form id="apiAdultReviewForm"><label class="en-label">Review score (0-100)<input id="apiReviewScore" class="en-input" type="number" min="0" max="100" required></label><label class="en-label" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="apiReviewMastered" type="checkbox"> Mark this standard as mastered</label><label class="en-label" style="display:block;margin-top:10px">Review notes<textarea id="apiReviewNotes" class="en-input" rows="2" maxlength="1000" placeholder="What evidence did the reader show?"></textarea></label><button type="submit" class="en-outline" style="margin-top:10px">Save adult review</button></form><p id="apiReviewStatus" class="book-modal-meta"></p>';
+      reviewPanel.innerHTML = '<h3 class="book-modal-subtitle">Adult review</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">A single story check does not establish overall mastery. Review the response as evidence from this story using the selected reading objective.</p><form id="apiAdultReviewForm"><label class="en-label">Review score (0-100)<input id="apiReviewScore" class="en-input" type="number" min="0" max="100" required></label><label class="en-label" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="apiReviewMastered" type="checkbox"> Record positive evidence for this review</label><label class="en-label" style="display:block;margin-top:10px">Review notes<textarea id="apiReviewNotes" class="en-input" rows="2" maxlength="1000" placeholder="What evidence did the reader show?"></textarea></label><button type="submit" class="en-outline" style="margin-top:10px">Save adult review</button></form><p id="apiReviewStatus" class="book-modal-meta"></p>';
       inner.querySelector('#apiAssessmentResult').after(reviewPanel);
       reviewPanel.querySelector('#apiAdultReviewForm').onsubmit = async event => {
         event.preventDefault();
         try {
           const result = await api(`/api/stories/${story.id}/assessment/review`, { method: 'PATCH', body: JSON.stringify({ score: Number(reviewPanel.querySelector('#apiReviewScore').value), mastered: reviewPanel.querySelector('#apiReviewMastered').checked, notes: reviewPanel.querySelector('#apiReviewNotes').value }) });
-          reviewPanel.querySelector('#apiReviewStatus').textContent = result.assessment.mastered ? 'Reviewed: standard marked mastered.' : 'Reviewed: keep practicing this standard.';
+          reviewPanel.querySelector('#apiReviewStatus').textContent = result.assessment.mastered ? 'Reviewed: positive evidence recorded for this story and skill.' : 'Reviewed: keep practicing this skill.';
           await refresh();
           notify('Adult review saved.');
         } catch (error) {
@@ -655,7 +656,7 @@
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
         const resultPanel = inner.querySelector('#apiAssessmentResult');
         resultPanel.innerHTML = objectiveQuestions
-          ? `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">${result.correct} of ${questions.length} correct. ${result.mastered ? 'Great work. This story check shows the skill was demonstrated.' : 'Keep practicing this skill and try again.'}</span><div class="assessment-result-actions"><button type="button" class="en-button" id="apiRetryAssessment">Try again</button><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`
+          ? `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">${result.correct} of ${questions.length} correct on this story's questions. ${result.mastered ? 'This story check provides positive evidence for the selected skill.' : 'Keep practicing this skill and try again.'}</span><div class="assessment-result-actions"><button type="button" class="en-button" id="apiRetryAssessment">Try again</button><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`
           : `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">Practice score saved. Adult review is still required for this older story format.</span><div class="assessment-result-actions"><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`;
         if (!objectiveQuestions) inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
@@ -736,7 +737,7 @@
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
-    $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills mastered</span></div>`;
+    $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
     const completedStories = stories.filter(story => story.completed_at).length;
     const answeredStories = stories.filter(story => story.content?.questions?.length && story.completed_at).length;
     const progressPercent = stories.length ? Math.min(100, Math.round((completedStories / stories.length) * 100)) : 0;
