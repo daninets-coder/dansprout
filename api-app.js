@@ -112,6 +112,7 @@
   let stories = [];
   let me = null;
   let curriculumOptions = [];
+  let editingLearnerId = null;
 
   app.className = 'enterprise';
   app.innerHTML = `
@@ -288,11 +289,11 @@
         <div class="en-grid">
           <section class="en-card"><h2>Saved learners</h2><div id="apiLearnerList" class="student-list"></div></section>
           <form id="apiLearnerForm" class="en-card">
-            <h2>Add a learner</h2>
+            <h2 id="apiLearnerFormTitle">Add a learner</h2>
             <label class="en-label">First name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
             <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160"></div></div>
             <label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and adult review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
-            <button class="en-button" style="width:100%;margin-top:18px">Save learner</button>
+            <button class="en-button" style="width:100%;margin-top:18px">Save learner</button><button id="apiCancelLearnerEdit" class="en-outline hidden" type="button" style="width:100%;margin-top:8px">Cancel editing</button>
           </form>
         </div>
       </section>
@@ -736,7 +737,7 @@
     if (learners.length) $('#apiLearner').value = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
     window.__storySproutProgressLearners = progressData.learners || [];
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
-    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><button class="apiRemove" data-id="${l.id}">Remove</button></div>`).join('') : '<p>Add a learner to begin.</p>';
+    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><div style="display:flex;gap:8px"><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
     const completedStories = stories.filter(story => story.completed_at).length;
@@ -796,7 +797,23 @@
       notify(result.message || 'Check your email to confirm cancellation.');
     } catch (requestError) { error.textContent = requestError.message; }
   };
-    document.querySelectorAll('.apiRemove').forEach(button => {
+      document.querySelectorAll('.apiEdit').forEach(button => {
+        button.onclick = () => {
+          const learner = learners.find(item => item.id === button.dataset.id);
+          if (!learner) return;
+          editingLearnerId = learner.id;
+          $('#apiFirstName').value = learner.first_name || '';
+          $('#apiAgeBand').value = learner.age_band || '6-8';
+          $('#apiInterests').value = learner.interests || '';
+          $('#apiAvoid').value = learner.topics_to_avoid || '';
+          document.querySelectorAll('#apiAvoidOptions input').forEach(input => { input.checked = (learner.topics_to_avoid_options || []).includes(input.value); });
+          $('#apiLearnerFormTitle').textContent = `Edit ${learner.first_name}`;
+          $('#apiCancelLearnerEdit').classList.remove('hidden');
+          $('#apiLearnersView').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          $('#apiFirstName').focus();
+        };
+      });
+      document.querySelectorAll('.apiRemove').forEach(button => {
       button.onclick = async () => {
         const learner = learners.find(item => item.id === button.dataset.id);
         const learnerName = learner?.first_name || 'this learner';
@@ -865,23 +882,34 @@
   $('#apiLearnerForm').onsubmit = async (event) => {
     event.preventDefault();
     try {
-      await api('/api/learners', {
-        method: 'POST',
-        body: JSON.stringify({
-          firstName: $('#apiFirstName').value,
-          ageBand: $('#apiAgeBand').value,
-          interests: $('#apiInterests').value,
-          topicsToAvoid: $('#apiAvoid').value,
-          topicsToAvoidOptions: [...document.querySelectorAll('#apiAvoidOptions input:checked')].map(input => input.value),
-          goals: ['Kindness', 'Curiosity'],
-        }),
+      const payload = {
+        firstName: $('#apiFirstName').value,
+        ageBand: $('#apiAgeBand').value,
+        interests: $('#apiInterests').value,
+        topicsToAvoid: $('#apiAvoid').value,
+        topicsToAvoidOptions: [...document.querySelectorAll('#apiAvoidOptions input:checked')].map(input => input.value),
+        goals: ['Kindness', 'Curiosity'],
+      };
+      await api(editingLearnerId ? `/api/learners/${editingLearnerId}` : '/api/learners', {
+        method: editingLearnerId ? 'PATCH' : 'POST',
+        body: JSON.stringify(payload),
       });
+      editingLearnerId = null;
       event.target.reset();
+      $('#apiLearnerFormTitle').textContent = 'Add a learner';
+      $('#apiCancelLearnerEdit').classList.add('hidden');
       await refresh();
-      notify('Learner saved securely.');
+      notify('Learner profile saved securely.');
     } catch (error) {
       notify(error.message);
     }
+  };
+
+  $('#apiCancelLearnerEdit').onclick = () => {
+    editingLearnerId = null;
+    $('#apiLearnerForm').reset();
+    $('#apiLearnerFormTitle').textContent = 'Add a learner';
+    $('#apiCancelLearnerEdit').classList.add('hidden');
   };
 
   let generationTimer = null;
