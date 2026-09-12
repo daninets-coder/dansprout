@@ -1,6 +1,14 @@
 (() => {
   if (location.protocol === 'file:') document.body.classList.add('local-file');
   const token = localStorage.getItem('storySproutToken');
+  const cancelSubscriptionToken = new URLSearchParams(location.search).get('cancelSubscriptionToken');
+  if (cancelSubscriptionToken) {
+    fetch('/api/auth/confirm-subscription-cancellation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: cancelSubscriptionToken }) })
+      .then(response => response.ok ? response.json() : response.json().then(data => Promise.reject(new Error(data.error || 'Cancellation confirmation failed.'))))
+      .then(result => { history.replaceState({}, '', location.pathname); document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Subscription canceled</h1><p>${result.message}</p><p>Your learner profiles, stories, and reading progress remain saved.</p><a href="/">Return to Story Sprout</a></main>`; })
+      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Cancellation confirmation failed</h1><p>${error.message}</p></main>`; });
+    return;
+  }
   const deleteAccountToken = new URLSearchParams(location.search).get('deleteAccountToken');
   if (deleteAccountToken) {
     fetch('/api/auth/confirm-account-deletion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: deleteAccountToken }) })

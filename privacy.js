@@ -65,8 +65,8 @@
   modal.querySelector('.privacy-close').onclick = close;
   modal.addEventListener('click', event => { if (event.target === modal) close(); });
   modal.querySelector('[data-privacy-action="cancel"]').onclick = async () => {
-    if (!token) { status('The local demo has no paid subscription to cancel.'); return; }
-    try { await api('/api/subscription/cancel', { method: 'POST' }); status('Subscription canceled. Future billing should be handled by the payment provider.'); } catch (error) { status(error.message); }
+    close();
+    document.querySelector('[data-api-view="billing"]')?.click();
   };
   modal.querySelector('[data-privacy-action="billing"]').onclick = () => {
     close();
