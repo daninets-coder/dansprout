@@ -955,7 +955,7 @@ function estimateOpenAICost(usage) {
 
 
 
-async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
+async function generateStoryContent({ learnerName, interests = '', prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
@@ -1070,6 +1070,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
           role: 'user',
           content: JSON.stringify({
             learnerName: safeLearner,
+            interests: interests || null,
             gradeLevel,
             domain,
             theme,
@@ -1088,6 +1089,7 @@ async function generateStoryContent({ learnerName, prompt, gradeLevel, domain, t
               'Include 2-3 vocabulary words with meanings',
               'Keep it suitable for early elementary or middle-grade reading based on grade',
               'Focus on reading growth, confidence, and one clear learning goal',
+              interests ? `Use the reader's interests naturally as positive story inspiration: ${interests}. Do not force every interest into the story.` : 'No specific reader interests were provided; choose a broadly engaging setting.',
               `Sentence guidance: ${gradeProfile.sentenceStyle}`,
               `Vocabulary guidance: ${gradeProfile.vocabularyLevel}`,
               `Structure guidance: ${gradeProfile.structure}`,
@@ -1353,7 +1355,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
 
     const data = parsed.data;
     if (data.theme === 'Custom' && !data.customTheme) return res.status(400).json({ error: 'Please name your story world.' });
-    const learnerQuery = await pool.query('SELECT id, first_name, age_band, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
+    const learnerQuery = await pool.query('SELECT id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
     if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const learner = learnerQuery.rows[0];
 
@@ -1371,6 +1373,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     // OpenAI ONLY - no fallback
     const generated = await generateStoryContent({
       learnerName: learner.first_name,
+      interests: learner.interests || '',
       prompt: data.prompt,
       gradeLevel: data.gradeLevel,
       domain: curriculumRow.domain,
