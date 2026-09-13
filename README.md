@@ -47,14 +47,22 @@ placing illustrations in object storage/CDN rather than the database.
 ### Parent And Teacher Experience
 
 - Parent/guardian and teacher registration and sign-in.
-- Learner profiles with age band, interests, learning goals, and topics to
-	avoid.
+- Learner profiles with age band, interests, learning goals, and parent-entered
+	topics to avoid.
+- Learner profile editing with account-scoped updates for name, age, interests,
+	and safety preferences.
 - Activity and progress views for stories created, stories completed, reading
 	minutes, and learning-goal coverage.
+- A learner-specific Welcome back summary showing the latest story, objective,
+	story-check information, vocabulary, and a link to reopen the story.
 - Adult controls for private local data and a guided conversation-first
 	approach to progress.
 - Explorer, Family, and Classroom plan selection as demo billing or Stripe
-	Checkout (when configured).
+	Checkout when configured. The intended Family price is $15/month and the
+	intended Classroom price is $18/month.
+- Parent-protected cancellation: current password, one-time email confirmation,
+	Stripe cancellation at the end of the billing period when available, and no
+	deletion of learner data.
 - Onboarding funnel in the authenticated app: first learner, first story,
 	first plan.
 - Teacher pilot tools: CSV roster import and classroom progress PDF export.
@@ -70,9 +78,19 @@ placing illustrations in object storage/CDN rather than the database.
 	and from the authenticated workspace.
 - Adult consent is required at registration, and the Privacy & data settings
 	provide account deletion and JSON data export.
+- Learner removal requires an in-page warning and typing `DELETE`; account
+	deletion requires password verification and a one-time email confirmation.
 - Privacy disclosures identify OpenAI, Stripe, PostgreSQL, and Railway as
 	service providers and describe retention and deletion behavior.
+- Subscription cancellation is kept separate from privacy controls. It stops
+	future renewal but does not delete learner profiles, stories, or progress.
+- A Support form stays inside the website, sends requests through Resend, uses
+	`admin@dansprout.com` as the support destination by default, rate-limits
+	submissions, and rejects passwords, payment-card details, and secret keys.
 - Story prompts apply a basic local age-appropriateness screen in demo mode.
+- Authenticated AI generation applies input/output moderation, structured output
+	validation, grade guidance, learner interests, topics-to-avoid preferences,
+	and monthly/rate limits.
 - The product intentionally has no public story gallery, child messaging, or
 	advertising.
 - The account screen requires an adult guardian-consent acknowledgement during
@@ -85,6 +103,11 @@ placing illustrations in object storage/CDN rather than the database.
 
 Operational health checks, migrations, backups, monitoring, and rollback guidance
 are documented in `OPERATIONS.md`.
+
+The public-facing content currently identifies AI-generated material, states that
+printed storybooks are coming later, explains that story checks measure one
+story's questions rather than overall reading mastery, and marks Privacy Policy
+and Terms content as draft controlled-pilot material requiring qualified review.
 
 ## Quick Start: Browser Demo
 
@@ -116,7 +139,8 @@ site data, using private browsing, or switching browsers may remove it.
 	 APP_BASE_URL=http://localhost:3000
 	 EMAIL_PROVIDER=resend
 	 RESEND_API_KEY=
-	 EMAIL_FROM=Story Sprout <no-reply@yourdomain.com>
+	 EMAIL_FROM=Story Sprout <admin@dansprout.com>
+	 SUPPORT_EMAIL=admin@dansprout.com
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
 	 STRIPE_PRICE_FAMILY_500=
@@ -156,6 +180,12 @@ The PostgreSQL schema in `server/schema.sql` contains:
 | `stories` | Generated story content, prompts, goals, and completion time |
 | `subscriptions` | Current and historical plan selections |
 
+The schema also includes password-reset tokens, email-verification fields,
+account-deletion tokens, subscription-cancellation tokens, AI invocation and
+safety records, consent records, reminders, classroom imports, and curriculum
+links. Learner-owned stories, assessments, goals, and curriculum links use
+cascade deletion when the learner is removed.
+
 Database ownership is explicit: `account -> learner -> story`. API requests
 verify that the authenticated account owns the learner or story before reading,
 creating, completing, or deleting it.
@@ -168,6 +198,7 @@ creating, completing, or deleting it.
 | `POST /api/auth/login` | Sign in and receive a session token |
 | `GET /api/me` | Get the signed-in account |
 | `GET/POST /api/learners` | List or add the account's learners |
+| `PATCH /api/learners/:learnerId` | Edit an owned learner profile |
 | `DELETE /api/learners/:learnerId` | Remove an owned learner and their stories |
 | `GET /api/stories` | List owned learner stories |
 | `POST /api/stories/generate` | Generate and store an OpenAI-tailored learner story using a selected standard code |
@@ -178,14 +209,17 @@ creating, completing, or deleting it.
 | `POST /api/subscription/demo` | Save a non-billing demo plan selection |
 | `POST /api/subscription/checkout` | Create a Stripe Checkout session |
 | `POST /api/billing/webhook` | Stripe webhook to persist subscription updates |
-| `POST /api/subscription/cancel` | Cancel the current subscription |
+| `POST /api/subscription/cancellation-request` | Request parent email confirmation for cancellation |
+| `POST /api/auth/confirm-subscription-cancellation` | Confirm cancellation from the one-time email link |
 | `POST /api/account/privacy-ack` | Save privacy policy acknowledgement version |
+| `POST /api/support` | Submit a validated, rate-limited support request |
 | `GET/POST /api/reminders/preferences` | Manage weekly reminder preference |
 | `GET /api/learners/:learnerId/next-story` | Get next-best story suggestion |
 | `POST /api/classroom/roster/import` | Teacher CSV learner import |
 | `GET /api/classroom/progress-summary.pdf` | Teacher classroom progress report |
 | `GET /api/business/scorecard` | Revenue and retention benchmark status |
-| `DELETE /api/account` | Delete the account and cascaded learner data |
+| `POST /api/account/deletion-request` | Request parent email confirmation for account deletion |
+| `POST /api/auth/confirm-account-deletion` | Confirm account deletion from the one-time email link |
 
 All endpoints except registration and login require an `Authorization: Bearer
 <token>` header.
@@ -208,25 +242,33 @@ story-sprout-web/
 
 ## Security Boundaries
 
-	must live in environment variables, never in browser JavaScript.
-	 audit logged.
+Secrets, API keys, JWT configuration, Stripe credentials, Resend credentials,
+and support routing must live in environment variables, never in browser
+JavaScript or public documentation. Authentication, ownership checks, rate
+limits, moderation events, account deletion, and billing webhook events are
+server-controlled and audit/operations records should avoid unnecessary child
+prompt storage.
 
 ## Before A Production Launch
 
-The current project is a strong functional foundation, but the following work
-is required before handling real families, schools, money, or child data:
+The current project is suitable for a controlled pilot, but the following work
+is required before unrestricted public use or real customer billing:
 
 1. Use a managed, encrypted PostgreSQL service with backups and access logs.
-2. Replace the demo billing endpoint with Stripe Checkout or another
-	 PCI-compliant hosted payment flow and webhook-based subscription updates.
-3. Add email verification, password reset, refresh-token/session revocation,
-	 and audit logging.
-4. Complete production moderation policy tuning and monitoring for the
-	 server-side AI generation endpoint and safety filters.
-5. Build privacy, retention, parental-consent, and deletion processes that meet
-	 the legal requirements for the countries where the product is offered.
-6. Add automated tests, database migrations, monitoring, error tracking, and a
-	 deployment pipeline.
+2. Complete Stripe business verification, live Price IDs, live keys, webhook
+	monitoring, refund policy, and failed-payment handling.
+3. Add or verify session revocation, stronger account recovery protections,
+	and complete audit coverage for sensitive actions.
+4. Complete qualified privacy, child-data, parental-consent, education, and
+	legal review before advertising to families or schools.
+5. Add dollar-based AI budgets, production cost alerts, abuse detection, and
+	concurrency-safe budget enforcement beyond invocation limits.
+6. Add automated tests, backups, monitoring, error tracking, rollback checks,
+	and a deployment pipeline.
+
+Support and deletion flows are implemented, but they still require production
+configuration testing, including a deliverable support mailbox, Resend delivery,
+Stripe cancellation behavior, and one-time email-link testing.
 
 | `POST /api/stories/:storyId/safety-report` | Report unsafe, incorrect, or privacy-sensitive story content |
 | `GET /api/ops/metrics` | Owner-only operational, AI usage, and webhook metrics |
