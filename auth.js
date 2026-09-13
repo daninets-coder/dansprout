@@ -25,6 +25,9 @@
   const logoStyle = document.createElement('style');
   logoStyle.textContent = '.auth-mark{position:relative;background-color:#db6f47;background-image:radial-gradient(circle at 5px 9px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 13px 6px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 19px 6px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 26px 9px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 17px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 13px 14px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 19px 14px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 26px 17px,#fff7ea 0 3px,transparent 3.5px)}.auth-mark:after{content:"";position:absolute;width:8px;height:11px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:11px;top:15px;transform:rotate(35deg);background:#fff7ea}';
   document.head.appendChild(logoStyle);
+  const consentStyle = document.createElement('style');
+  consentStyle.textContent = '.auth-consent{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e5d5bf;border-radius:6px;background:#fff8ed}.auth-consent input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0;accent-color:#2f6c50}';
+  document.head.appendChild(consentStyle);
   gate.querySelectorAll('.auth-tab').forEach(button => { button.type = 'button'; });
   gate.querySelector('.auth-card h1').textContent = 'Create personalized reading stories for your child.';
   gate.querySelector('.auth-card h1 + p').textContent = "Parents, guardians, and teachers use Story Sprout to turn a learner's interests into stories that build reading skills, confidence, and conversation.";
