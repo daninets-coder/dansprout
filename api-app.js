@@ -117,6 +117,7 @@
   app.className = 'enterprise';
   app.innerHTML = `
     <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
+    <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
@@ -176,6 +177,7 @@
           </section>
           <aside class="en-card trial privacy-card">
             <section id="apiLastActivity" class="last-activity-card hidden"></section>
+            <section id="apiNextActions" class="next-actions-card" style="margin-bottom:18px"></section>
             <span class="en-badge" id="apiPlanBadge">PLAN</span>
             <h2 style="margin-top:14px">Private by design.</h2>
             <p>Only the signed-in adult can access learner profiles and stories.</p>
@@ -345,7 +347,7 @@
     const doneLearner = learners.length > 0;
     const doneStory = stories.length > 0;
     const donePlan = ['demo', 'active'].includes(subscription.status) && ['family', 'classroom'].includes(subscription.plan);
-    $('#apiOnboarding').innerHTML = `<div class="en-stat-grid"><button type="button" class="en-stat apiStartStep" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep" data-step="plan"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'Plan selected' : 'Choose a plan'}</span></button></div>`;
+    $('#apiOnboarding').innerHTML = `<div class="onboarding-progress"><strong>${[doneLearner, doneStory, donePlan].filter(Boolean).length} of 3 started</strong><span>Build a learner, make a story, then choose the plan that fits your family.</span></div><div class="en-stat-grid"><button type="button" class="en-stat apiStartStep ${doneLearner ? 'is-done' : ''}" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep ${doneStory ? 'is-done' : ''}" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep ${donePlan ? 'is-done' : ''}" data-step="plan"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'Plan selected' : 'Choose a plan'}</span></button></div>`;
     document.querySelectorAll('.apiStartStep').forEach(button => {
       button.onclick = () => {
         if (button.dataset.step === 'learner') show('learners');
@@ -486,6 +488,29 @@
     reportButton.className = 'en-outline';
     reportButton.textContent = 'Report safety concern';
     inner.querySelector('.book-modal-actions').appendChild(reportButton);
+    const followUpButton = document.createElement('button');
+    followUpButton.id = 'apiFollowUpStory';
+    followUpButton.type = 'button';
+    followUpButton.className = 'en-outline';
+    followUpButton.textContent = 'Create a follow-up adventure';
+    inner.querySelector('.book-modal-actions').appendChild(followUpButton);
+    followUpButton.onclick = () => {
+      const learner = learners.find(item => item.id === story.learner_id);
+      $('#apiLearner').value = story.learner_id || learner?.id || '';
+      $('#apiGradeLevel').value = story.content?.meta?.gradeLevel || 'K';
+      $('#apiTheme').value = story.theme || 'Moonlight';
+      $('#apiCustomTheme').value = story.content?.meta?.customTheme || '';
+      $('#apiCustomTheme').classList.toggle('hidden', $('#apiTheme').value !== 'Custom');
+      $('#apiPrompt').value = `Continue the story of ${story.title} with a new challenge and a meaningful choice.`;
+      loadCurriculumOptions($('#apiGradeLevel').value).then(() => {
+        const matchingGoal = curriculumOptions.find(row => row.standard_code === story.content?.meta?.curriculumStandard) || curriculumOptions.find(row => row.domain === story.content?.meta?.domain);
+        if (matchingGoal) $('#apiGoal').value = matchingGoal.standard_code;
+        updateStoryVisual();
+        inner.querySelector('#closeApiStory').click();
+        show('home');
+        $('#apiPrompt').focus();
+      });
+    };
     const reportForm = document.createElement('form');
     reportForm.id = 'apiSafetyReportForm';
     reportForm.className = 'hidden';
@@ -741,6 +766,7 @@
     if (learners.length) $('#apiLearner').value = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
     window.__storySproutProgressLearners = progressData.learners || [];
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
+    renderNextActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><div style="display:flex;gap:8px"><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
@@ -783,6 +809,22 @@
     container.querySelector('.last-activity-open').onclick = () => {
       const story = stories.find(savedStory => savedStory.id === activity.storyId);
       if (story) openServerStory(story);
+    };
+  }
+
+  function renderNextActions(progressLearners, learnerId) {
+    const container = $('#apiNextActions');
+    if (!container) return;
+    const learner = progressLearners.find(item => item.id === learnerId);
+    const activity = learner?.last_activity;
+    const selectedStory = activity && stories.find(story => story.id === activity.storyId);
+    const action = !learner ? { title: 'Start with a learner', text: 'Add a reader so Story Sprout can shape the experience around them.', step: 'learner', label: 'Add learner' } : !activity ? { title: 'Make the first story', text: 'Choose an interest, a reading goal, and an adventure.', step: 'story', label: 'Create story' } : !activity.completedAt ? { title: `Continue ${activity.title}`, text: 'Pick up the latest reading adventure where you left off.', story: selectedStory, label: 'Continue story' } : { title: 'Choose what comes next', text: 'Practice the same goal again with a fresh adventure or review the last story.', story: selectedStory, step: 'story', label: 'Create another story' };
+    container.innerHTML = `<div class="next-actions-eyebrow">NEXT READING STEP</div><h3>${esc(action.title)}</h3><p>${esc(action.text)}</p><button type="button" class="en-outline" id="apiNextActionButton">${action.label}</button>`;
+    container.querySelector('#apiNextActionButton').onclick = () => {
+      if (action.story) return openServerStory(action.story);
+      if (action.step === 'learner') return show('learners');
+      show('home');
+      $('#apiPrompt')?.focus();
     };
   }
 
