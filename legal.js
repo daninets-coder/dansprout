@@ -122,4 +122,24 @@
     links.appendChild(support);
     enterpriseHeader.appendChild(links);
   }
+
+  const appShell = document.querySelector('.app, .enterprise');
+  if (appShell && !appShell.querySelector('.site-footer')) {
+    const footerStyle = document.createElement('style');
+    footerStyle.textContent = '.site-footer{margin-top:42px;padding:28px clamp(18px,5vw,54px);border-top:1px solid #e5d5bf;background:rgba(255,253,249,.92);text-align:center}.site-footer-brand{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;color:#143f4a;font:14px Arial,sans-serif}.site-footer-brand strong{font:700 20px Georgia,serif}.site-footer-brand>span:last-child{color:#687a7c;font-size:12px}.site-footer-mark{display:grid;place-items:center;width:25px;height:25px;border-radius:6px;background:#db6f47;color:#fff;font-weight:700}.site-footer-links{display:flex;justify-content:center;gap:13px;flex-wrap:wrap;margin-top:14px}.site-footer-note{margin-top:14px;color:#687a7c;font:12px/1.45 Arial,sans-serif}';
+    document.head.appendChild(footerStyle);
+    const footer = document.createElement('footer');
+    footer.className = 'site-footer';
+    footer.innerHTML = '<div class="site-footer-brand"><span class="site-footer-mark">✦</span><strong>Story Sprout</strong><span>Personalized reading stories for growing readers.</span></div><div class="site-footer-links"></div><div class="site-footer-note">Adults guide the learning. Children bring the imagination. Printed storybooks are coming later.</div>';
+    const footerLinks = footer.querySelector('.site-footer-links');
+    addLink(footerLinks, 'Privacy Policy', privacyContent);
+    addLink(footerLinks, 'Terms', termsContent);
+    const footerSupport = document.createElement('button');
+    footerSupport.type = 'button';
+    footerSupport.className = 'legal-link';
+    footerSupport.textContent = 'Support';
+    footerSupport.onclick = openSupport;
+    footerLinks.appendChild(footerSupport);
+    appShell.appendChild(footer);
+  }
 })();
