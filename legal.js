@@ -32,7 +32,7 @@
     <h3>Acceptable use</h3>
     <p>Do not use the service to submit unlawful, hateful, sexual, dangerous, or otherwise inappropriate content; attempt to access another account; bypass safety controls; or use the service to make high-stakes decisions about a child.</p>
     <h3>Subscriptions</h3>
-    <p>Paid plans renew according to the checkout terms shown by Stripe. Cancellation stops future renewal according to the applicable billing provider rules. Refunds and billing disputes are handled under the published billing policy and provider terms.</p>
+    <p>Paid plans renew according to the checkout terms shown by Stripe. Cancellation stops future renewal and does not automatically issue a prorated refund for the current billing period. We may review refunds for duplicate charges, billing errors, accidental renewals, or service problems. Contact Support and do not send payment-card numbers by email. Applicable consumer law applies. This refund wording is a product draft pending qualified legal review for the locations where Story Sprout operates.</p>
     <h3>Account termination</h3>
     <p>We may restrict or terminate access when necessary to protect users, prevent abuse, enforce these terms, or maintain service security. You may delete your account using Privacy & data settings.</p>
     <h3>Changes and availability</h3>
