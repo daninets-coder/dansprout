@@ -66,6 +66,14 @@ Save the learner.
 
 Only the signed-in adult account can access that learner profile. The learner does not need an email address or separate login.
 
+### Edit a learner
+
+In the Saved learners list, select **Edit** to change the learner's name, age range, interests, or topics to avoid. Select **Cancel editing** to leave the saved profile unchanged.
+
+### Remove a learner
+
+Select **Remove** only when you are ready to permanently delete that learner's profile, preferences, stories, reading progress, story-check results, vocabulary, and goals. Story Sprout shows an in-page confirmation and requires typing `DELETE`. This cannot be undone.
+
 ## 5. Create A Story Together
 
 Open **Home** and find **Create a story together**.
@@ -98,7 +106,7 @@ The curriculum guide explains common abbreviations:
 - `L` = Language
 - `W` = Writing
 
-The curriculum code is a guide for the skill being practiced. It is not a formal diagnosis or automatic proof of mastery.
+The curriculum code is a guide for the skill being practiced. It is not a formal diagnosis or automatic proof of overall reading mastery.
 
 ### Story World
 
@@ -124,7 +132,15 @@ Choose one of the simple length options:
 
 The grade level still controls the reading difficulty. The length choice controls how much story is created.
 
-Select **Generate reading-aligned story**.
+For Grades 6-8, Story Sprout uses a more mature reading mode:
+
+- **Focused reading:** approximately 250-400 words.
+- **Full story:** approximately 400-650 words.
+- **Deep dive:** approximately 650-950 words.
+
+Middle-school stories may include richer vocabulary, character motivation, perspective, evidence, theme, structure, tone, and author craft. The goal is deeper reasoning, not simply harder words.
+
+Select **Generate my story**.
 
 ## 6. Read The Story
 
@@ -141,6 +157,8 @@ The story reader provides:
 - Text size controls.
 - Vocabulary words.
 - Story completion control.
+- **Download story PDF**, with a framed storybook layout, learner name, date, reading focus, vocabulary, questions, Story Sprout branding, and a story-check note.
+- **Create a follow-up adventure**, which reuses the learner, reading focus, and story world.
 
 An adult and child can read together, or the child can use the read-aloud feature when appropriate.
 
@@ -202,11 +220,11 @@ Select **Close** to end the question activity and return to the story view or cl
 
 When the child finishes reading, select **Mark completed**.
 
-Completion records that the story was finished. Completion is different from mastery:
+Completion records that the story was finished. Completion is different from evidence from a story check:
 
 - **Completed** means the story was read or finished.
 - **Score** means the child answered the story questions.
-- **Mastered** means the automatic story check reached the configured threshold for the selected activity.
+- **Positive evidence** means the result met the configured threshold for this story activity. It is not a complete measure of overall reading mastery.
 
 ## 12. Review Saved Stories
 
@@ -233,8 +251,19 @@ The progress area can show information such as:
 - Number of learners.
 - Stories saved.
 - Stories completed.
-- Skills marked as mastered by the story-check system.
+- Skills with positive story-check evidence from saved activities.
 - Average reviewed assessment score where available.
+
+The Home view also provides:
+
+- A Welcome back summary for the selected learner.
+- A weekly reading menu with next-step suggestions.
+- Continue the unfinished story.
+- Practice the same reading goal again.
+- Review vocabulary.
+- Create a follow-up adventure.
+- An evidence and perspective challenge for Grades 6-8.
+- A private JSON progress snapshot download.
 
 Progress is intended to help adults notice practice over time. It should not replace a teacher's evaluation or a formal reading assessment.
 
@@ -261,7 +290,7 @@ Open **Privacy & data** from the navigation.
 Available controls can include:
 
 - Download my data.
-- Cancel subscription.
+- Manage subscription and billing.
 - Delete account and learner data.
 
 Privacy information explains:
@@ -289,6 +318,14 @@ Before selecting a paid plan, review:
 - Refund information.
 
 Payment details are handled by the payment provider rather than stored directly by Story Sprout.
+
+Subscription cancellation is separate from data deletion. To cancel, open **Plans & billing**, enter the current account password, and request the one-time email confirmation. The subscription is not canceled until the parent opens the newest confirmation link. Cancellation stops future renewal but does not delete learner profiles, stories, or progress.
+
+Refund wording is currently draft policy language: cancellation does not automatically refund the current billing period, while duplicate charges, billing errors, accidental renewals, or service problems can be reviewed through Support. Applicable law applies.
+
+### Support
+
+Select **Support** in the header or footer to open the in-page support form. Enter a reply email, choose a category, and describe the issue. Do not include passwords, payment-card details, or secret keys.
 
 ## 17. Adult And Child Roles
 
