@@ -20,8 +20,8 @@
   modal.innerHTML = `<section class="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
     <button class="privacy-close" type="button" aria-label="Close privacy and data settings">&times;</button>
     <h2 id="privacyTitle">Privacy & data</h2>
-    <p>Story Sprout keeps learner profiles and reading activity private to the adult account that created them. We do not sell learner data or store payment card numbers.</p>
-    <h3>Adult consent</h3>
+    <p>Story Sprout keeps learner profiles and reading activity private to the parent account that created them. We do not sell learner data or store payment card numbers.</p>
+    <h3>Parent consent</h3>
     <p>An adult parent, guardian, or teacher must approve learner profiles during account registration. Only an adult should enter a child's information.</p>
     <h3>What we store</h3>
     <p>We store the account email and name, learner profile details, saved stories, progress, and subscription status needed to provide the service. Payment details belong to the payment provider and are never sent to Story Sprout.</p>

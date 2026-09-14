@@ -169,8 +169,8 @@
       <section id="apiHomeView">
         <div class="en-eyebrow">SECURE FAMILY WORKSPACE</div>
         <h1 class="en-title">Welcome, ${esc(account.displayName || 'Reader')}.</h1>
-        <p class="en-lede">Story Sprout helps adults and children create personalized stories that build reading skills, confidence, and a love of books.</p>
-        <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Adults should review each story before sharing it with a child.</p>
+        <p class="en-lede">Story Sprout helps parents and children create personalized stories that build reading skills, confidence, and a love of books.</p>
+        <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Parents should review each story before sharing it with a child.</p>
 
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
@@ -213,7 +213,7 @@
             <section id="apiNextActions" class="next-actions-card" style="margin-bottom:18px"></section>
             <span class="en-badge" id="apiPlanBadge">PLAN</span>
             <h2 style="margin-top:14px">Private by design.</h2>
-            <p>Only the signed-in adult can access learner profiles and stories.</p>
+            <p>Only the signed-in parent can access learner profiles and stories.</p>
             <img src="${asset('images/Speak/speakpanda.png')}" class="trial-mascot" alt="Friendly reading panda">
             <div id="apiPricingOffer" style="margin-top:10px;font-size:13px"></div><p class="print-notice" style="margin:10px 0 0;color:#fff;font:12px/1.4 Arial,sans-serif"><strong>Printed storybooks are coming later.</strong> Digital stories are available now.</p>
             <div class="privacy-spark" style="border-top:1px solid #e5d5bf">
@@ -238,7 +238,7 @@
           <div class="en-stat-grid" style="margin-top:18px">
             <div class="en-stat"><strong>1</strong><span><b>Start with the right goal.</b><br>Choose a grade and a U.S. reading benchmark so the story has a clear learning purpose.</span></div>
             <div class="en-stat"><strong>2</strong><span><b>Practice through a story.</b><br>AI adjusts the language, sentence length, questions, and vocabulary for the selected grade.</span></div>
-            <div class="en-stat"><strong>3</strong><span><b>Notice growth together.</b><br>Adults can listen, discuss the story, review difficult words, and follow completed reading work.</span></div>
+            <div class="en-stat"><strong>3</strong><span><b>Notice growth together.</b><br>Parents can listen, discuss the story, review difficult words, and follow completed reading work.</span></div>
           </div>
           <p style="margin:18px 0 0;color:#597076;font:13px/1.5 Arial,sans-serif">Our approach is conversation-first: the goal is not to rush a child through a score, but to help them build confidence, understanding, and a lasting relationship with reading.</p>
         </section>
@@ -246,7 +246,7 @@
         <section class="en-card" style="margin-top:20px">
           <div class="en-eyebrow">CURRICULUM GUIDE</div>
           <h2>What do the reading codes mean?</h2>
-          <p class="en-lede" style="font-size:15px;margin-top:8px">Each story is connected to a reading practice objective. The code helps adults and teachers identify the skill; the story gives children a friendly way to practice it. These connections are instructional aids and should be reviewed by a qualified educator before being used for school decisions.</p>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">Each story is connected to a reading practice objective. The code helps parents and teachers identify the skill; the story gives children a friendly way to practice it. These connections are instructional aids and should be reviewed by a qualified educator before being used for school decisions.</p>
           <details>
             <summary style="cursor:pointer;font-weight:700;color:#24515b">Open the family guide</summary>
             <div style="display:grid;gap:12px;margin-top:16px;font:14px/1.5 Arial,sans-serif;color:#597076">
@@ -287,7 +287,7 @@
       <section id="apiGuideView" class="hidden">
         <div class="en-eyebrow">PARENT GUIDE</div>
         <h1 class="en-title">How Story Sprout works.</h1>
-        <p class="en-lede">Adults guide the learning. Children bring the imagination. Use this quick guide to create a story, read it together, and see what the child understood.</p>
+        <p class="en-lede">Parents guide the learning. Children bring the imagination. Use this quick guide to create a story, read it together, and see what the child understood.</p>
         <div class="en-grid" style="margin-top:30px">
           <section class="en-card">
             <h2>Start here</h2>
@@ -343,15 +343,15 @@
           <p><strong>Support:</strong> Use the in-page Support form for account, billing, privacy, story safety, or technical questions. Never send passwords, card numbers, or secret keys.</p>
         </section>
         <section class="en-card" style="margin-top:20px">
-          <h2>Keep the adult in control</h2>
+          <h2>Keep parents in control</h2>
           <p>Review AI-generated stories before using them, supervise the child's use, and avoid entering unnecessary sensitive information. Children do not create accounts. Privacy & data settings let you export or delete account and learner data.</p>
         </section>
       </section>
 
       <section id="apiProgressView" class="hidden">
-        <div class="en-eyebrow">ADULT PROGRESS TOOLS</div>
+        <div class="en-eyebrow">PARENT & EDUCATOR PROGRESS TOOLS</div>
         <h1 class="en-title">Progress and school tools.</h1>
-        <p class="en-lede">Review business signals, export classroom progress, and manage adult-facing reporting here.</p>
+        <p class="en-lede">Review business signals, export classroom progress, and manage parent and educator reporting here.</p>
         <div id="apiProgressNotice" class="en-card" style="margin-top:20px"></div>
         <div id="apiProgressDestination"></div>
       </section>
@@ -365,7 +365,7 @@
             <h2 id="apiLearnerFormTitle">Add a learner</h2>
             <label class="en-label">First name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
             <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160"></div></div>
-            <label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and adult review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
+            <label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and parent review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
             <button class="en-button" style="width:100%;margin-top:18px">Save learner</button><button id="apiCancelLearnerEdit" class="en-outline hidden" type="button" style="width:100%;margin-top:8px">Cancel editing</button>
           </form>
         </div>
@@ -626,7 +626,7 @@
     const modalDomain = story?.content?.meta?.domain ? story.content.meta.domain.replaceAll('_', ' ') : '';
     const modalObjective = story?.content?.meta?.curriculumObjective || '';
     const modalStandard = story?.content?.meta?.curriculumStandard || '';
-    const adultEditorMarkup = earlyReader ? '' : '<section class="book-modal-edit"><h3 class="book-modal-subtitle">Adult story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button></form></section>';
+    const adultEditorMarkup = earlyReader ? '' : '<section class="book-modal-edit"><h3 class="book-modal-subtitle">Parent story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button></form></section>';
     const assessmentMarkup = '<h3 class="book-modal-subtitle">Check understanding</h3><form id="apiStoryAssessment" class="book-modal-list"></form><div id="apiAssessmentResult" class="assessment-result" aria-live="polite"></div>';
     const modalMeta = [story.learner_name || '', story.content?.meta?.customTheme || story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
@@ -804,7 +804,7 @@
       const reviewPanel = document.createElement('section');
       reviewPanel.id = 'apiAdultReview';
       reviewPanel.className = 'book-modal-edit hidden';
-      reviewPanel.innerHTML = '<h3 class="book-modal-subtitle">Adult review</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">A single story check does not establish overall mastery. Review the response as evidence from this story using the selected reading objective.</p><form id="apiAdultReviewForm"><label class="en-label">Review score (0-100)<input id="apiReviewScore" class="en-input" type="number" min="0" max="100" required></label><label class="en-label" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="apiReviewMastered" type="checkbox"> Record positive evidence for this review</label><label class="en-label" style="display:block;margin-top:10px">Review notes<textarea id="apiReviewNotes" class="en-input" rows="2" maxlength="1000" placeholder="What evidence did the reader show?"></textarea></label><button type="submit" class="en-outline" style="margin-top:10px">Save adult review</button></form><p id="apiReviewStatus" class="book-modal-meta"></p>';
+      reviewPanel.innerHTML = '<h3 class="book-modal-subtitle">Parent review</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">A single story check does not establish overall mastery. Review the response as evidence from this story using the selected reading objective.</p><form id="apiAdultReviewForm"><label class="en-label">Review score (0-100)<input id="apiReviewScore" class="en-input" type="number" min="0" max="100" required></label><label class="en-label" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="apiReviewMastered" type="checkbox"> Record positive evidence for this review</label><label class="en-label" style="display:block;margin-top:10px">Review notes<textarea id="apiReviewNotes" class="en-input" rows="2" maxlength="1000" placeholder="What evidence did the reader show?"></textarea></label><button type="submit" class="en-outline" style="margin-top:10px">Save parent review</button></form><p id="apiReviewStatus" class="book-modal-meta"></p>';
       inner.querySelector('#apiAssessmentResult').after(reviewPanel);
       reviewPanel.querySelector('#apiAdultReviewForm').onsubmit = async event => {
         event.preventDefault();
@@ -812,7 +812,7 @@
           const result = await api(`/api/stories/${story.id}/assessment/review`, { method: 'PATCH', body: JSON.stringify({ score: Number(reviewPanel.querySelector('#apiReviewScore').value), mastered: reviewPanel.querySelector('#apiReviewMastered').checked, notes: reviewPanel.querySelector('#apiReviewNotes').value }) });
           reviewPanel.querySelector('#apiReviewStatus').textContent = result.assessment.mastered ? 'Reviewed: positive evidence recorded for this story and skill.' : 'Reviewed: keep practicing this skill.';
           await refresh();
-          notify('Adult review saved.');
+          notify('Parent review saved.');
         } catch (error) {
           notify(error.message);
         }
@@ -823,7 +823,7 @@
       ? `<fieldset class="assessment-question"><legend>${questionIndex + 1}. ${esc(question.prompt)}</legend><div class="assessment-options">${question.options.map(option => `<label class="assessment-option"><input class="apiAssessmentAnswer" type="radio" name="assessment-${questionIndex}" data-question-index="${questionIndex}" value="${esc(option)}" required><span>${esc(option)}</span></label>`).join('')}</div><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">Read aloud</button></fieldset>`
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length ? '<button type="submit" class="en-button" style="margin-top:14px">Check answers</button>' : '<p class="book-modal-empty">No questions provided.</p>');
     if (questions.length) {
-      assessment.innerHTML += `<p class="book-modal-meta" style="margin-top:14px">${objectiveQuestions ? 'Choose the best answer from the story. Your score is calculated automatically.' : 'This older story uses written responses and still needs adult review.'}</p>`;
+      assessment.innerHTML += `<p class="book-modal-meta" style="margin-top:14px">${objectiveQuestions ? 'Choose the best answer from the story. Your score is calculated automatically.' : 'This older story uses written responses and still needs parent review.'}</p>`;
       if (objectiveQuestions) {
         assessment.querySelectorAll('.assessment-option input').forEach(input => {
           input.addEventListener('change', () => {
@@ -873,7 +873,7 @@
         const resultPanel = inner.querySelector('#apiAssessmentResult');
         resultPanel.innerHTML = objectiveQuestions
           ? `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">${result.correct} of ${questions.length} correct on this story's questions. ${result.mastered ? 'This story check provides positive evidence for the selected skill.' : 'Keep practicing this skill and try again.'}</span><div class="assessment-result-actions"><button type="button" class="en-button" id="apiRetryAssessment">Try again</button><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`
-          : `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">Practice score saved. Adult review is still required for this older story format.</span><div class="assessment-result-actions"><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`;
+          : `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">Practice score saved. Parent review is still required for this older story format.</span><div class="assessment-result-actions"><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`;
         if (!objectiveQuestions) inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
         inner.querySelector('#apiRetryAssessment')?.addEventListener('click', () => {
@@ -943,7 +943,7 @@
         ? '<strong>Site owner reporting</strong><p style="margin:6px 0 0;color:#597076">This page contains business signals and operational metrics for the site owner. Learner progress remains on Home.</p>'
         : me.role === 'teacher'
           ? '<strong>Teacher reporting</strong><p style="margin:6px 0 0;color:#597076">Use the school tools below to import a roster and export classroom progress. Learner progress remains on Home.</p>'
-          : '<strong>Progress tools are adult-only</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
+          : '<strong>Parent progress tools</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
     }
 
     const selectedLearnerId = $('#apiLearner')?.value;

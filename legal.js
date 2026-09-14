@@ -130,7 +130,7 @@
     document.head.appendChild(footerStyle);
     const footer = document.createElement('footer');
     footer.className = 'site-footer';
-    footer.innerHTML = '<div class="site-footer-brand"><span class="site-footer-mark">✦</span><strong>Story Sprout</strong><span>Personalized reading stories for growing readers.</span></div><div class="site-footer-links"></div><div class="site-footer-note">Adults guide the learning. Children bring the imagination. Printed storybooks are coming later.</div>';
+    footer.innerHTML = '<div class="site-footer-brand"><span class="site-footer-mark">✦</span><strong>Story Sprout</strong><span>Personalized reading stories for growing readers.</span></div><div class="site-footer-links"></div><div class="site-footer-note">Parents guide the learning. Children bring the imagination. Printed storybooks are coming later.</div>';
     const footerLinks = footer.querySelector('.site-footer-links');
     addLink(footerLinks, 'Privacy Policy', privacyContent);
     addLink(footerLinks, 'Terms', termsContent);
