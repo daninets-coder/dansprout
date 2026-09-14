@@ -122,7 +122,7 @@
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
         <button data-api-view="home" class="active">Home</button>
-        <button data-api-view="weekly">Weekly menu</button>
+        <button data-api-view="weekly">Last week review</button>
         <button data-api-view="learners">Learners</button>
         <button id="apiProgressNav" data-api-view="progress">Progress</button>
         <button data-api-view="billing">Plans & billing</button>
@@ -143,18 +143,6 @@
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
           <div id="apiOnboarding"></div>
-        </section>
-
-        <section class="en-card weekly-return-card weekly-return-hero" style="margin-bottom:24px">
-          <div class="weekly-return-header-row">
-            <div>
-              <div class="weekly-return-eyebrow">A REASON TO RETURN</div>
-              <h2 style="font-size:24px;margin:4px 0 0;color:#244c53">This week's reading menu</h2>
-            </div>
-            <button type="button" class="en-outline" id="apiGoToWeeklyPage" style="font-weight:700">Open full weekly page →</button>
-          </div>
-          <p class="en-lede" style="font-size:15px;margin-top:8px">Small, meaningful choices help reading become a habit. Choose one activity for the learner selected above.</p>
-          <div id="apiWeeklyReturnActions" class="weekly-return-actions"></div>
         </section>
 
         <div class="en-grid">
@@ -254,20 +242,12 @@
       </section>
 
       <section id="apiWeeklyView" class="hidden">
-        <div class="weekly-return-eyebrow">A REASON TO RETURN</div>
-        <h1 class="en-title">This week's reading menu & learning review.</h1>
-        <p class="en-lede">Review completed reading work, explore new vocabulary words, and pick the next reading adventure for your learner.</p>
+        <div class="weekly-return-eyebrow">LAST WEEK'S LEARNING</div>
+        <h1 class="en-title">Learning snapshot & review.</h1>
+        <p class="en-lede">Review completed reading work, explore new vocabulary words, and revisit the stories covered last week.</p>
 
         <section class="en-card" style="margin-top:20px;border:1.5px solid #d8dfd5;background:#ffffff">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-bottom:16px;border-bottom:1px solid #e5ebe2">
-            <div>
-              <label class="en-label" style="margin:0 0 4px;font-size:12px">Select learner to review</label>
-              <select id="apiWeeklyPageLearner" class="en-select" style="min-width:260px"></select>
-            </div>
-            <button type="button" class="en-button" id="apiWeeklyCreateBtn">✦ Create next story</button>
-          </div>
-
-          <div id="apiWeeklyPageContent" style="margin-top:20px"></div>
+          <div id="apiWeeklyPageContent"></div>
         </section>
       </section>
 
@@ -1007,34 +987,10 @@
     const displayStories = realStorySummary.length ? realStorySummary : defaultCoveredStories;
 
     const latestStory = recentStories[0] || story;
-    const latestTitle = latestStory?.title || 'Moonlight Dance';
-    const latestGoal = latestStory?.learning_goal || (latestStory?.content?.meta?.domain ? latestStory.content.meta.domain.replaceAll('_', ' ') : 'Author Craft');
-
-    const actions = [
-      latestStory && !latestStory.completed_at
-        ? { title: `Continue ${latestTitle}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open', story: latestStory }
-        : { title: `Continue ${latestTitle}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open', story: latestStory },
-      { title: 'Practice the same reading goal again', detail: `${latestGoal} with a different adventure.`, type: 'goal', story: latestStory },
-      { title: 'Review vocabulary', detail: 'Use the words below to revisit the latest reading work.', type: 'vocabulary' },
-      { title: 'Try an evidence challenge', detail: 'Look for details, perspective, and reasoning in a grades 6–8 story.', type: 'middle' },
-    ];
 
     const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : "Daniel Learner's learning snapshot";
 
     const renderBlock = () => `
-      <div class="weekly-return-actions" style="margin-top:0">
-        ${actions.map((action, index) => `
-          <button type="button" class="weekly-return-action" data-return-type="${action.type}" data-action-index="${index}">
-            <span class="weekly-return-number">${index + 1}</span>
-            <span>
-              <strong>${esc(action.title)}</strong>
-              <small>${esc(action.detail)}</small>
-            </span>
-            <span class="weekly-return-arrow">-></span>
-          </button>
-        `).join('')}
-      </div>
-
       <div class="weekly-return-summary">
         <div>
           <div class="weekly-summary-heading">LAST WEEK'S LEARNING</div>
@@ -1083,57 +1039,6 @@
 
     const attachHandlers = (rootEl) => {
       if (!rootEl) return;
-      rootEl.querySelectorAll('.weekly-return-action').forEach(button => {
-        button.onclick = async () => {
-          const type = button.dataset.returnType;
-          const idx = Number(button.dataset.actionIndex || 0);
-          const act = actions[idx] || {};
-
-          if (type === 'open' && act.story) {
-            openServerStory(act.story);
-            return;
-          }
-
-          if (type === 'goal') {
-            show('home');
-            if (act.story?.learning_goal) {
-              const goalSelect = $('#apiGoal');
-              if (goalSelect) {
-                const opt = [...goalSelect.options].find(o => o.text.toLowerCase().includes(act.story.learning_goal.toLowerCase()) || o.value.toLowerCase().includes(act.story.learning_goal.toLowerCase()));
-                if (opt) goalSelect.value = opt.value;
-              }
-            }
-            $('#apiPrompt')?.focus();
-            notify(`Selected ${latestGoal} for your next reading adventure.`);
-            return;
-          }
-
-          if (type === 'vocabulary') {
-            const summaryPanel = rootEl.querySelector('.weekly-return-summary');
-            if (summaryPanel) summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            return;
-          }
-
-          if (type === 'middle') {
-            show('home');
-            const gradeEl = $('#apiGradeLevel');
-            if (gradeEl) {
-              gradeEl.value = '6';
-              loadCurriculumOptions('6');
-            }
-            $('#apiPrompt')?.focus();
-            notify('Evidence challenge ready for Grades 6–8.');
-            return;
-          }
-
-          if (type === 'followup' || type === 'new') {
-            show('home');
-            $('#apiPrompt')?.focus();
-            return;
-          }
-        };
-      });
-
       rootEl.querySelectorAll('.weekly-read-again-btn').forEach(btn => {
         btn.onclick = () => {
           const storyId = btn.dataset.storyId;
