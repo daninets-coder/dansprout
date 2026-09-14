@@ -950,7 +950,7 @@
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     renderNextActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     renderWeeklyReturnActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
-    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><div style="display:flex;gap:8px"><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
+    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div>${l.child_username ? `<div class="student-meta">Child login: ${esc(l.child_username)}</div>` : ''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="apiChildLogin en-outline" data-id="${l.id}">${l.child_username ? 'Reset child login' : 'Set child login'}</button><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
     const completedStories = stories.filter(story => story.completed_at).length;
@@ -1179,6 +1179,33 @@
       notify(result.message || 'Check your email to confirm cancellation.');
     } catch (requestError) { error.textContent = requestError.message; }
   };
+      document.querySelectorAll('.apiChildLogin').forEach(button => {
+        button.onclick = () => {
+          const learner = learners.find(item => item.id === button.dataset.id);
+          if (!learner) return;
+          const overlay = document.createElement('div');
+          overlay.className = 'learner-delete-overlay';
+          overlay.innerHTML = `<style>.child-login-dialog{width:min(520px,100%);padding:26px;background:#fffdf9;border:1px solid #cbdcc9;border-radius:10px;box-shadow:0 20px 50px rgba(20,63,74,.25)}.child-login-dialog h2{margin:8px 0;color:#294f55}.child-login-dialog p{color:#597076;font:14px/1.5 Arial,sans-serif}.child-login-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}.child-login-error{min-height:18px;color:#a63e31;font:13px Arial,sans-serif}</style><section class="child-login-dialog" role="dialog" aria-modal="true" aria-labelledby="childLoginTitle"><div class="last-activity-eyebrow">PARENT CONTROL</div><h2 id="childLoginTitle">${learner.child_username ? `Reset ${esc(learner.first_name)}'s child login` : `Create ${esc(learner.first_name)}'s child login`}</h2><p>This lets ${esc(learner.first_name)} sign in directly without opening the parent workspace. The child can access only this learner's reading shelf.</p><label class="en-label" for="childUsername">Child username</label><input id="childUsername" class="en-input" maxlength="32" pattern="[A-Za-z0-9._-]+" value="${esc(learner.child_username || `${learner.first_name.toLowerCase().replace(/[^a-z0-9]+/g, '')}-reader`)}"><label class="en-label" for="childPassword" style="margin-top:12px">Child password</label><input id="childPassword" class="en-input" type="password" minlength="6" maxlength="128" autocomplete="new-password" placeholder="At least 6 characters"><p style="margin:7px 0 0;font-size:12px">Give these credentials to the child. Do not reuse the parent password.</p><p class="child-login-error" role="alert"></p><div class="child-login-actions"><button type="button" class="en-outline" data-child-login-cancel>Cancel</button><button type="button" class="en-button" data-child-login-save>Save child login</button></div></section>`;
+          document.body.appendChild(overlay);
+          const closeOverlay = () => overlay.remove();
+          overlay.querySelector('[data-child-login-cancel]').onclick = closeOverlay;
+          overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(); });
+          overlay.querySelector('#childUsername').focus();
+          overlay.querySelector('[data-child-login-save]').onclick = async () => {
+            const error = overlay.querySelector('.child-login-error');
+            const username = overlay.querySelector('#childUsername').value.trim();
+            const password = overlay.querySelector('#childPassword').value;
+            if (!/^[A-Za-z0-9._-]{3,32}$/.test(username)) { error.textContent = 'Use 3 to 32 letters, numbers, dots, underscores, or hyphens.'; return; }
+            if (password.length < 6) { error.textContent = 'Use a password with at least 6 characters.'; return; }
+            try {
+              await api(`/api/learners/${button.dataset.id}/child-login`, { method: 'PATCH', body: JSON.stringify({ username, password }) });
+              closeOverlay();
+              await refresh();
+              notify(`Child login saved for ${learner.first_name}.`);
+            } catch (requestError) { error.textContent = requestError.message; }
+          };
+        };
+      });
       document.querySelectorAll('.apiEdit').forEach(button => {
         button.onclick = () => {
           const learner = learners.find(item => item.id === button.dataset.id);
