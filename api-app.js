@@ -955,12 +955,15 @@
       if ($('#apiLearner')) $('#apiLearner').value = activeLearnerId;
       if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').value = activeLearnerId;
     }
-    window.__storySproutProgressLearners = progressData.learners || [];
-    renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
-    renderNextActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
-    renderWeeklyReturnActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
+    const visibleProgressLearners = isChildSession
+      ? (progressData.learners || []).filter(item => item.id === (account.learner?.id || learners[0]?.id))
+      : (progressData.learners || []);
+    window.__storySproutProgressLearners = visibleProgressLearners;
+    renderLastActivity(visibleProgressLearners, $('#apiLearner')?.value);
+    renderNextActions(visibleProgressLearners, $('#apiLearner')?.value);
+    renderWeeklyReturnActions(visibleProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div>${l.child_username ? `<div class="student-meta">Child login: ${esc(l.child_username)}</div>` : ''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="apiChildLogin en-outline" data-id="${l.id}">${l.child_username ? 'Reset child login' : 'Set child login'}</button><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
-    const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
+    const masteredAssessments = visibleProgressLearners.reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
     const completedStories = stories.filter(story => story.completed_at).length;
     const answeredStories = stories.filter(story => story.content?.questions?.length && story.completed_at).length;
@@ -971,9 +974,9 @@
     const weekStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const weekCompleted = stories.filter(story => story.completed_at && new Date(story.completed_at).getTime() >= weekStart).length;
     $('#apiHabit').innerHTML = `<strong>${weekCompleted}/1</strong><span>stories completed this week</span><small>${weekCompleted ? 'Nice reading rhythm. Keep it going.' : 'A small weekly goal: finish one story together.'}</small>`;
-    $('#apiLearnerReport').innerHTML = (progressData.learners || []).map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
+    $('#apiLearnerReport').innerHTML = visibleProgressLearners.map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
     $('#apiDownloadProgress').onclick = () => {
-      const snapshot = { generatedAt: new Date().toISOString(), note: 'Story-specific reading practice snapshot; not a formal reading assessment.', learners: progressData.learners || [], stories: stories.map(story => ({ id: story.id, learner: story.learner_name, title: story.title, goal: story.learning_goal, completedAt: story.completed_at, createdAt: story.created_at })) };
+      const snapshot = { generatedAt: new Date().toISOString(), note: 'Story-specific reading practice snapshot; not a formal reading assessment.', learners: visibleProgressLearners, stories: stories.map(story => ({ id: story.id, learner: story.learner_name, title: story.title, goal: story.learning_goal, completedAt: story.completed_at, createdAt: story.created_at })) };
       const link = document.createElement('a');
       link.href = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
       link.download = 'story-sprout-progress-snapshot.json';
