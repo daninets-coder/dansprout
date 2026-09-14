@@ -151,7 +151,7 @@
             <select id="apiLearner" class="en-select"></select>
             <div style="width:100%">
               <label class="en-label">Grade level</label>
-              <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+              <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select><p id="apiGradeBandNote" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
             </div>
             <div style="width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #e7d9c4">
               <label class="en-label">Reading skill for this grade</label>
@@ -361,6 +361,7 @@
   const updateStoryVisual = () => {
     const theme = $('#apiTheme')?.value || 'Moonlight';
     const gradeLevel = $('#apiGradeLevel')?.value || '2';
+    const gradeBandNote = $('#apiGradeBandNote');
     const selectedStandard = $('#apiGoal')?.value || '';
     const domain = curriculumOptions.find(row => row.standard_code === selectedStandard)?.domain || selectedStandard || 'comprehension';
     const themeImage = $('#apiThemeImage');
@@ -369,6 +370,9 @@
     if (themeImage) themeImage.src = themeBannerMap[theme] || themeBannerMap.Moonlight;
     if (gradeBadge) gradeBadge.src = gradeBadgeMap[gradeLevel] || gradeBadgeMap['2'];
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
+    if (gradeBandNote) gradeBandNote.textContent = ['6', '7', '8'].includes(gradeLevel)
+      ? 'Middle school mode: longer reading, richer vocabulary, evidence-based questions, perspective, and deeper reasoning.'
+      : 'The story language and questions adjust to the selected reading level.';
   };
 
   async function loadCurriculumOptions(gradeLevel) {

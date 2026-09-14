@@ -1047,10 +1047,11 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
     },
   };
   const gradeProfile = gradeProfiles[gradeLevel] || gradeProfiles['2'];
+  const middleSchool = ['6', '7', '8'].includes(gradeLevel);
   const lengthProfiles = {
-    quick: { pages: '3 short pages', words: '100-180 words total' },
-    standard: { pages: '3-4 pages', words: '180-350 words total' },
-    long: { pages: '4-6 pages', words: '350-700 words total' },
+    quick: middleSchool ? { pages: '3-4 pages', words: '250-400 words total' } : { pages: '3 short pages', words: '100-180 words total' },
+    standard: middleSchool ? { pages: '4-6 pages', words: '400-650 words total' } : { pages: '3-4 pages', words: '180-350 words total' },
+    long: middleSchool ? { pages: '6-8 pages', words: '650-950 words total' } : { pages: '4-6 pages', words: '350-700 words total' },
   };
   const lengthProfile = lengthProfiles[storyLength] || lengthProfiles.standard;
   const topicLabels = { scary_creatures: 'scary creatures', storms: 'storms', getting_lost: 'getting lost', separation: 'separation', loud_noises: 'loud noises', medical_topics: 'medical topics', death_or_grief: 'death or grief', fighting: 'fighting' };
@@ -1110,7 +1111,9 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
               `Length target: ${lengthProfile.pages}, approximately ${lengthProfile.words}.`,
               'Include exactly 3 multiple-choice comprehension questions that can be answered from the story; use exactly 2 or 3 options and one correct answer',
               'Include 2-3 vocabulary words with meanings',
-              'Keep it suitable for early elementary or middle-grade reading based on grade',
+              middleSchool ? 'Write for a thoughtful middle-school reader: develop a meaningful problem, layered character motivation, perspective, cause and effect, and details that support inference.' : 'Keep it suitable for early elementary or middle-grade reading based on grade',
+              middleSchool ? 'Make at least one question require evidence from the story, one question address inference or perspective, and one question address theme, central idea, structure, tone, or author craft when supported by the selected objective.' : 'Keep comprehension questions clear and answerable from the story.',
+              middleSchool ? 'Use richer academic vocabulary with context clues, but keep the prose natural, engaging, and appropriate for grades 6-8.' : 'Use grade-appropriate vocabulary with context support.',
               'Focus on reading growth, confidence, and one clear learning goal',
               interests ? `Use the reader's interests naturally as positive story inspiration: ${interests}. Do not force every interest into the story.` : 'No specific reader interests were provided; choose a broadly engaging setting.',
               `Sentence guidance: ${gradeProfile.sentenceStyle}`,
