@@ -425,6 +425,28 @@ app.patch('/api/child-mode/stories/:storyId/revise', requireAuth, requireChildSe
     return res.status(503).json({ error: `Story update failed: ${error.message}` });
   }
 });
+app.post('/api/child-mode/stories/:storyId/vocabulary', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const parsed = z.object({ word: z.string().trim().min(1).max(80).optional(), refresh: z.boolean().optional() }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid vocabulary request.' });
+    const storyRes = await pool.query('SELECT s.id, s.content FROM stories s WHERE s.id = $1 AND s.learner_id = $2 AND EXISTS (SELECT 1 FROM learners l WHERE l.id = s.learner_id AND l.account_id = $3)', [req.params.storyId, req.auth.learnerId, req.auth.sub]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Word help is not available until the adult enables AI story generation.' });
+    await assertAiBudget(req.auth.sub);
+    const story = storyRes.rows[0];
+    const gradeLevel = story.content?.meta?.gradeLevel || 'K';
+    const pages = story.content?.pages || [];
+    const words = parsed.data.word
+      ? [await defineStoryWord(parsed.data.word, pages, gradeLevel, process.env.OPENAI_API_KEY), ...(Array.isArray(story.content?.words) ? story.content.words : []).filter(item => item.word?.toLowerCase() !== parsed.data.word.toLowerCase())].slice(0, 12)
+      : await fillVocabulary(parsed.data.refresh ? [] : story.content?.words, pages, gradeLevel, process.env.OPENAI_API_KEY);
+    const content = { ...story.content, words };
+    const updated = await pool.query('UPDATE stories SET content = $1 WHERE id = $2 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [content, story.id]);
+    return res.json({ story: updated.rows[0] });
+  } catch (error) {
+    return res.status(503).json({ error: error.message || 'Word garden update failed.' });
+  }
+});
 app.use('/api', (req, res, next) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return next();

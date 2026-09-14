@@ -119,12 +119,16 @@
     if (!story) return;
     const pages = Array.isArray(story.content?.pages) ? story.content.pages : [];
     const questions = Array.isArray(story.content?.questions) ? story.content.questions : [];
-    const words = Array.isArray(story.content?.words) ? story.content.words : [];
+    let words = Array.isArray(story.content?.words) ? story.content.words : [];
     let pageIndex = 0;
     const modal = document.createElement('div');
     modal.className = 'child-reader';
     modal.innerHTML = `<article class="child-reader-card" role="dialog" aria-modal="true" aria-label="Reading ${esc(story.title)}"><header class="child-reader-head"><div><div class="child-eyebrow">STORY TIME</div><h2>${esc(story.title)}</h2></div><button class="child-close" type="button">Close</button></header><div class="child-reader-actions"><button type="button" class="child-speak">Read this page aloud</button><button type="button" class="child-stop">Stop reading</button></div><div class="child-page"></div><div class="child-page-nav"><button type="button" class="child-prev">Back</button><span class="child-page-count"></span><button type="button" class="child-next child-primary">Next</button></div>${words.length ? `<div class="child-words" aria-label="Story words">${words.map(word => `<span class="child-word">${esc(typeof word === 'string' ? word : word.word)}</span>`).join('')}</div>` : ''}<section class="child-check"><h3>Talk about the story</h3><form class="child-assessment">${questions.length ? questions.map((question, index) => { const prompt = typeof question === 'string' ? question : question.prompt || ''; const options = typeof question === 'object' && Array.isArray(question.options) ? question.options : []; return `<fieldset class="child-question"><legend>${index + 1}. ${esc(prompt)}</legend>${options.map(option => `<label class="child-option"><input type="radio" name="child-question-${index}" value="${esc(option)}">${esc(option)}</label>`).join('')}</fieldset>`; }).join('') + '<button type="submit" class="child-primary">Check my answers</button>' : '<p>No questions for this story yet. Tell an adult what you noticed.</p>'}</form><div class="child-result" hidden></div><button type="button" class="child-complete child-primary">Mark story finished</button></section><details class="child-report"><summary>Report a problem with this story</summary><form><select aria-label="Report category"><option value="unsafe_content">Unsafe content</option><option value="incorrect_content">Incorrect content</option><option value="privacy_concern">Privacy concern</option><option value="other">Other</option></select><input maxlength="1000" placeholder="What should an adult review?" aria-label="Report details"><button type="submit">Send report</button></form></details></article>`;
     document.body.appendChild(modal);
+    const readerToolbar = document.createElement('div');
+    readerToolbar.className = 'child-reader-actions child-reader-toolbar';
+    readerToolbar.innerHTML = '<button type="button" class="child-speak-page child-primary">Read this page aloud</button><button type="button" class="child-speak-story child-secondary">Read whole story</button><button type="button" class="child-stop child-secondary">Stop reading</button><select class="child-voice child-secondary" aria-label="Narration voice"><option value="">Natural voice</option></select><button type="button" class="child-text-smaller child-secondary" aria-label="Make text smaller">A-</button><button type="button" class="child-text-larger child-secondary" aria-label="Make text larger">A+</button>';
+    modal.querySelector('.child-reader-actions').replaceWith(readerToolbar);
     const updateButton = document.createElement('button');
     updateButton.type = 'button';
     updateButton.className = 'child-secondary child-update-story';
@@ -133,19 +137,51 @@
     modal.querySelector('.child-reader-actions').appendChild(updateButton);
     const page = modal.querySelector('.child-page');
     const count = modal.querySelector('.child-page-count');
+    const voiceSelect = readerToolbar.querySelector('.child-voice');
+    let textSize = 24;
+    const populateVoices = () => {
+      const selected = voiceSelect.value;
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      voiceSelect.innerHTML = '<option value="">Natural voice</option>' + voices.filter(voice => /^en(-|_)/i.test(voice.lang)).map(voice => `<option value="${esc(voice.name)}">${esc(voice.name)}</option>`).join('');
+      if ([...voiceSelect.options].some(option => option.value === selected)) voiceSelect.value = selected;
+    };
+    populateVoices();
+    window.speechSynthesis?.addEventListener('voiceschanged', populateVoices);
+    const speakSelected = text => {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoice = [...voiceSelect.options].find(option => option.value === voiceSelect.value)?.value;
+      const voice = window.speechSynthesis.getVoices().find(item => item.name === selectedVoice);
+      if (voice) utterance.voice = voice;
+      utterance.rate = .92;
+      utterance.pitch = 1.05;
+      window.speechSynthesis.speak(utterance);
+    };
+    const wordGarden = modal.querySelector('.child-words') || document.createElement('div');
+    wordGarden.className = 'child-words';
+    wordGarden.setAttribute('aria-label', 'Story words');
+    if (!wordGarden.parentNode) modal.querySelector('.child-page-nav').after(wordGarden);
+    const renderWordGarden = () => { wordGarden.innerHTML = words.length ? words.map(word => `<span class="child-word" title="${esc(word.meaning || '')}">${esc(typeof word === 'string' ? word : word.word)}</span>`).join('') : '<span class="child-word-empty">No word garden yet. Ask for word help.</span>'; };
+    renderWordGarden();
+    const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, word => `<button type="button" class="child-story-word" data-word="${esc(word.toLowerCase())}">${esc(word)}</button>`);
     const renderPage = () => {
-      page.textContent = pages[pageIndex] || 'This story has no pages yet.';
+      page.innerHTML = `<div class="child-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[pageIndex] || 'This story has no pages yet.')}</div>`;
       count.textContent = `Page ${pageIndex + 1} of ${pages.length}`;
       modal.querySelector('.child-prev').disabled = pageIndex === 0;
       modal.querySelector('.child-next').disabled = pageIndex >= pages.length - 1;
+      modal.querySelectorAll('.child-story-word').forEach(button => { button.onclick = async () => { button.disabled = true; try { const result = await api(`/api/child-mode/stories/${encodeURIComponent(story.id)}/vocabulary`, { method: 'POST', body: JSON.stringify({ word: button.dataset.word }) }); story.content = result.story.content; words = story.content.words || []; renderWordGarden(); } catch (error) { alert(error.message); button.disabled = false; } }; });
     };
     const close = () => { window.speechSynthesis?.cancel(); modal.remove(); };
     modal.querySelector('.child-close').onclick = close;
     modal.onclick = event => { if (event.target === modal) close(); };
     modal.querySelector('.child-prev').onclick = () => { if (pageIndex > 0) { pageIndex -= 1; renderPage(); } };
     modal.querySelector('.child-next').onclick = () => { if (pageIndex < pages.length - 1) { pageIndex += 1; renderPage(); } };
-    modal.querySelector('.child-speak').onclick = () => speak(pages[pageIndex] || '');
-    modal.querySelector('.child-stop').onclick = () => window.speechSynthesis?.cancel();
+    readerToolbar.querySelector('.child-speak-page').onclick = () => speakSelected(pages[pageIndex] || '');
+    readerToolbar.querySelector('.child-speak-story').onclick = () => speakSelected(pages.join(' '));
+    readerToolbar.querySelector('.child-stop').onclick = () => window.speechSynthesis?.cancel();
+    readerToolbar.querySelector('.child-text-smaller').onclick = () => { textSize = Math.max(18, textSize - 2); renderPage(); };
+    readerToolbar.querySelector('.child-text-larger').onclick = () => { textSize = Math.min(34, textSize + 2); renderPage(); };
     modal.querySelector('.child-complete').onclick = async () => {
       try { await api(`/api/child-mode/stories/${encodeURIComponent(story.id)}/complete`, { method: 'PATCH' }); modal.querySelector('.child-complete').textContent = 'Story finished'; modal.querySelector('.child-complete').disabled = true; } catch (error) { alert(error.message); }
     };
