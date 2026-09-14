@@ -366,6 +366,7 @@
     const gradeLevel = $('#apiGradeLevel')?.value || '2';
     const gradeBandNote = $('#apiGradeBandNote');
     const selectedStandard = $('#apiGoal')?.value || '';
+    const storyLength = $('#apiStoryLength');
     const domain = curriculumOptions.find(row => row.standard_code === selectedStandard)?.domain || selectedStandard || 'comprehension';
     const themeImage = $('#apiThemeImage');
     const gradeBadge = $('#apiGradeBadge');
@@ -376,6 +377,11 @@
     if (gradeBandNote) gradeBandNote.textContent = ['6', '7', '8'].includes(gradeLevel)
       ? 'Middle school mode: longer reading, richer vocabulary, evidence-based questions, perspective, and deeper reasoning.'
       : 'The story language and questions adjust to the selected reading level.';
+    if (storyLength) {
+      const middleLabels = { quick: 'Focused reading', standard: 'Full story', long: 'Deep dive' };
+      const youngerLabels = { quick: 'Quick read', standard: 'Standard story', long: 'Longer adventure' };
+      [...storyLength.options].forEach(option => { option.textContent = ['6', '7', '8'].includes(gradeLevel) ? middleLabels[option.value] : youngerLabels[option.value]; });
+    }
   };
 
   async function loadCurriculumOptions(gradeLevel) {
