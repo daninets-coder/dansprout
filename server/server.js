@@ -29,8 +29,11 @@ const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCas
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
 const supportEmail = String(process.env.SUPPORT_EMAIL || 'admin@dansprout.com').trim();
-const trustProxy = String(process.env.TRUST_PROXY || (process.env.NODE_ENV === 'production' ? 'true' : '')).trim();
-if (trustProxy) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
+const trustProxy = String(process.env.TRUST_PROXY || (process.env.NODE_ENV === 'production' ? '1' : '')).trim();
+if (trustProxy) {
+  const trustProxySetting = trustProxy === 'true' ? 1 : trustProxy === 'false' ? false : /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy;
+  app.set('trust proxy', trustProxySetting);
+}
 
 function structuredLog(level, event, metadata = {}) {
   const entry = { timestamp: new Date().toISOString(), level, event, service: 'story-sprout-web', ...metadata };
@@ -383,8 +386,10 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
   try {
     const parsed = z.object({
       prompt: z.string().trim().min(3).max(300),
-      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale']).default('Garden'),
-      storyLength: z.enum(['quick', 'standard']).default('quick'),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Garden'),
+      customTheme: z.string().trim().max(80).default(''),
+      domain: z.enum(['comprehension', 'vocabulary', 'fluency', 'phonics', 'oral_language', 'writing_response', 'social_emotional_reading']).default('comprehension'),
+      storyLength: z.enum(['quick', 'standard', 'long']).default('quick'),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Tell us what adventure you want, using at least 3 characters.' });
     const learnerRes = await pool.query('SELECT id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
@@ -394,10 +399,10 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story creation is not available until the adult enables AI story generation.' });
     await assertAiBudget(req.auth.sub);
     const gradeLevel = learner.age_band === '3-5' ? 'PreK' : learner.age_band === '9-11' ? '4' : '2';
-    const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 ORDER BY standard_code LIMIT 1', [gradeLevel]);
+    const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code LIMIT 1', [gradeLevel, parsed.data.domain]);
     const curriculumRow = curriculumRes.rows[0] || null;
-    const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || 'comprehension', theme: parsed.data.theme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
-    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, meta: { gradeLevel, domain: curriculumRow?.domain || 'comprehension', language: 'English', curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
+    const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, theme: parsed.data.theme, customTheme: parsed.data.customTheme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
+    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
     await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     return res.status(201).json({ story });
   } catch (error) {

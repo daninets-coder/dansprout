@@ -135,7 +135,31 @@
   }
 
   function openCreateStory() {
-    openChildPrompt({ title: 'Make a new story', label: 'What would you like your adventure to be about?', submitLabel: 'Create story', onSubmit: prompt => api('/api/child-mode/stories/generate', { method: 'POST', body: JSON.stringify({ prompt, theme: 'Garden', storyLength: 'quick' }) }) });
+    const overlay = document.createElement('div');
+    overlay.className = 'child-reader';
+    overlay.innerHTML = '<article class="child-reader-card child-form-card" role="dialog" aria-modal="true"><header class="child-reader-head"><div><div class="child-eyebrow">STORY STUDIO</div><h2>Make a new story</h2></div><button class="child-close" type="button">Close</button></header><p class="child-form-copy">Choose the story world, reading skill, and length, then describe your adventure.</p><label class="child-form-label" for="childTheme">Story world</label><select id="childTheme" class="child-form-control"><option value="Moonlight">Moonlight</option><option value="Rainforest">Rainforest</option><option value="Ocean">Ocean</option><option value="Castle">Castle</option><option value="Garden" selected>Garden</option><option value="Sky">Sky</option><option value="Space">Space</option><option value="Dinosaurs">Dinosaurs</option><option value="Arctic">Arctic</option><option value="Farm">Farm</option><option value="City">City</option><option value="Jungle">Jungle</option><option value="Desert">Desert</option><option value="Underwater">Underwater</option><option value="Fairytale">Fairytale</option><option value="Custom">My own world</option></select><input id="childCustomTheme" class="child-form-control" maxlength="80" placeholder="Name your world" aria-label="Your story world" hidden><label class="child-form-label" for="childGoal">Reading skill</label><select id="childGoal" class="child-form-control"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select><label class="child-form-label" for="childStoryLength">Story length</label><select id="childStoryLength" class="child-form-control"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select><label class="child-form-label" for="childStoryPrompt">Adventure</label><textarea id="childStoryPrompt" class="child-story-input" maxlength="300" placeholder="A friendly dragon finds a hidden garden..."></textarea><div class="child-form-error" role="alert"></div><div class="child-form-actions"><button class="child-close child-secondary" type="button">Cancel</button><button class="child-primary child-submit" type="button">Create story</button></div></article>';
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelectorAll('.child-close').forEach(button => button.onclick = close);
+    overlay.onclick = event => { if (event.target === overlay) close(); };
+    const theme = overlay.querySelector('#childTheme');
+    const customTheme = overlay.querySelector('#childCustomTheme');
+    theme.onchange = () => { customTheme.hidden = theme.value !== 'Custom'; if (!customTheme.hidden) customTheme.focus(); };
+    overlay.querySelector('.child-submit').onclick = async () => {
+      const prompt = overlay.querySelector('#childStoryPrompt').value.trim();
+      const error = overlay.querySelector('.child-form-error');
+      if (prompt.length < 3) { error.textContent = 'Tell us a little more about your adventure.'; return; }
+      if (theme.value === 'Custom' && customTheme.value.trim().length < 2) { error.textContent = 'Name your story world first.'; return; }
+      const submit = overlay.querySelector('.child-submit');
+      submit.disabled = true;
+      error.textContent = 'Growing your story...';
+      try {
+        await api('/api/child-mode/stories/generate', { method: 'POST', body: JSON.stringify({ prompt, theme: theme.value, customTheme: customTheme.value.trim(), domain: overlay.querySelector('#childGoal').value, storyLength: overlay.querySelector('#childStoryLength').value }) });
+        close();
+        await render();
+      } catch (requestError) { submit.disabled = false; error.textContent = requestError.message; }
+    };
+    overlay.querySelector('#childStoryPrompt').focus();
   }
 
   function openRevision(story) {
@@ -193,7 +217,7 @@
     renderWordGarden();
     const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, word => `<button type="button" class="child-story-word" data-word="${esc(word.toLowerCase())}">${esc(word)}</button>`);
     const renderPage = () => {
-      page.innerHTML = `<div class="child-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[pageIndex] || 'This story has no pages yet.')}</div>`;
+      page.innerHTML = `<div class="child-page-inner"><div class="child-page-kicker">${esc(story.theme || 'STORY')} · PAGE ${pageIndex + 1}</div><h3>${esc(pageIndex === 0 ? story.title : `Chapter ${pageIndex + 1}`)}</h3><div class="child-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[pageIndex] || 'This story has no pages yet.')}</div><div class="child-page-rule"></div><div class="child-page-footer">Story Sprout reading shelf</div></div>`;
       count.textContent = `Page ${pageIndex + 1} of ${pages.length}`;
       modal.querySelector('.child-prev').disabled = pageIndex === 0;
       modal.querySelector('.child-next').disabled = pageIndex >= pages.length - 1;
