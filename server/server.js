@@ -173,6 +173,13 @@ const storyGenerationLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many story requests. Please try again shortly.' },
 });
+const childModeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many Child Mode attempts. Please wait before trying again.' },
+});
 app.use('/api/stories/generate', storyGenerationLimiter);
 
 app.post('/api/support', supportLimiter, async (req, res, next) => {
@@ -222,6 +229,7 @@ const storySchema = z.object({
   }),
 });
 const storyLanguageSchema = z.literal('English');
+const parentConfirmationSchema = z.object({ password: z.string().min(1).max(128) });
 const aiStoryResponseSchema = z.object({
   title: z.string().trim().min(1).max(140),
   pages: z.array(z.string().trim().min(1).max(2000)).min(1).max(8),
@@ -236,7 +244,34 @@ const aiStoryResponseSchema = z.object({
 });
 
 function tokenFor(account) { return jwt.sign({ sub: account.id, role: account.role }, jwtSecret, { expiresIn: '8h', issuer: 'story-sprout' }); }
+function childModeTokenFor(accountId, learnerId) { return jwt.sign({ sub: accountId, role: 'child', childMode: true, learnerId }, jwtSecret, { expiresIn: '4h', issuer: 'story-sprout' }); }
+function parentConfirmationTokenFor(account) { return jwt.sign({ sub: account.id, role: account.role, parentAction: true }, jwtSecret, { expiresIn: '10m', issuer: 'story-sprout' }); }
 function requireAuth(req, res, next) { const token = req.headers.authorization?.replace(/^Bearer\s+/i, ''); if (!token) return res.status(401).json({ error: 'Authentication required.' }); try { req.auth = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' }); return next(); } catch { return res.status(401).json({ error: 'Session expired. Please sign in again.' }); } }
+function requireChildSession(req, res, next) {
+  if (req.auth?.childMode !== true || !req.auth.learnerId) return res.status(403).json({ error: 'Child Mode session required.' });
+  return next();
+}
+function requireParentConfirmation(req, res, next) {
+  const token = req.headers['x-parent-confirmation'];
+  if (!token) return res.status(403).json({ error: 'Parent confirmation is required for this action.', code: 'PARENT_CONFIRMATION_REQUIRED' });
+  try {
+    const confirmation = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' });
+    if (confirmation.sub !== req.auth.sub || confirmation.parentAction !== true) throw new Error('Invalid parent confirmation.');
+    return next();
+  } catch {
+    return res.status(403).json({ error: 'Parent confirmation expired. Please confirm again.', code: 'PARENT_CONFIRMATION_REQUIRED' });
+  }
+}
+async function requireAdultAccount(req, res, next) {
+  try {
+    if (req.auth?.childMode === true) return res.status(403).json({ error: 'Parent session required for this action.' });
+    const { rows } = await pool.query('SELECT "role" FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (!rows[0] || !['parent', 'teacher'].includes(rows[0].role)) return res.status(403).json({ error: 'An adult parent or teacher account is required for this action.' });
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
 async function requireVerifiedEmail(req, res, next) { try { const { rows } = await pool.query('SELECT email_verified_at FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); if (!rows[0].email_verified_at) return res.status(403).json({ error: 'Please verify your email before using Story Sprout.' , code: 'EMAIL_NOT_VERIFIED' }); return next(); } catch (error) { return next(error); } }
 function validate(schema, source) { return (req, res, next) => { const result = schema.safeParse(req[source]); if (!result.success) return res.status(400).json({ error: 'Please check the submitted information.', details: result.error.flatten() }); req[source] = result.data; return next(); }; }
 
@@ -244,9 +279,113 @@ async function sendVerificationEmail(account, token) { if (emailProvider !== 're
 async function issueVerification(account) { const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query("UPDATE accounts SET email_verification_token_hash = $1, email_verification_expires_at = NOW() + INTERVAL '24 hours' WHERE id = $2", [tokenHash, account.id]); await sendVerificationEmail(account, token); }
 app.post('/api/auth/register', registrationLimiter, validate(registerSchema, 'body'), async (req, res, next) => { try { const account = { id: randomUUID(), ...req.body }; const variant = pickPricingVariant(); const variantConfig = priceConfig[variant] || priceConfig.family_800; const passwordHash = await bcrypt.hash(account.password, 12); await pool.query('INSERT INTO accounts (id, email, password_hash, display_name, "role", consented_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, guardian_consent_version, pricing_variant, family_price_cents, trial_days) VALUES ($1, $2, $3, $4, $5, NOW(), NULL, TRUE, NOW(), $6, $7, $8, $9, $10)', [account.id, account.email, passwordHash, account.displayName, account.role, account.policyVersion, account.policyVersion, variant, variantConfig.cents, variantConfig.trialDays]); await pool.query('INSERT INTO reminder_preferences (account_id, weekly_email_enabled) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET weekly_email_enabled = EXCLUDED.weekly_email_enabled, updated_at = NOW()', [account.id, false]); await logConsentEvent(account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true }); await issueVerification(account); await trackGrowthEvent(account.id, 'account_registered', { role: account.role, variant }); return res.status(201).json({ verificationRequired: true, message: 'Check your email to verify your Story Sprout account before signing in.' }); } catch (error) { if (error.code === '23505') return res.status(409).json({ error: 'An account already exists for this email.' }); return next(error); } });
 app.post('/api/auth/login', loginLimiter, validate(loginSchema, 'body'), async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, password_hash, display_name, "role", email_verified_at FROM accounts WHERE email = $1', [req.body.email.trim().toLowerCase()]); const account = rows[0]; if (!account || !(await bcrypt.compare(req.body.password, account.password_hash))) return res.status(401).json({ error: 'Email or password is incorrect.' }); if (!account.email_verified_at) return res.status(403).json({ error: 'Please verify your email before signing in.', code: 'EMAIL_NOT_VERIFIED' }); await trackGrowthEvent(account.id, 'account_login'); return res.json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.display_name, role: account.role } }); } catch (error) { return next(error); } });
+app.post('/api/auth/confirm-parent', requireAuth, requireAdultAccount, requireVerifiedEmail, validate(parentConfirmationSchema, 'body'), async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, role, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0] || !(await bcrypt.compare(req.body.password, rows[0].password_hash))) return res.status(401).json({ error: 'Parent password is incorrect.' }); return res.json({ token: parentConfirmationTokenFor(rows[0]), expiresIn: 600 }); } catch (error) { return next(error); } });
+app.post('/api/auth/child-mode', childModeLimiter, requireAuth, requireAdultAccount, requireVerifiedEmail, async (req, res, next) => {
+  try {
+    const bodySchema = z.object({ learnerId: z.string().uuid(), pin: z.string().regex(/^\d{6,8}$/) });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Choose a learner and enter the Child Mode PIN.' });
+    const accountRes = await pool.query('SELECT child_mode_pin_hash FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (!accountRes.rows[0]?.child_mode_pin_hash) return res.status(403).json({ error: 'Child Mode is not set up yet.' });
+    const pinMatches = await bcrypt.compare(parsed.data.pin, accountRes.rows[0].child_mode_pin_hash);
+    if (!pinMatches) return res.status(401).json({ error: 'That Child Mode PIN is incorrect.' });
+    const learnerRes = await pool.query('SELECT id, first_name, age_band FROM learners WHERE id = $1 AND account_id = $2', [parsed.data.learnerId, req.auth.sub]);
+    if (!learnerRes.rowCount) return res.status(404).json({ error: 'Learner not found.' });
+    return res.json({ token: childModeTokenFor(req.auth.sub, parsed.data.learnerId), learner: learnerRes.rows[0], expiresIn: 14400 });
+  } catch (error) {
+    return next(error);
+  }
+});
 app.post('/api/auth/resend-verification', verificationEmailLimiter, validate(passwordResetRequestSchema, 'body'), async (req, res, next) => { try { const genericMessage = 'If an unverified account exists for that email, a verification email has been sent.'; const { rows } = await pool.query('SELECT id, email, display_name, email_verified_at FROM accounts WHERE email = $1', [req.body.email]); if (!rows[0] || rows[0].email_verified_at) return res.json({ message: genericMessage }); await issueVerification(rows[0]); return res.json({ message: genericMessage }); } catch (error) { return next(error); } });
 app.get('/api/auth/verify-email', async (req, res, next) => { try { const token = String(req.query.token || ''); if (!token) return res.status(400).send('Verification link is missing.'); const tokenHash = createHash('sha256').update(token).digest('hex'); const result = await pool.query("UPDATE accounts SET email_verified_at = NOW(), email_verification_token_hash = NULL, email_verification_expires_at = NULL WHERE email_verification_token_hash = $1 AND email_verification_expires_at > NOW() RETURNING email", [tokenHash]); if (!result.rowCount) return res.status(400).send('This verification link is invalid or expired. Request a new verification email.'); return res.send('<!doctype html><html><head><meta charset="utf-8"><title>Email verified</title></head><body style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Email verified</h1><p>Your Story Sprout email is verified. You can now sign in.</p><a href="/">Return to Story Sprout</a></body></html>'); } catch (error) { return next(error); } });
+app.get('/api/child-mode/settings', requireAuth, requireAdultAccount, async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT child_mode_pin_hash IS NOT NULL AS configured FROM accounts WHERE id = $1', [req.auth.sub]);
+    return res.json({ configured: result.rows[0]?.configured === true });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.post('/api/child-mode/settings', requireAuth, requireAdultAccount, requireParentConfirmation, async (req, res, next) => {
+  try {
+    const parsed = z.object({ pin: z.string().regex(/^\d{6,8}$/) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Child Mode PIN must be 6 to 8 numbers.' });
+    const pinHash = await bcrypt.hash(parsed.data.pin, 12);
+    await pool.query('UPDATE accounts SET child_mode_pin_hash = $1, updated_at = NOW() WHERE id = $2', [pinHash, req.auth.sub]);
+    return res.json({ configured: true });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.get('/api/child-mode/context', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const learnerRes = await pool.query('SELECT id, first_name, age_band FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
+    if (!learnerRes.rowCount) return res.status(404).json({ error: 'Learner not found.' });
+    const storiesRes = await pool.query('SELECT id, title, theme, learning_goal, content, completed_at, created_at FROM stories WHERE learner_id = $1 ORDER BY created_at DESC', [req.auth.learnerId]);
+    return res.json({ learner: learnerRes.rows[0], stories: storiesRes.rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.patch('/api/child-mode/stories/:storyId/complete', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const result = await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1 AND learner_id = $2 RETURNING id, completed_at', [req.params.storyId, req.auth.learnerId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    return res.json({ story: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.post('/api/child-mode/stories/:storyId/assessment', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const parsed = z.object({ responses: z.array(z.string().trim().max(1000)).min(1).max(8) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Please answer at least one question.' });
+    const storyRes = await pool.query('SELECT id, content FROM stories WHERE id = $1 AND learner_id = $2', [req.params.storyId, req.auth.learnerId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
+    const responses = parsed.data.responses.slice(0, questions.length);
+    const objectiveQuestions = questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
+    const correct = objectiveQuestions ? questions.slice(0, responses.length).filter((question, index) => responses[index] === question.answer).length : 0;
+    const score = objectiveQuestions ? (responses.length ? Math.round((correct / responses.length) * 100) : 0) : 0;
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, reviewed_at, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)', [randomUUID(), req.params.storyId, req.auth.learnerId, JSON.stringify(responses), score, objectiveQuestions && score >= 80, objectiveQuestions ? 'auto_scored' : 'pending', objectiveQuestions ? 0.95 : 0.5, JSON.stringify({ answered: responses.filter(Boolean).length, questionCount: questions.length })]);
+    await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1 AND learner_id = $2', [req.params.storyId, req.auth.learnerId]);
+    return res.status(201).json({ score, correct: objectiveQuestions ? correct : null, answered: responses.length, questionCount: questions.length });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.post('/api/child-mode/stories/:storyId/safety-report', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const parsed = z.object({ category: z.enum(['unsafe_content', 'incorrect_content', 'privacy_concern', 'other']), details: z.string().trim().max(1000).default('') }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Please choose a report category.' });
+    const storyRes = await pool.query('SELECT id FROM stories WHERE id = $1 AND learner_id = $2', [req.params.storyId, req.auth.learnerId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    await logSafetyEvent(req.auth.sub, 'safety_reported', { storyId: req.params.storyId, category: parsed.data.category, details: parsed.data.details, source: 'child_mode' });
+    return res.status(202).json({ reported: true });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.use('/api', (req, res, next) => {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) return next();
+  try {
+    const claims = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' });
+    if (claims.childMode === true) return res.status(403).json({ error: 'This action is not available in Child Mode.' });
+  } catch {
+    // The endpoint-specific requireAuth middleware returns the appropriate auth error.
+  }
+  return next();
+});
 app.use(['/api/learners', '/api/stories', '/api/progress', '/api/curriculum', '/api/reminders', '/api/subscription', '/api/classroom'], requireAuth, requireVerifiedEmail);
+app.use('/api/account/deletion-request', requireAuth, requireAdultAccount);
+app.use(['/api/learners', '/api/stories', '/api/account', '/api/reminders', '/api/subscription', '/api/classroom'], (req, res, next) => {
+  const sensitive = (req.method === 'PATCH' && /^\/api\/(learners|stories\/[^/]+\/(?:revise|assessment\/review))/.test(req.path))
+    || (req.method === 'DELETE' && /^\/api\/learners\//.test(req.path))
+    || (req.method === 'POST' && /^\/api\/(stories\/generate|account\/(?:ai-opt-in|privacy-ack)|reminders\/preferences|subscription\/(?:demo|checkout|cancel|cancellation-request)|classroom\/roster\/import)/.test(req.path))
+    || (req.method === 'GET' && /^\/api\/(account\/export|stories\/[^/]+\.pdf|classroom\/progress-summary\.pdf)/.test(req.path));
+  return sensitive ? requireParentConfirmation(req, res, next) : next();
+});
 app.post('/api/auth/forgot-password', validate(passwordResetRequestSchema, 'body'), async (req, res, next) => {
   try {
     const genericMessage = 'If an account exists for that email, a password reset link has been sent.';
@@ -303,8 +442,8 @@ app.post('/api/auth/reset-password', validate(passwordResetSchema, 'body'), asyn
 app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, display_name, "role", created_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); return res.json({ account: { ...rows[0], isSiteOwner: ownerEmail.length > 0 && rows[0].email.toLowerCase() === ownerEmail } }); } catch (error) { return next(error); } });
 app.get('/api/learners', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options) VALUES ($1, $2, $3, $4, $5, $6, $7)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
-app.patch('/api/learners/:learnerId', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
-app.delete('/api/learners/:learnerId', requireAuth, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
+app.patch('/api/learners/:learnerId', requireAuth, requireParentConfirmation, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
+app.delete('/api/learners/:learnerId', requireAuth, requireParentConfirmation, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
 app.get('/api/stories', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name FROM stories s INNER JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 ORDER BY s.created_at DESC`, [req.auth.sub]); return res.json({ stories: rows }); } catch (error) { return next(error); } });
 app.post('/api/stories', requireAuth, validate(storySchema, 'body'), async (req, res) => {
   return res.status(410).json({
@@ -338,7 +477,7 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     return next(error);
   }
 });
-app.patch('/api/stories/:storyId/assessment/review', requireAuth, async (req, res, next) => {
+app.patch('/api/stories/:storyId/assessment/review', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const bodySchema = z.object({ score: z.number().int().min(0).max(100), mastered: z.boolean(), notes: z.string().trim().max(1000).default('') });
     const parsed = bodySchema.safeParse(req.body);
@@ -400,7 +539,7 @@ app.post('/api/auth/confirm-subscription-cancellation', async (req, res, next) =
 app.post('/api/account/deletion-request', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), confirmText: z.literal('DELETE') }); const parsed = bodySchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Please confirm deletion with password and DELETE text.' }); const acctRes = await pool.query('SELECT id, email, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!acctRes.rowCount) return res.status(404).json({ error: 'Account not found.' }); const ok = await bcrypt.compare(parsed.data.currentPassword, acctRes.rows[0].password_hash); if (!ok) return res.status(401).json({ error: 'Password is incorrect.' }); const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query('UPDATE account_deletion_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [req.auth.sub]); await pool.query('INSERT INTO account_deletion_tokens (id, account_id, token_hash, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), req.auth.sub, tokenHash]); const confirmUrl = `${appBaseUrl}/?deleteAccountToken=${encodeURIComponent(token)}`; if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Account deletion email is not configured.' }); const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [acctRes.rows[0].email], subject: 'Confirm Story Sprout account deletion', text: `A request was made to permanently delete your Story Sprout account and learner data. If this was you, confirm deletion within 30 minutes by opening this link:\n${confirmUrl}\n\nIf you did not request this, ignore this email.` }) }); if (!response.ok) return res.status(503).json({ error: 'Unable to send the account deletion confirmation email.' }); return res.json({ message: 'Check your email to confirm account deletion.' }); } catch (error) { return next(error); } });
 app.post('/api/auth/confirm-account-deletion', async (req, res, next) => { const client = await pool.connect(); try { const parsed = z.object({ token: z.string().min(32).max(200) }).safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'The deletion confirmation link is invalid.' }); const tokenHash = createHash('sha256').update(parsed.data.token).digest('hex'); await client.query('BEGIN'); const tokenRes = await client.query('SELECT id, account_id FROM account_deletion_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE', [tokenHash]); if (!tokenRes.rowCount) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'This deletion link is invalid or expired.' }); } await client.query('UPDATE account_deletion_tokens SET used_at = NOW() WHERE id = $1', [tokenRes.rows[0].id]); const result = await client.query('DELETE FROM accounts WHERE id = $1 RETURNING id', [tokenRes.rows[0].account_id]); if (!result.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found.' }); } await client.query('COMMIT'); return res.status(204).end(); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
 
-app.post('/api/account/ai-opt-in', requireAuth, async (req, res, next) => {
+app.post('/api/account/ai-opt-in', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const bodySchema = z.object({ allow: z.boolean() });
     const parsed = bodySchema.safeParse(req.body);
@@ -414,7 +553,7 @@ app.post('/api/account/ai-opt-in', requireAuth, async (req, res, next) => {
   }
 });
 
-app.get('/api/account/export', requireAuth, async (req, res, next) => {
+app.get('/api/account/export', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const accountRes = await pool.query('SELECT id, email, display_name, "role", created_at, privacy_policy_version, pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]);
     if (!accountRes.rowCount) return res.status(404).json({ error: 'Account not found.' });
@@ -534,7 +673,7 @@ app.get('/api/reminders/preferences', requireAuth, async (req, res, next) => {
   }
 });
 
-app.post('/api/reminders/preferences', requireAuth, async (req, res, next) => {
+app.post('/api/reminders/preferences', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const bodySchema = z.object({ weeklyEmailEnabled: z.boolean() });
     const parsed = bodySchema.safeParse(req.body);

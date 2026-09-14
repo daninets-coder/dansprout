@@ -1,25 +1,55 @@
 (() => {
   const appRoot = document.querySelector('.app');
   if (!appRoot) return;
+  if (window.__storySproutChildMode) return;
   const token = localStorage.getItem('storySproutToken');
   if (!token) return;
 
+  let parentConfirmationInFlight = null;
+  const confirmParent = async () => {
+    const existing = sessionStorage.getItem('storySproutParentConfirmation');
+    if (existing) return existing;
+    if (parentConfirmationInFlight) return parentConfirmationInFlight;
+    parentConfirmationInFlight = (async () => {
+      const password = window.prompt('Parent confirmation required. Enter the account password to continue:');
+      if (!password) throw new Error('Parent confirmation was canceled.');
+      const response = await fetch('/api/auth/confirm-parent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Parent confirmation failed.');
+      sessionStorage.setItem('storySproutParentConfirmation', data.token);
+      return data.token;
+    })();
+    try { return await parentConfirmationInFlight; } finally { parentConfirmationInFlight = null; }
+  };
+  window.__storySproutConfirmParent = confirmParent;
+
   const api = async (path, options = {}) => {
-    const response = await fetch(path, {
+    const request = async () => fetch(path, {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(sessionStorage.getItem('storySproutParentConfirmation') ? { 'X-Parent-Confirmation': sessionStorage.getItem('storySproutParentConfirmation') } : {}),
         ...(options.headers || {}),
       },
     });
+    let response = await request();
+    let data = response.status === 204 ? null : await response.json();
+    if (response.status === 403 && data?.code === 'PARENT_CONFIRMATION_REQUIRED' && !options.skipParentConfirmation) {
+      await confirmParent();
+      response = await request();
+      data = response.status === 204 ? null : await response.json();
+    }
     if (response.status === 401) {
       localStorage.removeItem('storySproutToken');
       localStorage.removeItem('storySproutAccount');
       location.reload();
       throw new Error('Session expired.');
     }
-    const data = response.status === 204 ? null : await response.json();
     if (!response.ok) throw new Error(data.error || 'Request failed.');
     return data;
   };
@@ -129,6 +159,7 @@
         <button data-api-view="guide">Parent guide</button>
       </nav>
       <div style="display:flex;gap:8px">
+        <button class="en-family" id="apiChildMode" title="Open a restricted learner reading space">Child Mode</button>
         <button class="en-family" id="apiClearCache" title="Clear cache">Clear cache</button>
         <button class="en-family" id="apiLogout">Sign out</button>
       </div>
@@ -384,6 +415,56 @@
     document.querySelectorAll('[data-api-view]').forEach(button => button.classList.toggle('active', button.dataset.apiView === name));
   };
 
+  const openChildModeSetup = async () => {
+    const existing = document.querySelector('#apiChildModeDialog');
+    if (existing) return;
+    const learnerOptions = learners.length
+      ? learners.map(learner => `<option value="${esc(learner.id)}">${esc(learner.first_name)} | ages ${esc(learner.age_band)}</option>`).join('')
+      : '<option value="">Add a learner first</option>';
+    const dialog = document.createElement('div');
+    dialog.id = 'apiChildModeDialog';
+    dialog.className = 'learner-delete-overlay';
+    dialog.innerHTML = `<style>#apiChildModeDialog .child-mode-dialog{width:min(540px,100%);padding:26px;background:#fffdf9;border:1px solid #cbdcc9;border-radius:10px;box-shadow:0 20px 50px rgba(20,63,74,.25)}#apiChildModeDialog h2{margin:8px 0;color:#294f55}#apiChildModeDialog p{color:#597076;font:14px/1.5 Arial,sans-serif}#apiChildModeDialog .child-mode-note{padding:12px;background:#eef6ec;border-left:4px solid #3c7a56}#apiChildModeDialog .child-mode-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}#apiChildModeDialog .child-mode-error{min-height:18px;color:#a63e31;font:13px Arial,sans-serif}</style><section class="child-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="childModeTitle"><div class="last-activity-eyebrow">PARENT CONTROL</div><h2 id="childModeTitle">Set up Child Mode</h2><p class="child-mode-note">Child Mode gives one learner a focused reading shelf. Billing, learner management, account settings, exports, story generation, and other parent tools stay locked on the server.</p><label class="en-label" for="childModeLearner">Learner</label><select id="childModeLearner" class="en-select">${learnerOptions}</select><label class="en-label" for="childModePin" style="margin-top:12px">Child Mode PIN</label><input id="childModePin" class="en-input" inputmode="numeric" autocomplete="new-password" minlength="6" maxlength="8" pattern="[0-9]{6,8}" placeholder="6 to 8 numbers"><p style="margin:7px 0 0;font-size:12px">Choose a PIN your child will not guess. This is different from the account password.</p><p id="childModeError" class="child-mode-error" role="alert"></p><div class="child-mode-actions"><button type="button" class="en-outline" id="childModeCancel">Cancel</button><button type="button" class="en-outline" id="childModeSave">Save PIN</button><button type="button" class="en-button" id="childModeLaunch">Enter Child Mode</button></div></section>`;
+    document.body.appendChild(dialog);
+    const close = () => dialog.remove();
+    dialog.querySelector('#childModeCancel').onclick = close;
+    dialog.addEventListener('click', event => { if (event.target === dialog) close(); });
+    const learnerSelect = dialog.querySelector('#childModeLearner');
+    const pinInput = dialog.querySelector('#childModePin');
+    const error = dialog.querySelector('#childModeError');
+    const savePin = async () => {
+      const pin = pinInput.value.trim();
+      if (!/^\d{6,8}$/.test(pin)) { error.textContent = 'Use 6 to 8 numbers for the PIN.'; return false; }
+      try {
+        await api('/api/child-mode/settings', { method: 'POST', body: JSON.stringify({ pin }) });
+        error.textContent = 'PIN saved. Your child can now enter the selected reading space.';
+        return true;
+      } catch (requestError) { error.textContent = requestError.message; return false; }
+    };
+    dialog.querySelector('#childModeSave').onclick = savePin;
+    dialog.querySelector('#childModeLaunch').onclick = async () => {
+      error.textContent = '';
+      const learnerId = learnerSelect.value;
+      const pin = pinInput.value.trim();
+      if (!learnerId) { error.textContent = 'Add a learner before entering Child Mode.'; return; }
+      if (!/^\d{6,8}$/.test(pin)) { error.textContent = 'Enter the Child Mode PIN.'; return; }
+      const launchButton = dialog.querySelector('#childModeLaunch');
+      launchButton.disabled = true;
+      try {
+        const response = await fetch('/api/auth/child-mode', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ learnerId, pin }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Unable to enter Child Mode.');
+        sessionStorage.setItem('storySproutParentToken', token);
+        sessionStorage.setItem('storySproutParentAccount', JSON.stringify(account));
+        sessionStorage.removeItem('storySproutParentConfirmation');
+        localStorage.setItem('storySproutToken', result.token);
+        localStorage.setItem('storySproutAccount', JSON.stringify({ childMode: true, learner: result.learner }));
+        location.reload();
+      } catch (requestError) { error.textContent = requestError.message; launchButton.disabled = false; }
+    };
+    pinInput.focus();
+  };
+
   const renderOnboarding = (subscription) => {
     const doneLearner = learners.length > 0;
     const doneStory = stories.length > 0;
@@ -594,7 +675,8 @@
       pdfButton.disabled = true;
       pdfButton.textContent = 'Preparing PDF...';
       try {
-        const response = await fetch(`/api/stories/${encodeURIComponent(story.id)}.pdf`, { headers: { Authorization: `Bearer ${token}` } });
+        const parentConfirmation = await confirmParent();
+        const response = await fetch(`/api/stories/${encodeURIComponent(story.id)}.pdf`, { headers: { Authorization: `Bearer ${token}`, 'X-Parent-Confirmation': parentConfirmation } });
         if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Unable to create the story PDF.'); }
         const blob = await response.blob();
         const link = document.createElement('a');
@@ -946,16 +1028,41 @@
     const learner = (progressLearners || []).find(item => item.id === learnerId) || learners.find(item => item.id === learnerId);
     const activity = learner?.last_activity;
     const story = activity && stories.find(item => item.id === activity.storyId);
-    const grade = story?.content?.meta?.gradeLevel || $('#apiGradeLevel')?.value || 'K';
-    const middleSchool = ['6', '7', '8'].includes(grade);
 
-    const defaultCoveredStories = [
-      { title: 'Moonlight Dance', goal: 'Author Craft', objective: 'Analyze how tone, word choice, and structure influence meaning.' },
-      { title: 'A Day in the City', goal: 'Structure and Logic', objective: 'Describe organizational structures and explain how evidence supports an author’s points.' },
-      { title: 'Dino Rides', goal: 'Story Understanding', objective: 'Identify characters, setting, and what happened in a familiar story.' },
-      { title: 'Moonlight Adventure', goal: 'Listening and Speaking', objective: 'Listen to stories and retell key events with pictures and oral language.' }
-    ];
-    const defaultVocabList = ['companionship', 'celebration', 'uncertainty', 'fascinating', 'excitedly', 'dinosaur', 'friendly', 'moonlight', 'twinkle', 'dances'];
+    if (!learner || !stories.some(savedStory => !learnerId || savedStory.learner_id === learnerId)) {
+      const firstRun = !learner
+        ? {
+          eyebrow: 'START HERE',
+          title: 'Your first weekly review starts with a learner.',
+          text: 'Add a learner, then create a story together. This page will fill with reading progress, vocabulary, and story checks as you go.',
+          label: 'Add a learner',
+          step: 'learners',
+        }
+        : {
+          eyebrow: 'READY WHEN YOU ARE',
+          title: `${learner.first_name}'s first story is waiting.`,
+          text: 'There is no review to show yet. Create a story together and this page will become your place to revisit the reading journey.',
+          label: 'Create first story',
+          step: 'home',
+        };
+      const emptyBlock = `<div class="weekly-first-run"><div class="weekly-summary-heading">${firstRun.eyebrow}</div><h3 class="weekly-summary-title">${esc(firstRun.title)}</h3><p>${esc(firstRun.text)}</p><button type="button" class="en-button weekly-first-run-btn">${firstRun.label}</button></div>`;
+      const attachFirstRunHandler = rootEl => {
+        if (!rootEl) return;
+        rootEl.querySelector('.weekly-first-run-btn').onclick = () => {
+          show(firstRun.step);
+          if (firstRun.step === 'home') $('#apiPrompt')?.focus();
+        };
+      };
+      if (homeContainer) {
+        homeContainer.innerHTML = emptyBlock;
+        attachFirstRunHandler(homeContainer);
+      }
+      if (pageContainer) {
+        pageContainer.innerHTML = emptyBlock;
+        attachFirstRunHandler(pageContainer);
+      }
+      return;
+    }
 
     const rawRecentStories = stories
       .filter(savedStory => (!learnerId || savedStory.learner_id === learnerId) && savedStory.title)
@@ -969,26 +1076,25 @@
       return words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean);
     }))];
 
-    const recentVocabulary = extractedVocab.length ? extractedVocab : defaultVocabList;
+    const recentVocabulary = extractedVocab;
 
     const realStorySummary = recentStories.map(savedStory => {
-      const goal = savedStory.learning_goal || (savedStory.content?.meta?.domain ? savedStory.content.meta.domain.replaceAll('_', ' ') : 'Author Craft');
-      const objective = savedStory.content?.meta?.curriculumObjective || 'Analyze how tone, word choice, and structure influence meaning.';
+      const goal = savedStory.learning_goal || (savedStory.content?.meta?.domain ? savedStory.content.meta.domain.replaceAll('_', ' ') : '');
+      const objective = savedStory.content?.meta?.curriculumObjective || '';
       return {
         id: savedStory.id,
         title: savedStory.title,
         goal,
         objective,
+        detail: [goal, objective].filter(Boolean).join(' — '),
         words: Array.isArray(savedStory.content?.words) ? savedStory.content.words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean) : [],
         raw: savedStory
       };
     });
 
-    const displayStories = realStorySummary.length ? realStorySummary : defaultCoveredStories;
+    const displayStories = realStorySummary;
 
-    const latestStory = recentStories[0] || story;
-
-    const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : "Daniel Learner's learning snapshot";
+    const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : 'Learning snapshot';
 
     const renderBlock = () => `
       <div class="weekly-return-summary">
@@ -1001,16 +1107,16 @@
           <div class="weekly-summary-panel">
             <div class="weekly-summary-panel-title">📚 What was covered</div>
             <div style="color:#597076;line-height:1.5">
-              ${displayStories.map(item => `
+              ${displayStories.length ? displayStories.map(item => `
                 <div class="weekly-story-item">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                     <strong style="color:#20454c;font-size:15px">${esc(item.title)}</strong>
                     ${item.raw ? `<button type="button" class="en-outline weekly-read-again-btn" data-story-id="${item.raw.id}" style="padding:4px 8px;font-size:11px;white-space:nowrap;cursor:pointer">Read story</button>` : ''}
                   </div>
-                  <span style="color:#b15c3b;font-weight:700;font-size:12px">${esc(item.goal)}</span>
-                  <span style="font-size:13px;color:#597076">${esc(item.objective)}</span>
+                  ${item.goal ? `<span style="color:#b15c3b;font-weight:700;font-size:12px">${esc(item.goal)}</span>` : ''}
+                  ${item.objective ? `<span style="font-size:13px;color:#597076">${esc(item.objective)}</span>` : ''}
                 </div>
-              `).join('')}
+              `).join('') : '<p style="margin:0">No saved stories are available for this learner yet.</p>'}
             </div>
           </div>
 
@@ -1018,7 +1124,7 @@
             <div class="weekly-summary-panel-title">💡 Vocabulary learned</div>
             <div style="color:#597076;line-height:1.5">
               <div class="weekly-vocab-chips">
-                ${recentVocabulary.map(word => `<span class="weekly-vocab-chip">${esc(word)}</span>`).join('')}
+                ${recentVocabulary.length ? recentVocabulary.map(word => `<span class="weekly-vocab-chip">${esc(word)}</span>`).join('') : '<span>No saved vocabulary is available yet.</span>'}
               </div>
             </div>
           </div>
@@ -1027,11 +1133,11 @@
         <div class="weekly-summary-panel">
           <div class="weekly-summary-panel-title">✨ Quick review</div>
           <div style="color:#597076;line-height:1.6;font-size:14px">
-            ${displayStories.map(item => `
+            ${displayStories.length ? displayStories.map(item => `
               <div style="margin-bottom:8px;padding-left:12px;border-left:3px solid #3c7a56">
-                <strong style="color:#20454c">${esc(item.title)}:</strong> <span>${esc(item.goal)} — ${esc(item.objective)}</span>
+                <strong style="color:#20454c">${esc(item.title)}</strong>${item.detail ? `<span>: ${esc(item.detail)}</span>` : ''}
               </div>
-            `).join('')}
+            `).join('') : '<p style="margin:0">Complete a story to see a review here.</p>'}
           </div>
         </div>
       </div>
@@ -1269,9 +1375,13 @@
   });
   loadCurriculumOptions($('#apiGradeLevel').value);
   $('#apiHome').onclick = () => show('home');
+  $('#apiChildMode').onclick = openChildModeSetup;
   $('#apiLogout').onclick = () => {
     localStorage.removeItem('storySproutToken');
     localStorage.removeItem('storySproutAccount');
+    sessionStorage.removeItem('storySproutParentToken');
+    sessionStorage.removeItem('storySproutParentAccount');
+    sessionStorage.removeItem('storySproutParentConfirmation');
     location.reload();
   };
 
@@ -1314,8 +1424,19 @@
 
   const pdfBtn = $('#apiDownloadPdf');
   if (pdfBtn) {
-    pdfBtn.onclick = () => {
-      window.open('/api/classroom/progress-summary.pdf', '_blank');
+    pdfBtn.onclick = async () => {
+      try {
+        const parentConfirmation = await confirmParent();
+        const response = await fetch('/api/classroom/progress-summary.pdf', { headers: { Authorization: `Bearer ${token}`, 'X-Parent-Confirmation': parentConfirmation } });
+        if (!response.ok) throw new Error('Unable to download the classroom progress report.');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(await response.blob());
+        link.download = 'classroom-progress-summary.pdf';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } catch (error) {
+        notify(error.message);
+      }
     };
   }
 
