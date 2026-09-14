@@ -61,8 +61,9 @@
       const context = await api('/api/child-mode/context');
       const learner = context.learner;
       const stories = context.stories || [];
-      app.innerHTML = `<main class="child-shell"><header class="child-header"><div class="child-brand">Story Sprout<span>CHILD MODE</span></div><button class="child-exit" id="childExit" type="button">Exit Child Mode</button></header><section class="child-welcome"><div class="child-eyebrow">YOUR READING SHELF</div><h1>Hi, ${esc(learner.first_name)}.</h1><p>Choose a story, read at your own pace, and talk about what you notice.</p></section><section aria-label="Stories"><div class="child-story-grid">${stories.length ? stories.map(story => `<article class="child-story-card"><div class="child-eyebrow">${esc(story.theme || 'STORY')}</div><h2>${esc(story.title)}</h2><p>${esc(story.learning_goal || 'Reading adventure')}${story.completed_at ? ' · Finished' : ''}</p><button type="button" class="child-open-story" data-story-id="${esc(story.id)}">Open story</button></article>`).join('') : '<div class="child-empty">There are no stories on your shelf yet. Ask an adult to create one for you.</div>'}</div></section></main>`;
+      app.innerHTML = `<main class="child-shell"><header class="child-header"><div class="child-brand">Story Sprout<span>CHILD MODE</span></div><nav class="child-nav" aria-label="Story Sprout sections"><button type="button" class="active" data-child-nav="home">Home</button><button type="button" data-child-nav="review">Last week review</button><button type="button" data-child-nav="progress">Progress</button><button type="button" data-child-nav="guide">Parent guide</button></nav><button class="child-exit" id="childExit" type="button">Exit Child Mode</button></header><section class="child-welcome"><div class="child-eyebrow">YOUR READING SHELF</div><h1>Hi, ${esc(learner.first_name)}.</h1><p>Choose a story, read at your own pace, and talk about what you notice.</p></section><section class="child-nav-panel" id="childNavPanel" hidden></section><section aria-label="Stories"><div class="child-story-grid">${stories.length ? stories.map(story => `<article class="child-story-card"><div class="child-eyebrow">${esc(story.theme || 'STORY')}</div><h2>${esc(story.title)}</h2><p>${esc(story.learning_goal || 'Reading adventure')}${story.completed_at ? ' · Finished' : ''}</p><button type="button" class="child-open-story" data-story-id="${esc(story.id)}">Open story</button></article>`).join('') : '<div class="child-empty">There are no stories on your shelf yet. Ask an adult to create one for you.</div>'}</div></section></main>`;
       document.querySelector('#childExit').onclick = exit;
+      setupChildNavigation(learner, stories);
       document.querySelectorAll('.child-open-story').forEach(button => {
         button.onclick = () => openStory(stories.find(story => story.id === button.dataset.storyId));
       });
@@ -71,6 +72,32 @@
       app.innerHTML = `<main class="child-shell"><div class="child-error">${esc(error.message)}<br><button class="child-exit" id="childErrorExit" type="button">Exit Child Mode</button></div></main>`;
       document.querySelector('#childErrorExit').onclick = exit;
     }
+  }
+
+  function setupChildNavigation(learner, stories) {
+    const panel = document.querySelector('#childNavPanel');
+    const storyCount = stories.length;
+    const completedCount = stories.filter(story => story.completed_at).length;
+    const panelCopy = {
+      review: `<div class="child-eyebrow">LAST WEEK REVIEW</div><h2>Look back at your reading.</h2><p>You had ${storyCount} ${storyCount === 1 ? 'story' : 'stories'} on your shelf, and finished ${completedCount} of them. Pick a story below to remember what you noticed.</p>`,
+      progress: `<div class="child-eyebrow">YOUR PROGRESS</div><h2>Every page counts.</h2><p>${esc(learner.first_name)}, you have finished ${completedCount} of ${storyCount} ${storyCount === 1 ? 'story' : 'stories'}. Keep reading, thinking, and growing your shelf.</p>`,
+      guide: '<div class="child-eyebrow">PARENT GUIDE</div><h2>Reading is better together.</h2><p>Choose a story, read it at your own pace, and talk about what you notice. There are no wrong ideas when you are exploring a story.</p>',
+    };
+    document.querySelectorAll('[data-child-nav]').forEach(button => {
+      button.onclick = () => {
+        const destination = button.dataset.childNav;
+        document.querySelectorAll('[data-child-nav]').forEach(item => item.classList.toggle('active', item === button));
+        if (destination === 'home') {
+          panel.hidden = true;
+          document.querySelector('.child-welcome').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        panel.innerHTML = `${panelCopy[destination]}<button type="button" class="child-secondary child-nav-close">Back to my shelf</button>`;
+        panel.hidden = false;
+        panel.querySelector('.child-nav-close').onclick = () => document.querySelector('[data-child-nav="home"]').click();
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    });
   }
 
   function decorateChildHome(learner, stories) {
