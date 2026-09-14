@@ -57,9 +57,10 @@ placing illustrations in object storage/CDN rather than the database.
 	story-check information, vocabulary, and a link to reopen the story.
 - Adult controls for private local data and a guided conversation-first
 	approach to progress.
-- Explorer, Family, and Classroom plan selection as demo billing or Stripe
-	Checkout when configured. The intended Family price is $15/month and the
-	intended Classroom price is $29/month, both with a 7-day trial.
+- Explorer, Individual, Family, and Classroom plan selection as demo billing
+	or Stripe Checkout when configured. Individual is $10/month for one learner;
+	Family is $15/month for up to two learners plus $2/month for each additional
+	learner; Classroom is $29/month. Paid plans include a 7-day trial.
 - Parent-protected cancellation: current password, one-time email confirmation,
 	Stripe cancellation at the end of the billing period when available, and no
 	deletion of learner data.
@@ -144,6 +145,8 @@ site data, using private browsing, or switching browsers may remove it.
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
 	 STRIPE_PRICE_FAMILY_1500=
+	 STRIPE_PRICE_INDIVIDUAL_1000=
+	 STRIPE_PRICE_ADDITIONAL_LEARNER_200=
 	 STRIPE_PRICE_CLASSROOM_2900=
 	 ```
 

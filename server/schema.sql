@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_cancellation_tokens_account ON subsc
 CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    plan TEXT NOT NULL CHECK (plan IN ('explorer', 'family', 'classroom')),
+    plan TEXT NOT NULL CHECK (plan IN ('explorer', 'individual', 'family', 'classroom')),
     status TEXT NOT NULL DEFAULT 'demo' CHECK (status IN ('demo', 'active', 'canceled')),
     provider_customer_id TEXT,
     provider_subscription_id TEXT,

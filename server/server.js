@@ -85,7 +85,9 @@ async function ensureBaseSchema() {
 }
 
 const priceConfig = {
+  individual_1000: { cents: 1000, trialDays: 7, lookupEnv: 'STRIPE_PRICE_INDIVIDUAL_1000' },
   family_1500: { cents: 1500, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_1500' },
+  additional_learner_200: { cents: 200, trialDays: 0, lookupEnv: 'STRIPE_PRICE_ADDITIONAL_LEARNER_200' },
   classroom_2900: { cents: 2900, trialDays: 7, lookupEnv: 'STRIPE_PRICE_CLASSROOM_2900' },
 };
 
@@ -216,7 +218,7 @@ const passwordResetRequestSchema = z.object({ email: z.string().email().max(120)
 const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(6).max(128), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const passwordResetCodeSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()), code: z.string().regex(/^\d{6}$/), password: z.string().min(6).max(128) });
 const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
-const planSchema = z.object({ plan: z.enum(['explorer', 'family', 'classroom']) });
+const planSchema = z.object({ plan: z.enum(['explorer', 'individual', 'family', 'classroom']) });
 const storySchema = z.object({
   learnerId: z.string().uuid(),
   title: z.string().trim().min(1).max(140),
@@ -706,7 +708,7 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
 app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
   try {
     if (!stripe) return res.status(501).json({ error: 'Stripe is not configured yet.' });
-    const bodySchema = z.object({ plan: z.enum(['family', 'classroom']) });
+    const bodySchema = z.object({ plan: z.enum(['individual', 'family', 'classroom']) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid checkout plan.' });
 
@@ -714,11 +716,20 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     if (!accountRes.rowCount) return res.status(404).json({ error: 'Account not found.' });
     const account = accountRes.rows[0];
     const plan = parsed.data.plan;
-
-    const key = plan === 'classroom' ? 'classroom_2900' : 'family_1500';
-    const cfg = priceConfig[key];
-    const priceId = process.env[cfg.lookupEnv];
-    if (!priceId) return res.status(400).json({ error: `Missing ${cfg.lookupEnv} in environment.` });
+    const learnerCountRes = await pool.query('SELECT COUNT(*)::int AS count FROM learners WHERE account_id = $1', [req.auth.sub]);
+    const learnerCount = learnerCountRes.rows[0]?.count || 0;
+    if (plan === 'individual' && learnerCount > 1) return res.status(400).json({ error: 'Individual is limited to one learner. Choose Family for more learners.' });
+    const baseKey = plan === 'classroom' ? 'classroom_2900' : plan === 'individual' ? 'individual_1000' : 'family_1500';
+    const baseConfig = priceConfig[baseKey];
+    const basePriceId = process.env[baseConfig.lookupEnv];
+    if (!basePriceId) return res.status(400).json({ error: `Missing ${baseConfig.lookupEnv} in environment.` });
+    const lineItems = [{ price: basePriceId, quantity: 1 }];
+    if (plan === 'family' && learnerCount > 2) {
+      const additionalConfig = priceConfig.additional_learner_200;
+      const additionalPriceId = process.env[additionalConfig.lookupEnv];
+      if (!additionalPriceId) return res.status(400).json({ error: `Missing ${additionalConfig.lookupEnv} in environment.` });
+      lineItems.push({ price: additionalPriceId, quantity: learnerCount - 2 });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -728,9 +739,9 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
       metadata: { accountId: account.id, plan },
       subscription_data: {
         metadata: { accountId: account.id, plan },
-        trial_period_days: cfg.trialDays,
+        trial_period_days: baseConfig.trialDays,
       },
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
     });
 
     return res.status(201).json({ checkoutUrl: session.url });
@@ -1071,7 +1082,7 @@ async function logConsentEvent(accountId, eventType, policyVersion, metadata) {
 
 async function upsertSubscriptionFromStripe({ accountId, plan, status, customerId, subscriptionId }) {
   await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', accountId]);
-  await pool.query('INSERT INTO subscriptions (id, account_id, plan, status, provider_customer_id, provider_subscription_id) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), accountId, plan === 'classroom' ? 'classroom' : 'family', status, customerId, subscriptionId]);
+  await pool.query('INSERT INTO subscriptions (id, account_id, plan, status, provider_customer_id, provider_subscription_id) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), accountId, plan === 'classroom' ? 'classroom' : plan === 'individual' ? 'individual' : 'family', status, customerId, subscriptionId]);
 }
 
 function parseRosterCsv(csv) {
