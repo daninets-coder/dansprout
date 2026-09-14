@@ -117,7 +117,7 @@
   app.className = 'enterprise';
   app.innerHTML = `
     <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
-    <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}</style>
+    <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}.weekly-return-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}.weekly-return-action{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #e5d5bf;border-radius:7px;background:#fffdf9;color:#294f55;cursor:pointer}.weekly-return-action:hover{border-color:#6c956d;background:#f4f8ee}.weekly-return-number{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#dff0df;color:#2f6c50;font:700 12px Arial,sans-serif}.weekly-return-action strong,.weekly-return-action small{display:block}.weekly-return-action strong{font:700 13px Arial,sans-serif}.weekly-return-action small{margin-top:4px;color:#687a7c;font:12px/1.35 Arial,sans-serif}.weekly-return-arrow{color:#c45f3f;font:700 16px Arial,sans-serif}@media(max-width:800px){.weekly-return-actions{grid-template-columns:1fr}}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
@@ -236,6 +236,13 @@
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
           <button id="apiDownloadProgress" class="en-outline" type="button" style="margin-top:14px">Download progress snapshot</button>
+        </section>
+
+        <section class="en-card weekly-return-card" style="margin-top:20px">
+          <div class="en-eyebrow">A REASON TO RETURN</div>
+          <h2>This week's reading menu</h2>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">Small, meaningful choices help reading become a habit. Choose one activity for the learner selected above.</p>
+          <div id="apiWeeklyReturnActions" class="weekly-return-actions"></div>
         </section>
 
       </section>
@@ -795,6 +802,7 @@
     window.__storySproutProgressLearners = progressData.learners || [];
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     renderNextActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
+    renderWeeklyReturnActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div></div></div><div style="display:flex;gap:8px"><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = (progressData.learners || []).reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
     $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
@@ -863,6 +871,46 @@
       show('home');
       $('#apiPrompt')?.focus();
     };
+  }
+
+  function renderWeeklyReturnActions(progressLearners, learnerId) {
+    const container = $('#apiWeeklyReturnActions');
+    if (!container) return;
+    const learner = progressLearners.find(item => item.id === learnerId);
+    const activity = learner?.last_activity;
+    const story = activity && stories.find(item => item.id === activity.storyId);
+    const grade = story?.content?.meta?.gradeLevel || 'K';
+    const middleSchool = ['6', '7', '8'].includes(grade);
+    const actions = [
+      activity && !activity.completedAt ? { title: `Continue ${activity.title}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open' } : { title: 'Create a new adventure', detail: 'Choose a fresh challenge in a world the reader already enjoys.', type: 'new' },
+      story ? { title: 'Practice the same reading goal again', detail: `${story.learning_goal || 'Reading practice'} with a different adventure.`, type: 'goal' } : { title: 'Choose a reading goal', detail: 'Give the first story a clear reading purpose.', type: 'new' },
+      { title: 'Review vocabulary', detail: story?.content?.words?.length ? 'Return to the useful words from the latest story.' : 'Explore new words in the next story.', type: story ? 'vocabulary' : 'new' },
+      middleSchool ? { title: 'Try an evidence challenge', detail: 'Look for details, perspective, and reasoning in a grades 6–8 story.', type: 'middle' } : { title: 'Create a follow-up adventure', detail: 'Keep the same learner, world, and reading focus while adding a new challenge.', type: 'followup' },
+    ];
+    container.innerHTML = actions.map((action, index) => `<button type="button" class="weekly-return-action" data-return-type="${action.type}"><span class="weekly-return-number">${index + 1}</span><span><strong>${esc(action.title)}</strong><small>${esc(action.detail)}</small></span><span class="weekly-return-arrow">-></span></button>`).join('');
+    container.querySelectorAll('.weekly-return-action').forEach(button => {
+      button.onclick = async () => {
+        const type = button.dataset.returnType;
+        const savedStory = story;
+        if (type === 'open' && savedStory) return openServerStory(savedStory);
+        if (type === 'vocabulary' && savedStory) return openServerStory(savedStory);
+        if (type === 'followup' && savedStory) return openServerStory(savedStory);
+        if (type === 'new' || type === 'goal' || type === 'middle' || type === 'followup') {
+          if (savedStory) {
+            $('#apiLearner').value = savedStory.learner_id || learnerId;
+            $('#apiGradeLevel').value = type === 'middle' ? '6' : (savedStory.content?.meta?.gradeLevel || 'K');
+            await loadCurriculumOptions($('#apiGradeLevel').value);
+            const matchingGoal = curriculumOptions.find(row => type === 'goal' ? row.domain === savedStory.content?.meta?.domain : row.standard_code === savedStory.content?.meta?.curriculumStandard);
+            if (matchingGoal) $('#apiGoal').value = matchingGoal.standard_code;
+            $('#apiTheme').value = savedStory.theme || 'Moonlight';
+            $('#apiPrompt').value = type === 'middle' ? 'Analyze a meaningful choice using evidence from the story.' : `Continue ${savedStory.title} with a new challenge and a meaningful choice.`;
+            updateStoryVisual();
+          }
+          show('home');
+          $('#apiPrompt').focus();
+        }
+      };
+    });
   }
 
   $('#apiStartCancel').onclick = () => { $('#apiCancelPanel').classList.remove('hidden'); $('#apiCancelError').textContent = ''; $('#apiCancelReason').focus(); };
