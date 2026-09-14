@@ -256,19 +256,33 @@
             <h2>Start here</h2>
             <ol style="font:15px/1.65 Arial,sans-serif;color:#597076;padding-left:22px">
               <li>Add a learner and choose an age range.</li>
+              <li>Edit the learner's name, interests, or topics to avoid when needed.</li>
               <li>Choose a grade and reading skill.</li>
               <li>Choose a story world and adventure together.</li>
               <li>Select Quick read, Standard story, or Longer adventure.</li>
               <li>Generate the story and read or listen together.</li>
               <li>Answer the multiple-choice questions and check the score.</li>
+              <li>Choose a next reading step from the weekly menu.</li>
             </ol>
           </section>
           <section class="en-card">
             <h2>What the score means</h2>
             <p>The score shows how many questions the child answered correctly from that story. It is useful practice feedback, not a complete reading assessment.</p>
             <p>Use <strong>Try again</strong> to repeat the questions, or <strong>Close</strong> to finish the activity.</p>
+            <p>A positive result is evidence from one story activity. It is not automatic proof of overall reading mastery.</p>
           </section>
         </div>
+        <section class="en-card" style="margin-top:20px">
+          <h2>Keep reading going</h2>
+          <p>After a story, the Home page offers a weekly reading menu based on the selected learner's saved activity.</p>
+          <div class="en-stat-grid" style="margin-top:16px">
+            <div class="en-stat"><strong>1</strong><span>Continue an unfinished story.</span></div>
+            <div class="en-stat"><strong>2</strong><span>Practice the same reading goal again.</span></div>
+            <div class="en-stat"><strong>3</strong><span>Review vocabulary from the latest story.</span></div>
+            <div class="en-stat"><strong>4</strong><span>Create a follow-up adventure in the same world.</span></div>
+          </div>
+          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">Grades 6-8 also receive an evidence and perspective challenge with deeper reasoning.</p>
+        </section>
         <section class="en-card" style="margin-top:20px">
           <h2>What the reading code means</h2>
           <p>Each story uses a grade-level reading objective. The plain-English objective explains the skill; the code helps identify the curriculum area.</p>
@@ -278,10 +292,22 @@
             <div class="en-stat"><strong>RI</strong><span>Reading Informational Text</span></div>
             <div class="en-stat"><strong>L / W</strong><span>Language / Writing</span></div>
           </div>
+          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">For Grades 6-8, stories may be longer and include richer vocabulary, evidence, perspective, theme, structure, tone, and author craft.</p>
+        </section>
+        <section class="en-card" style="margin-top:20px">
+          <h2>Save and share privately</h2>
+          <p>Parents can download a framed story PDF containing the learner name, date, reading focus, story pages, vocabulary, questions, Story Sprout branding, and a story-check note.</p>
+          <p>Parents can also download a private progress snapshot. Story Sprout does not create public child profiles or public achievement links.</p>
+        </section>
+        <section class="en-card" style="margin-top:20px">
+          <h2>Plans, privacy, and support</h2>
+          <p><strong>Plans & billing:</strong> View plans, start checkout when configured, and cancel through parent password and one-time email confirmation. Cancellation stops renewal but does not delete learner data.</p>
+          <p><strong>Privacy & data:</strong> Export data, review vendor and AI information, delete a learner, or request full account deletion. Learner deletion and account deletion require clear in-page confirmation.</p>
+          <p><strong>Support:</strong> Use the in-page Support form for account, billing, privacy, story safety, or technical questions. Never send passwords, card numbers, or secret keys.</p>
         </section>
         <section class="en-card" style="margin-top:20px">
           <h2>Keep the adult in control</h2>
-          <p>Review stories before using them, supervise the child's use, and avoid entering unnecessary sensitive information. Privacy & data settings let you export or delete account and learner data.</p>
+          <p>Review AI-generated stories before using them, supervise the child's use, and avoid entering unnecessary sensitive information. Children do not create accounts. Privacy & data settings let you export or delete account and learner data.</p>
         </section>
       </section>
 
