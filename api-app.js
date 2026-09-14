@@ -1096,6 +1096,7 @@
       return {
         id: savedStory.id,
         title: savedStory.title,
+        learnerName: savedStory.learner_name || learners.find(item => item.id === savedStory.learner_id)?.first_name || learner?.first_name || 'Learner',
         goal,
         objective,
         detail: [goal, objective].filter(Boolean).join(' — '),
@@ -1122,7 +1123,7 @@
               ${displayStories.length ? displayStories.map(item => `
                 <div class="weekly-story-item">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                    <strong style="color:#20454c;font-size:15px">${esc(item.title)}</strong>
+                    <div><strong style="color:#20454c;font-size:15px">${esc(item.title)}</strong><span style="display:block;margin-top:3px;color:#597076;font-size:12px">For: ${esc(item.learnerName)}</span></div>
                     ${item.raw ? `<button type="button" class="en-outline weekly-read-again-btn" data-story-id="${item.raw.id}" style="padding:4px 8px;font-size:11px;white-space:nowrap;cursor:pointer">Read story</button>` : ''}
                   </div>
                   ${item.goal ? `<span style="color:#b15c3b;font-weight:700;font-size:12px">${esc(item.goal)}</span>` : ''}
@@ -1147,7 +1148,7 @@
           <div style="color:#597076;line-height:1.6;font-size:14px">
             ${displayStories.length ? displayStories.map(item => `
               <div style="margin-bottom:8px;padding-left:12px;border-left:3px solid #3c7a56">
-                <strong style="color:#20454c">${esc(item.title)}</strong>${item.detail ? `<span>: ${esc(item.detail)}</span>` : ''}
+                <strong style="color:#20454c">${esc(item.title)}</strong><span style="display:block;color:#597076;font-size:12px">For: ${esc(item.learnerName)}</span>${item.detail ? `<span>: ${esc(item.detail)}</span>` : ''}
               </div>
             `).join('') : '<p style="margin:0">Complete a story to see a review here.</p>'}
           </div>
