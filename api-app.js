@@ -518,6 +518,27 @@
         $('#apiPrompt').focus();
       });
     };
+    const pdfButton = document.createElement('button');
+    pdfButton.id = 'apiDownloadStoryPdf';
+    pdfButton.type = 'button';
+    pdfButton.className = 'en-outline';
+    pdfButton.textContent = 'Download story PDF';
+    inner.querySelector('.book-modal-actions').appendChild(pdfButton);
+    pdfButton.onclick = async () => {
+      pdfButton.disabled = true;
+      pdfButton.textContent = 'Preparing PDF...';
+      try {
+        const response = await fetch(`/api/stories/${encodeURIComponent(story.id)}.pdf`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Unable to create the story PDF.'); }
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${String(story.title || 'story').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'story'}-story.pdf`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        notify('Story PDF downloaded.');
+      } catch (error) { notify(error.message); } finally { pdfButton.disabled = false; pdfButton.textContent = 'Download story PDF'; }
+    };
     const reportForm = document.createElement('form');
     reportForm.id = 'apiSafetyReportForm';
     reportForm.className = 'hidden';

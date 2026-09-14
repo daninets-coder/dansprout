@@ -646,6 +646,90 @@ app.get('/api/classroom/progress-summary.pdf', requireAuth, async (req, res, nex
   }
 });
 
+app.get('/api/stories/:storyId.pdf', requireAuth, async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT s.id, s.title, s.theme, s.learning_goal, s.content, s.created_at, s.completed_at,
+             l.first_name AS learner_name, l.age_band
+      FROM stories s
+      JOIN learners l ON l.id = s.learner_id
+      WHERE s.id = $1 AND l.account_id = $2
+    `, [req.params.storyId, req.auth.sub]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Story not found.' });
+
+    const story = result.rows[0];
+    const pages = Array.isArray(story.content?.pages) ? story.content.pages.map(extractTextValue).filter(Boolean) : [];
+    const words = Array.isArray(story.content?.words) ? story.content.words : [];
+    const questions = Array.isArray(story.content?.questions) ? story.content.questions : [];
+    const meta = story.content?.meta || {};
+    const safeTitle = String(story.title || 'story').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'story';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="story-sprout-${safeTitle}.pdf"`);
+
+    const doc = new PDFDocument({ size: 'LETTER', margins: { top: 58, bottom: 58, left: 58, right: 58 }, bufferPages: true });
+    doc.pipe(res);
+    const colors = { ink: '#25464e', coral: '#c45f3f', sage: '#6c956d', line: '#dfc9a9', paper: '#fffaf1', muted: '#667779' };
+    const frame = () => {
+      doc.save();
+      doc.rect(28, 28, 556, 736).lineWidth(1).strokeColor(colors.line).stroke();
+      doc.rect(38, 38, 536, 716).lineWidth(0.5).strokeColor('#efe3d1').stroke();
+      doc.restore();
+    };
+    const header = () => {
+      frame();
+      doc.fillColor(colors.coral).fontSize(10).font('Helvetica-Bold').text('STORY SPROUT', 58, 50, { characterSpacing: 1.5 });
+      doc.fillColor(colors.muted).fontSize(9).font('Helvetica').text('Personalized reading stories for growing readers', 58, 67);
+    };
+
+    header();
+    doc.moveDown(5);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(25).text(story.title, { align: 'center' });
+    doc.moveDown(0.7);
+    doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(12).text(`A story for ${story.learner_name}`, { align: 'center' });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(10).text(`Ages ${story.age_band}  •  ${story.theme}  •  Created ${new Date(story.created_at).toLocaleDateString()}`, { align: 'center' });
+    doc.moveDown(1.2);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text('Reading focus');
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(`${story.learning_goal || 'Reading practice'}${meta.curriculumObjective ? `: ${meta.curriculumObjective}` : ''}`);
+    doc.moveDown(1.3);
+    pages.forEach((page, index) => {
+      if (index > 0) { doc.addPage(); header(); doc.moveDown(2); }
+      doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text(`PAGE ${index + 1} OF ${pages.length}`, { characterSpacing: 1.2 });
+      doc.moveDown(0.7);
+      doc.fillColor(colors.ink).font('Helvetica').fontSize(15).lineGap(5).text(page, { width: 470, align: 'left' });
+      doc.moveDown(1.2);
+      doc.fillColor(colors.muted).fontSize(9).text('Read together. Pause and talk about what the reader notices.', { width: 470 });
+    });
+
+    doc.addPage();
+    header();
+    doc.moveDown(2);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(20).text('Word garden');
+    doc.moveDown(0.7);
+    words.forEach(word => {
+      doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(12).text(String(word.word || ''));
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(String(word.meaning || ''));
+      doc.moveDown(0.45);
+    });
+    doc.moveDown(0.8);
+    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(20).text('Talk about the story');
+    doc.moveDown(0.7);
+    questions.forEach((question, index) => {
+      const prompt = typeof question === 'string' ? question : question.prompt || '';
+      doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(`${index + 1}. ${prompt}`, { width: 470 });
+      doc.moveDown(0.55);
+    });
+    doc.moveDown(1.3);
+    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('STORY CHECK NOTE', { characterSpacing: 1.1 });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('Any score connected to this story measures understanding of this story\'s questions. It is practice feedback, not a complete reading assessment or proof of overall mastery.', { width: 470 });
+    doc.moveDown(1.2);
+    doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(10).text('Story Sprout  •  dansprout.com', { align: 'center' });
+    doc.end();
+  } catch (error) {
+    return next(error);
+  }
+});
+
 const gradeLevelChoices = ['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8'];
 const readingDomains = [
   { value: 'oral_language', label: 'Oral Language' },
