@@ -379,6 +379,52 @@ app.post('/api/child-mode/stories/:storyId/safety-report', requireAuth, requireC
     return next(error);
   }
 });
+app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const parsed = z.object({
+      prompt: z.string().trim().min(3).max(300),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale']).default('Garden'),
+      storyLength: z.enum(['quick', 'standard']).default('quick'),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Tell us what adventure you want, using at least 3 characters.' });
+    const learnerRes = await pool.query('SELECT id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
+    if (!learnerRes.rowCount) return res.status(404).json({ error: 'Learner not found.' });
+    const learner = learnerRes.rows[0];
+    const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story creation is not available until the adult enables AI story generation.' });
+    await assertAiBudget(req.auth.sub);
+    const gradeLevel = learner.age_band === '3-5' ? 'PreK' : learner.age_band === '9-11' ? '4' : '2';
+    const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 ORDER BY standard_code LIMIT 1', [gradeLevel]);
+    const curriculumRow = curriculumRes.rows[0] || null;
+    const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || 'comprehension', theme: parsed.data.theme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
+    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, meta: { gradeLevel, domain: curriculumRow?.domain || 'comprehension', language: 'English', curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
+    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
+    return res.status(201).json({ story });
+  } catch (error) {
+    return res.status(503).json({ error: error.message || 'Story creation failed.' });
+  }
+});
+app.patch('/api/child-mode/stories/:storyId/revise', requireAuth, requireChildSession, async (req, res, next) => {
+  try {
+    const parsed = z.object({ revisionPrompt: z.string().trim().min(3).max(300) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Describe what you want to change in the story.' });
+    const storyRes = await pool.query('SELECT s.id, s.title, s.prompt, s.theme, s.learning_goal, s.content, s.learner_id FROM stories s WHERE s.id = $1 AND s.learner_id = $2', [req.params.storyId, req.auth.learnerId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
+    if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story updates are not available until the adult enables AI story generation.' });
+    await assertAiBudget(req.auth.sub);
+    const story = storyRes.rows[0];
+    const gradeLevel = story.content?.meta?.gradeLevel || 'K';
+    const domain = story.content?.meta?.domain || 'comprehension';
+    const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code', [gradeLevel, domain]);
+    const revised = await reviseStoryContent({ story, revisionPrompt: parsed.data.revisionPrompt, gradeLevel, domain, curriculumRow: pickCurriculumRow(curriculumRes.rows, gradeLevel, domain), accountId: req.auth.sub, allowExternalAI: true });
+    const content = { ...story.content, pages: revised.pages, questions: revised.questions, words: revised.words, meta: { ...story.content.meta, revisedAt: new Date().toISOString(), model: 'gpt-4o-mini' } };
+    const updated = await pool.query('UPDATE stories SET title = $1, prompt = $2, content = $3, created_by = $4 WHERE id = $5 AND learner_id = $6 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [revised.title, parsed.data.revisionPrompt, content, 'openai_revision', story.id, req.auth.learnerId]);
+    return res.json({ story: updated.rows[0] });
+  } catch (error) {
+    return res.status(503).json({ error: `Story update failed: ${error.message}` });
+  }
+});
 app.use('/api', (req, res, next) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return next();

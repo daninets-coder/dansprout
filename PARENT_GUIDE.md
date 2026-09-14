@@ -345,13 +345,16 @@ The adult:
 
 The child can:
 
-- Suggest interests and adventures.
-- Help choose story ideas.
+- Use the child home page and see a progress snapshot.
+- Create a short story from a child-safe adventure idea.
+- Ask for an update to an existing story, such as a new challenge, place, character, or ending.
 - Read or listen to the story.
 - Learn vocabulary.
 - Select answers to comprehension questions.
-- Try questions again.
-- Discuss the story with an adult.
+- Mark the story finished.
+- Report a problem with a story for adult review.
+
+The child can only create or update stories for their own learner profile. Story creation and updates require the adult account's AI story-generation setting and service configuration. Learner profiles, other children's stories, account settings, privacy, billing, and child-login management remain adult-only.
 
 ## 18. Recommended Family Routine
 
