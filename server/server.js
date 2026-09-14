@@ -85,10 +85,8 @@ async function ensureBaseSchema() {
 }
 
 const priceConfig = {
-  family_500: { cents: 500, trialDays: 0, lookupEnv: 'STRIPE_PRICE_FAMILY_500' },
-  family_800: { cents: 1500, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_800' },
-  family_1200: { cents: 1500, trialDays: 14, lookupEnv: 'STRIPE_PRICE_FAMILY_1200' },
-  classroom_1800: { cents: 1800, trialDays: 14, lookupEnv: 'STRIPE_PRICE_CLASSROOM_1800' },
+  family_1500: { cents: 1500, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_1500' },
+  classroom_2900: { cents: 2900, trialDays: 7, lookupEnv: 'STRIPE_PRICE_CLASSROOM_2900' },
 };
 
 pool.on('error', (err) => {
@@ -676,10 +674,10 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
     const { rows } = await pool.query('SELECT pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]);
     const account = rows[0];
     if (!account) return res.status(404).json({ error: 'Account not found.' });
-    const variant = process.env.STRIPE_PRICE_FAMILY_500 ? 'family_500' : (account.pricing_variant || 'family_800');
-    const configuredOffer = priceConfig[variant] || priceConfig.family_800;
+    const variant = 'family_1500';
+    const configuredOffer = priceConfig[variant];
     const cents = configuredOffer.cents;
-    const trialDays = process.env.STRIPE_PRICE_FAMILY_500 ? configuredOffer.trialDays : Number(account.trial_days || configuredOffer.trialDays);
+    const trialDays = configuredOffer.trialDays;
     return res.json({ offer: { variant, familyPriceCents: cents, familyPriceDollars: (cents / 100).toFixed(2), trialDays } });
   } catch (error) {
     return next(error);
@@ -698,10 +696,8 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     const account = accountRes.rows[0];
     const plan = parsed.data.plan;
 
-    const key = plan === 'classroom'
-      ? 'classroom_1800'
-      : (process.env.STRIPE_PRICE_FAMILY_500 ? 'family_500' : (account.pricing_variant || 'family_800'));
-    const cfg = priceConfig[key] || priceConfig.family_800;
+    const key = plan === 'classroom' ? 'classroom_2900' : 'family_1500';
+    const cfg = priceConfig[key];
     const priceId = process.env[cfg.lookupEnv];
     if (!priceId) return res.status(400).json({ error: `Missing ${cfg.lookupEnv} in environment.` });
 
@@ -1047,8 +1043,7 @@ async function ensureGrowthSchema() {
 }
 
 function pickPricingVariant() {
-  if (process.env.STRIPE_PRICE_FAMILY_500) return 'family_500';
-  return Math.random() < 0.5 ? 'family_800' : 'family_1200';
+  return 'family_1500';
 }
 
 async function logConsentEvent(accountId, eventType, policyVersion, metadata) {

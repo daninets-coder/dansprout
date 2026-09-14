@@ -59,7 +59,7 @@ placing illustrations in object storage/CDN rather than the database.
 	approach to progress.
 - Explorer, Family, and Classroom plan selection as demo billing or Stripe
 	Checkout when configured. The intended Family price is $15/month and the
-	intended Classroom price is $18/month.
+	intended Classroom price is $29/month, both with a 7-day trial.
 - Parent-protected cancellation: current password, one-time email confirmation,
 	Stripe cancellation at the end of the billing period when available, and no
 	deletion of learner data.
@@ -143,10 +143,8 @@ site data, using private browsing, or switching browsers may remove it.
 	 SUPPORT_EMAIL=admin@dansprout.com
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
-	 STRIPE_PRICE_FAMILY_500=
-	 STRIPE_PRICE_FAMILY_800=
-	 STRIPE_PRICE_FAMILY_1200=
-	 STRIPE_PRICE_CLASSROOM_1800=
+	 STRIPE_PRICE_FAMILY_1500=
+	 STRIPE_PRICE_CLASSROOM_2900=
 	 ```
 
 4. From this folder, install packages and initialize the database:
