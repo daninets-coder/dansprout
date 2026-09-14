@@ -1,7 +1,6 @@
 (() => {
   const appRoot = document.querySelector('.app');
   if (!appRoot) return;
-  if (window.__storySproutChildMode) return;
   const token = localStorage.getItem('storySproutToken');
   if (!token) return;
 
@@ -56,6 +55,8 @@
 
   const app = document.querySelector('.app');
   const account = JSON.parse(localStorage.getItem('storySproutAccount') || '{}');
+  const isChildSession = account.childMode === true || window.__storySproutChildMode === true;
+  const restrictedChildViews = new Set(['learners', 'billing']);
   const $ = selector => document.querySelector(selector);
   const esc = value => {
     const n = document.createElement('div');
@@ -386,6 +387,12 @@
     <div id="apiToast" class="toast" role="status" aria-live="polite"></div>
   `;
 
+  if (isChildSession) {
+    $('#apiChildMode')?.classList.add('hidden');
+    document.querySelector('[data-api-view="learners"]')?.classList.add('hidden');
+    document.querySelector('[data-api-view="billing"]')?.classList.add('hidden');
+  }
+
   let readingSparkIndex = 0;
   const readingSpark = $('#apiReadingSpark');
   const showReadingSpark = () => {
@@ -409,6 +416,7 @@
 
   const friendlySource = src => src === 'openai' || src === 'openai_revision' ? 'AI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
+    if (isChildSession && restrictedChildViews.has(name)) return;
     ['Home', 'Weekly', 'Learners', 'Progress', 'Billing', 'Guide'].forEach(part => {
       const el = $(`#api${part}View`);
       if (el) el.classList.toggle('hidden', part.toLowerCase() !== name);
@@ -926,7 +934,7 @@
     const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
     const score = scoreData.scorecard;
     const progressNav = $('#apiProgressNav');
-    const canUseProgressTools = me.isSiteOwner === true || me.role === 'teacher';
+    const canUseProgressTools = isChildSession || me.isSiteOwner === true || me.role === 'teacher';
     if (progressNav) progressNav.classList.toggle('hidden', !canUseProgressTools);
     if (!canUseProgressTools && !$('#apiProgressView').classList.contains('hidden')) show('home');
     const progressNotice = $('#apiProgressNotice');
@@ -1362,7 +1370,11 @@
     }, 900);
     try {
       const learner = learners.find(item => item.id === learnerId);
-      const response = await api('/api/stories/generate', { method: 'POST', body: JSON.stringify({ learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength }) });
+      const generationPath = isChildSession ? '/api/child-mode/stories/generate' : '/api/stories/generate';
+      const generationBody = isChildSession
+        ? { prompt, domain, theme, customTheme, storyLength }
+        : { learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength };
+      const response = await api(generationPath, { method: 'POST', body: JSON.stringify(generationBody) });
       if (!response.story) throw new Error('Story could not be generated.');
       window.clearInterval(generationTimer);
       generationTimer = null;

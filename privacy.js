@@ -3,6 +3,9 @@
   if (!app || document.querySelector('.privacy-trigger')) return;
 
   const token = localStorage.getItem('storySproutToken');
+  let childSession = false;
+  try { childSession = JSON.parse(localStorage.getItem('storySproutAccount') || '{}').childMode === true; } catch {}
+  if (childSession) return;
   const header = app.querySelector('.en-header');
   if (!header) return;
 
@@ -75,7 +78,8 @@
   modal.querySelector('[data-privacy-action="export"]').onclick = async () => {
     if (!token) { status('Sign in to download account data.'); return; }
     try {
-      const response = await fetch('/api/account/export', { headers: { Authorization: `Bearer ${token}` } });
+      const parentConfirmation = await window.__storySproutConfirmParent?.();
+      const response = await fetch('/api/account/export', { headers: { Authorization: `Bearer ${token}`, ...(parentConfirmation ? { 'X-Parent-Confirmation': parentConfirmation } : {}) } });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Export failed.');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

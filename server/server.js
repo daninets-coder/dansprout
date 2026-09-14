@@ -453,14 +453,6 @@ app.post('/api/child-mode/stories/:storyId/vocabulary', requireAuth, requireChil
   }
 });
 app.use('/api', (req, res, next) => {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  if (!token) return next();
-  try {
-    const claims = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' });
-    if (claims.childMode === true) return res.status(403).json({ error: 'This action is not available in Child Mode.' });
-  } catch {
-    // The endpoint-specific requireAuth middleware returns the appropriate auth error.
-  }
   return next();
 });
 app.use(['/api/learners', '/api/stories', '/api/progress', '/api/curriculum', '/api/reminders', '/api/subscription', '/api/classroom'], requireAuth, requireVerifiedEmail);
