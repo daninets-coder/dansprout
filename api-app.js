@@ -907,33 +907,76 @@
     const story = activity && stories.find(item => item.id === activity.storyId);
     const grade = story?.content?.meta?.gradeLevel || 'K';
     const middleSchool = ['6', '7', '8'].includes(grade);
+    const rawRecentStories = stories
+      .filter(savedStory => savedStory.learner_id === learnerId && savedStory.title)
+      .sort((a, b) => new Date(b.created_at || b.completed_at || 0) - new Date(a.created_at || a.completed_at || 0))
+      .slice(0, 4);
+
+    const recentStories = rawRecentStories.length ? rawRecentStories : (story ? [story] : []);
+
+    const recentVocabulary = [...new Set(recentStories.flatMap(savedStory => {
+      const words = Array.isArray(savedStory.content?.words) ? savedStory.content.words : [];
+      return words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean);
+    }))].slice(0, 10);
+
+    const recentStorySummary = recentStories.map(savedStory => ({
+      title: savedStory.title,
+      goal: savedStory.learning_goal || 'Reading practice',
+      objective: savedStory.content?.meta?.curriculumObjective || 'Story reading and discussion',
+      words: Array.isArray(savedStory.content?.words) ? savedStory.content.words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean) : []
+    }));
+
     const actions = [
       activity && !activity.completedAt ? { title: `Continue ${activity.title}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open' } : { title: 'Create a new adventure', detail: 'Choose a fresh challenge in a world the reader already enjoys.', type: 'new' },
       story ? { title: 'Practice the same reading goal again', detail: `${story.learning_goal || 'Reading practice'} with a different adventure.`, type: 'goal' } : { title: 'Choose a reading goal', detail: 'Give the first story a clear reading purpose.', type: 'new' },
-      { title: 'Review vocabulary', detail: story?.content?.words?.length ? 'Return to the useful words from the latest story.' : 'Explore new words in the next story.', type: story ? 'vocabulary' : 'new' },
+      { title: 'Review vocabulary', detail: recentVocabulary.length ? 'Use the words below to revisit the latest reading work.' : 'Explore new words in the next story.', type: story ? 'vocabulary' : 'new' },
       middleSchool ? { title: 'Try an evidence challenge', detail: 'Look for details, perspective, and reasoning in a grades 6–8 story.', type: 'middle' } : { title: 'Create a follow-up adventure', detail: 'Keep the same learner, world, and reading focus while adding a new challenge.', type: 'followup' },
     ];
-    container.innerHTML = actions.map((action, index) => `<button type="button" class="weekly-return-action" data-return-type="${action.type}"><span class="weekly-return-number">${index + 1}</span><span><strong>${esc(action.title)}</strong><small>${esc(action.detail)}</small></span><span class="weekly-return-arrow">-></span></button>`).join('');
+
+    const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : 'Last week’s learning';
+
+    container.innerHTML = `
+      ${actions.map((action, index) => `<button type="button" class="weekly-return-action" data-return-type="${action.type}"><span class="weekly-return-number">${index + 1}</span><span><strong>${esc(action.title)}</strong><small>${esc(action.detail)}</small></span><span class="weekly-return-arrow">-></span></button>`).join('')}
+      <div class="weekly-return-summary" style="margin-top:18px;border:1px solid #d8ddd5;border-radius:14px;background:#f4f7f3;padding:16px 18px;display:grid;gap:14px">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#5f7d76;text-transform:uppercase">LAST WEEK'S LEARNING</div>
+          <h3 style="margin:6px 0 0;font-size:22px;line-height:1.2;color:#244c53">${esc(summaryHeading)}</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
+            <div style="font-weight:700;color:#244c53;margin-bottom:6px">What was covered</div>
+            <div style="color:#597076;line-height:1.5">${recentStorySummary.length ? recentStorySummary.map(item => `<div style="margin-bottom:8px"><strong style="color:#294f55">${esc(item.title)}</strong><br><span>${esc(item.goal)}</span><br><span>${esc(item.objective)}</span></div>`).join('') : '<span>No completed stories yet.</span>'}</div>
+          </div>
+          <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
+            <div style="font-weight:700;color:#244c53;margin-bottom:6px">Vocabulary learned</div>
+            <div style="color:#597076;line-height:1.5">${recentVocabulary.length ? esc(recentVocabulary.join(', ')) : 'No vocabulary yet from this week’s reading.'}</div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
+          <div style="font-weight:700;color:#244c53;margin-bottom:6px">Quick review</div>
+          <div style="color:#597076;line-height:1.5">${recentStorySummary.length ? recentStorySummary.map(item => `${esc(item.title)}: ${esc(item.goal)} — ${esc(item.objective)}`).join('<br>') : 'Review the latest story and revisit the vocabulary list to build confidence.'}</div>
+        </div>
+      </div>
+    `;
+
     container.querySelectorAll('.weekly-return-action').forEach(button => {
       button.onclick = async () => {
         const type = button.dataset.returnType;
         const savedStory = story;
-        if (type === 'open' && savedStory) return openServerStory(savedStory);
-        if (type === 'vocabulary' && savedStory) return openServerStory(savedStory);
-        if (type === 'followup' && savedStory) return openServerStory(savedStory);
-        if (type === 'new' || type === 'goal' || type === 'middle' || type === 'followup') {
-          if (savedStory) {
-            $('#apiLearner').value = savedStory.learner_id || learnerId;
-            $('#apiGradeLevel').value = type === 'middle' ? '6' : (savedStory.content?.meta?.gradeLevel || 'K');
-            await loadCurriculumOptions($('#apiGradeLevel').value);
-            const matchingGoal = curriculumOptions.find(row => type === 'goal' ? row.domain === savedStory.content?.meta?.domain : row.standard_code === savedStory.content?.meta?.curriculumStandard);
-            if (matchingGoal) $('#apiGoal').value = matchingGoal.standard_code;
-            $('#apiTheme').value = savedStory.theme || 'Moonlight';
-            $('#apiPrompt').value = type === 'middle' ? 'Analyze a meaningful choice using evidence from the story.' : `Continue ${savedStory.title} with a new challenge and a meaningful choice.`;
-            updateStoryVisual();
+
+        if (type === 'open' && savedStory) {
+          openServerStory(savedStory);
+          return;
+        }
+
+        if (type === 'vocabulary' || type === 'goal' || type === 'middle' || type === 'followup' || type === 'new') {
+          const summaryPanel = container.querySelector('.weekly-return-summary');
+          if (summaryPanel) {
+            summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-          show('home');
-          $('#apiPrompt').focus();
+          return;
         }
       };
     });
