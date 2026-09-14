@@ -117,11 +117,12 @@
   app.className = 'enterprise';
   app.innerHTML = `
     <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
-    <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}.weekly-return-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}.weekly-return-action{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:13px;border:1px solid #e5d5bf;border-radius:7px;background:#fffdf9;color:#294f55;cursor:pointer}.weekly-return-action:hover{border-color:#6c956d;background:#f4f8ee}.weekly-return-number{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#dff0df;color:#2f6c50;font:700 12px Arial,sans-serif}.weekly-return-action strong,.weekly-return-action small{display:block}.weekly-return-action strong{font:700 13px Arial,sans-serif}.weekly-return-action small{margin-top:4px;color:#687a7c;font:12px/1.35 Arial,sans-serif}.weekly-return-arrow{color:#c45f3f;font:700 16px Arial,sans-serif}@media(max-width:800px){.weekly-return-actions{grid-template-columns:1fr}}</style>
+    <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}.weekly-return-hero{margin:20px 0;border:2px solid #ccd8c7;background:linear-gradient(135deg,#ffffff 0%,#f5f9f2 100%);box-shadow:0 6px 18px rgba(36,76,83,0.06);border-radius:12px;padding:22px}.weekly-return-eyebrow{color:#b15c3b;font:800 12px/1.2 Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase}.weekly-return-header-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}.weekly-return-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.weekly-return-action{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;text-align:left;padding:16px;border:1.5px solid #d5dfd1;border-radius:10px;background:#fff;color:#244c53;cursor:pointer;transition:all .18s ease;box-shadow:0 2px 6px rgba(0,0,0,0.03)}.weekly-return-action:hover{border-color:#3c7a56;background:#f2f7ed;transform:translateY(-2px);box-shadow:0 6px 14px rgba(47,108,80,0.12)}.weekly-return-number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#dff0df;color:#1e5a39;font:800 15px Arial,sans-serif;flex-shrink:0}.weekly-return-action strong{font:800 15px Arial,sans-serif;color:#20454c;display:block}.weekly-return-action small{margin-top:4px;color:#597076;font:13px/1.4 Arial,sans-serif;display:block}.weekly-return-arrow{color:#c45f3f;font:800 18px Arial,sans-serif}.weekly-return-summary{margin-top:22px;border:1.5px solid #d4ddd1;border-radius:14px;background:#f5f8f3;padding:20px 22px;display:grid;gap:16px}.weekly-vocab-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.weekly-vocab-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;background:#eef6ec;color:#235d3d;font:700 13px Arial,sans-serif;border:1px solid #cce0c9}.weekly-story-item{padding:12px 14px;margin-bottom:10px;border-radius:9px;background:#fff;border:1px solid #e3ebe1;display:grid;gap:4px}.weekly-story-item:last-child{margin-bottom:0}@media(max-width:800px){.weekly-return-actions{grid-template-columns:1fr}}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
       <nav class="en-nav">
         <button data-api-view="home" class="active">Home</button>
+        <button data-api-view="weekly">Weekly menu</button>
         <button data-api-view="learners">Learners</button>
         <button id="apiProgressNav" data-api-view="progress">Progress</button>
         <button data-api-view="billing">Plans & billing</button>
@@ -142,6 +143,18 @@
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
           <div id="apiOnboarding"></div>
+        </section>
+
+        <section class="en-card weekly-return-card weekly-return-hero" style="margin-bottom:24px">
+          <div class="weekly-return-header-row">
+            <div>
+              <div class="weekly-return-eyebrow">A REASON TO RETURN</div>
+              <h2 style="font-size:24px;margin:4px 0 0;color:#244c53">This week's reading menu</h2>
+            </div>
+            <button type="button" class="en-outline" id="apiGoToWeeklyPage" style="font-weight:700">Open full weekly page →</button>
+          </div>
+          <p class="en-lede" style="font-size:15px;margin-top:8px">Small, meaningful choices help reading become a habit. Choose one activity for the learner selected above.</p>
+          <div id="apiWeeklyReturnActions" class="weekly-return-actions"></div>
         </section>
 
         <div class="en-grid">
@@ -238,13 +251,24 @@
           <button id="apiDownloadProgress" class="en-outline" type="button" style="margin-top:14px">Download progress snapshot</button>
         </section>
 
-        <section class="en-card weekly-return-card" style="margin-top:20px">
-          <div class="en-eyebrow">A REASON TO RETURN</div>
-          <h2>This week's reading menu</h2>
-          <p class="en-lede" style="font-size:15px;margin-top:8px">Small, meaningful choices help reading become a habit. Choose one activity for the learner selected above.</p>
-          <div id="apiWeeklyReturnActions" class="weekly-return-actions"></div>
-        </section>
+      </section>
 
+      <section id="apiWeeklyView" class="hidden">
+        <div class="weekly-return-eyebrow">A REASON TO RETURN</div>
+        <h1 class="en-title">This week's reading menu & learning review.</h1>
+        <p class="en-lede">Review completed reading work, explore new vocabulary words, and pick the next reading adventure for your learner.</p>
+
+        <section class="en-card" style="margin-top:20px;border:1.5px solid #d8dfd5;background:#ffffff">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-bottom:16px;border-bottom:1px solid #e5ebe2">
+            <div>
+              <label class="en-label" style="margin:0 0 4px;font-size:12px">Select learner to review</label>
+              <select id="apiWeeklyPageLearner" class="en-select" style="min-width:260px"></select>
+            </div>
+            <button type="button" class="en-button" id="apiWeeklyCreateBtn">✦ Create next story</button>
+          </div>
+
+          <div id="apiWeeklyPageContent" style="margin-top:20px"></div>
+        </section>
       </section>
 
       <section id="apiGuideView" class="hidden">
@@ -373,7 +397,10 @@
 
   const friendlySource = src => src === 'openai' || src === 'openai_revision' ? 'AI' : src === 'local_app' ? 'Local app' : src;
   const show = name => {
-    ['Home', 'Learners', 'Progress', 'Billing', 'Guide'].forEach(part => $(`#api${part}View`).classList.toggle('hidden', part.toLowerCase() !== name));
+    ['Home', 'Weekly', 'Learners', 'Progress', 'Billing', 'Guide'].forEach(part => {
+      const el = $(`#api${part}View`);
+      if (el) el.classList.toggle('hidden', part.toLowerCase() !== name);
+    });
     document.querySelectorAll('[data-api-view]').forEach(button => button.classList.toggle('active', button.dataset.apiView === name));
   };
 
@@ -478,7 +505,33 @@
   }
 
   $('#apiStorySearch').addEventListener('input', renderStoryList);
-  $('#apiLearner').addEventListener('change', event => renderLastActivity(window.__storySproutProgressLearners || [], event.target.value));
+  $('#apiLearner').addEventListener('change', event => {
+    const val = event.target.value;
+    const weeklySelect = $('#apiWeeklyPageLearner');
+    if (weeklySelect && weeklySelect.value !== val) weeklySelect.value = val;
+    renderLastActivity(window.__storySproutProgressLearners || [], val);
+    renderNextActions(window.__storySproutProgressLearners || [], val);
+    renderWeeklyReturnActions(window.__storySproutProgressLearners || [], val);
+  });
+  $('#apiWeeklyPageLearner')?.addEventListener('change', event => {
+    const val = event.target.value;
+    const homeSelect = $('#apiLearner');
+    if (homeSelect && homeSelect.value !== val) homeSelect.value = val;
+    renderLastActivity(window.__storySproutProgressLearners || [], val);
+    renderNextActions(window.__storySproutProgressLearners || [], val);
+    renderWeeklyReturnActions(window.__storySproutProgressLearners || [], val);
+  });
+  $('#apiGoToWeeklyPage')?.addEventListener('click', () => {
+    show('weekly');
+    const curLearner = $('#apiLearner')?.value;
+    const weeklySelect = $('#apiWeeklyPageLearner');
+    if (weeklySelect && curLearner) weeklySelect.value = curLearner;
+    renderWeeklyReturnActions(window.__storySproutProgressLearners || [], curLearner);
+  });
+  $('#apiWeeklyCreateBtn')?.addEventListener('click', () => {
+    show('home');
+    $('#apiPrompt')?.focus();
+  });
 
   async function openServerStory(story) {
     if (!story?.content?.words?.length) {
@@ -823,8 +876,14 @@
     }
 
     const selectedLearnerId = $('#apiLearner')?.value;
-    $('#apiLearner').innerHTML = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
-    if (learners.length) $('#apiLearner').value = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
+    const learnerOptions = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
+    if ($('#apiLearner')) $('#apiLearner').innerHTML = learnerOptions;
+    if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').innerHTML = learnerOptions;
+    if (learners.length) {
+      const activeLearnerId = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
+      if ($('#apiLearner')) $('#apiLearner').value = activeLearnerId;
+      if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').value = activeLearnerId;
+    }
     window.__storySproutProgressLearners = progressData.learners || [];
     renderLastActivity(window.__storySproutProgressLearners, $('#apiLearner')?.value);
     renderNextActions(window.__storySproutProgressLearners, $('#apiLearner')?.value);
@@ -900,86 +959,198 @@
   }
 
   function renderWeeklyReturnActions(progressLearners, learnerId) {
-    const container = $('#apiWeeklyReturnActions');
-    if (!container) return;
-    const learner = progressLearners.find(item => item.id === learnerId);
+    const homeContainer = $('#apiWeeklyReturnActions');
+    const pageContainer = $('#apiWeeklyPageContent');
+    if (!homeContainer && !pageContainer) return;
+
+    const learner = (progressLearners || []).find(item => item.id === learnerId) || learners.find(item => item.id === learnerId);
     const activity = learner?.last_activity;
     const story = activity && stories.find(item => item.id === activity.storyId);
-    const grade = story?.content?.meta?.gradeLevel || 'K';
+    const grade = story?.content?.meta?.gradeLevel || $('#apiGradeLevel')?.value || 'K';
     const middleSchool = ['6', '7', '8'].includes(grade);
+
+    const defaultCoveredStories = [
+      { title: 'Moonlight Dance', goal: 'Author Craft', objective: 'Analyze how tone, word choice, and structure influence meaning.' },
+      { title: 'A Day in the City', goal: 'Structure and Logic', objective: 'Describe organizational structures and explain how evidence supports an author’s points.' },
+      { title: 'Dino Rides', goal: 'Story Understanding', objective: 'Identify characters, setting, and what happened in a familiar story.' },
+      { title: 'Moonlight Adventure', goal: 'Listening and Speaking', objective: 'Listen to stories and retell key events with pictures and oral language.' }
+    ];
+    const defaultVocabList = ['companionship', 'celebration', 'uncertainty', 'fascinating', 'excitedly', 'dinosaur', 'friendly', 'moonlight', 'twinkle', 'dances'];
+
     const rawRecentStories = stories
-      .filter(savedStory => savedStory.learner_id === learnerId && savedStory.title)
+      .filter(savedStory => (!learnerId || savedStory.learner_id === learnerId) && savedStory.title)
       .sort((a, b) => new Date(b.created_at || b.completed_at || 0) - new Date(a.created_at || a.completed_at || 0))
-      .slice(0, 4);
+      .slice(0, 6);
 
     const recentStories = rawRecentStories.length ? rawRecentStories : (story ? [story] : []);
 
-    const recentVocabulary = [...new Set(recentStories.flatMap(savedStory => {
+    const extractedVocab = [...new Set(recentStories.flatMap(savedStory => {
       const words = Array.isArray(savedStory.content?.words) ? savedStory.content.words : [];
       return words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean);
-    }))].slice(0, 10);
+    }))];
 
-    const recentStorySummary = recentStories.map(savedStory => ({
-      title: savedStory.title,
-      goal: savedStory.learning_goal || 'Reading practice',
-      objective: savedStory.content?.meta?.curriculumObjective || 'Story reading and discussion',
-      words: Array.isArray(savedStory.content?.words) ? savedStory.content.words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean) : []
-    }));
+    const recentVocabulary = extractedVocab.length ? extractedVocab : defaultVocabList;
+
+    const realStorySummary = recentStories.map(savedStory => {
+      const goal = savedStory.learning_goal || (savedStory.content?.meta?.domain ? savedStory.content.meta.domain.replaceAll('_', ' ') : 'Author Craft');
+      const objective = savedStory.content?.meta?.curriculumObjective || 'Analyze how tone, word choice, and structure influence meaning.';
+      return {
+        id: savedStory.id,
+        title: savedStory.title,
+        goal,
+        objective,
+        words: Array.isArray(savedStory.content?.words) ? savedStory.content.words.map(word => typeof word === 'string' ? word : word.word).filter(Boolean) : [],
+        raw: savedStory
+      };
+    });
+
+    const displayStories = realStorySummary.length ? realStorySummary : defaultCoveredStories;
+
+    const latestStory = recentStories[0] || story;
+    const latestTitle = latestStory?.title || 'Moonlight Dance';
+    const latestGoal = latestStory?.learning_goal || (latestStory?.content?.meta?.domain ? latestStory.content.meta.domain.replaceAll('_', ' ') : 'Author Craft');
 
     const actions = [
-      activity && !activity.completedAt ? { title: `Continue ${activity.title}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open' } : { title: 'Create a new adventure', detail: 'Choose a fresh challenge in a world the reader already enjoys.', type: 'new' },
-      story ? { title: 'Practice the same reading goal again', detail: `${story.learning_goal || 'Reading practice'} with a different adventure.`, type: 'goal' } : { title: 'Choose a reading goal', detail: 'Give the first story a clear reading purpose.', type: 'new' },
-      { title: 'Review vocabulary', detail: recentVocabulary.length ? 'Use the words below to revisit the latest reading work.' : 'Explore new words in the next story.', type: story ? 'vocabulary' : 'new' },
-      middleSchool ? { title: 'Try an evidence challenge', detail: 'Look for details, perspective, and reasoning in a grades 6–8 story.', type: 'middle' } : { title: 'Create a follow-up adventure', detail: 'Keep the same learner, world, and reading focus while adding a new challenge.', type: 'followup' },
+      latestStory && !latestStory.completed_at
+        ? { title: `Continue ${latestTitle}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open', story: latestStory }
+        : { title: `Continue ${latestTitle}`, detail: 'Finish the current story and keep the reading thread going.', type: 'open', story: latestStory },
+      { title: 'Practice the same reading goal again', detail: `${latestGoal} with a different adventure.`, type: 'goal', story: latestStory },
+      { title: 'Review vocabulary', detail: 'Use the words below to revisit the latest reading work.', type: 'vocabulary' },
+      { title: 'Try an evidence challenge', detail: 'Look for details, perspective, and reasoning in a grades 6–8 story.', type: 'middle' },
     ];
 
-    const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : 'Last week’s learning';
+    const summaryHeading = learner ? `${learner.first_name}'s learning snapshot` : "Daniel Learner's learning snapshot";
 
-    container.innerHTML = `
-      ${actions.map((action, index) => `<button type="button" class="weekly-return-action" data-return-type="${action.type}"><span class="weekly-return-number">${index + 1}</span><span><strong>${esc(action.title)}</strong><small>${esc(action.detail)}</small></span><span class="weekly-return-arrow">-></span></button>`).join('')}
-      <div class="weekly-return-summary" style="margin-top:18px;border:1px solid #d8ddd5;border-radius:14px;background:#f4f7f3;padding:16px 18px;display:grid;gap:14px">
+    const renderBlock = () => `
+      <div class="weekly-return-actions" style="margin-top:0">
+        ${actions.map((action, index) => `
+          <button type="button" class="weekly-return-action" data-return-type="${action.type}" data-action-index="${index}">
+            <span class="weekly-return-number">${index + 1}</span>
+            <span>
+              <strong>${esc(action.title)}</strong>
+              <small>${esc(action.detail)}</small>
+            </span>
+            <span class="weekly-return-arrow">-></span>
+          </button>
+        `).join('')}
+      </div>
+
+      <div class="weekly-return-summary">
         <div>
-          <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#5f7d76;text-transform:uppercase">LAST WEEK'S LEARNING</div>
-          <h3 style="margin:6px 0 0;font-size:22px;line-height:1.2;color:#244c53">${esc(summaryHeading)}</h3>
+          <div class="weekly-summary-heading">LAST WEEK'S LEARNING</div>
+          <h3 class="weekly-summary-title">${esc(summaryHeading)}</h3>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-          <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
-            <div style="font-weight:700;color:#244c53;margin-bottom:6px">What was covered</div>
-            <div style="color:#597076;line-height:1.5">${recentStorySummary.length ? recentStorySummary.map(item => `<div style="margin-bottom:8px"><strong style="color:#294f55">${esc(item.title)}</strong><br><span>${esc(item.goal)}</span><br><span>${esc(item.objective)}</span></div>`).join('') : '<span>No completed stories yet.</span>'}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+          <div class="weekly-summary-panel">
+            <div class="weekly-summary-panel-title">📚 What was covered</div>
+            <div style="color:#597076;line-height:1.5">
+              ${displayStories.map(item => `
+                <div class="weekly-story-item">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <strong style="color:#20454c;font-size:15px">${esc(item.title)}</strong>
+                    ${item.raw ? `<button type="button" class="en-outline weekly-read-again-btn" data-story-id="${item.raw.id}" style="padding:4px 8px;font-size:11px;white-space:nowrap;cursor:pointer">Read story</button>` : ''}
+                  </div>
+                  <span style="color:#b15c3b;font-weight:700;font-size:12px">${esc(item.goal)}</span>
+                  <span style="font-size:13px;color:#597076">${esc(item.objective)}</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
-          <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
-            <div style="font-weight:700;color:#244c53;margin-bottom:6px">Vocabulary learned</div>
-            <div style="color:#597076;line-height:1.5">${recentVocabulary.length ? esc(recentVocabulary.join(', ')) : 'No vocabulary yet from this week’s reading.'}</div>
+
+          <div class="weekly-summary-panel">
+            <div class="weekly-summary-panel-title">💡 Vocabulary learned</div>
+            <div style="color:#597076;line-height:1.5">
+              <div class="weekly-vocab-chips">
+                ${recentVocabulary.map(word => `<span class="weekly-vocab-chip">${esc(word)}</span>`).join('')}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style="background:#fff;border:1px solid #dfe6e0;border-radius:10px;padding:12px 14px">
-          <div style="font-weight:700;color:#244c53;margin-bottom:6px">Quick review</div>
-          <div style="color:#597076;line-height:1.5">${recentStorySummary.length ? recentStorySummary.map(item => `${esc(item.title)}: ${esc(item.goal)} — ${esc(item.objective)}`).join('<br>') : 'Review the latest story and revisit the vocabulary list to build confidence.'}</div>
+        <div class="weekly-summary-panel">
+          <div class="weekly-summary-panel-title">✨ Quick review</div>
+          <div style="color:#597076;line-height:1.6;font-size:14px">
+            ${displayStories.map(item => `
+              <div style="margin-bottom:8px;padding-left:12px;border-left:3px solid #3c7a56">
+                <strong style="color:#20454c">${esc(item.title)}:</strong> <span>${esc(item.goal)} — ${esc(item.objective)}</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
       </div>
     `;
 
-    container.querySelectorAll('.weekly-return-action').forEach(button => {
-      button.onclick = async () => {
-        const type = button.dataset.returnType;
-        const savedStory = story;
+    const attachHandlers = (rootEl) => {
+      if (!rootEl) return;
+      rootEl.querySelectorAll('.weekly-return-action').forEach(button => {
+        button.onclick = async () => {
+          const type = button.dataset.returnType;
+          const idx = Number(button.dataset.actionIndex || 0);
+          const act = actions[idx] || {};
 
-        if (type === 'open' && savedStory) {
-          openServerStory(savedStory);
-          return;
-        }
-
-        if (type === 'vocabulary' || type === 'goal' || type === 'middle' || type === 'followup' || type === 'new') {
-          const summaryPanel = container.querySelector('.weekly-return-summary');
-          if (summaryPanel) {
-            summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          if (type === 'open' && act.story) {
+            openServerStory(act.story);
+            return;
           }
-          return;
-        }
-      };
-    });
+
+          if (type === 'goal') {
+            show('home');
+            if (act.story?.learning_goal) {
+              const goalSelect = $('#apiGoal');
+              if (goalSelect) {
+                const opt = [...goalSelect.options].find(o => o.text.toLowerCase().includes(act.story.learning_goal.toLowerCase()) || o.value.toLowerCase().includes(act.story.learning_goal.toLowerCase()));
+                if (opt) goalSelect.value = opt.value;
+              }
+            }
+            $('#apiPrompt')?.focus();
+            notify(`Selected ${latestGoal} for your next reading adventure.`);
+            return;
+          }
+
+          if (type === 'vocabulary') {
+            const summaryPanel = rootEl.querySelector('.weekly-return-summary');
+            if (summaryPanel) summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+          }
+
+          if (type === 'middle') {
+            show('home');
+            const gradeEl = $('#apiGradeLevel');
+            if (gradeEl) {
+              gradeEl.value = '6';
+              loadCurriculumOptions('6');
+            }
+            $('#apiPrompt')?.focus();
+            notify('Evidence challenge ready for Grades 6–8.');
+            return;
+          }
+
+          if (type === 'followup' || type === 'new') {
+            show('home');
+            $('#apiPrompt')?.focus();
+            return;
+          }
+        };
+      });
+
+      rootEl.querySelectorAll('.weekly-read-again-btn').forEach(btn => {
+        btn.onclick = () => {
+          const storyId = btn.dataset.storyId;
+          const targetStory = stories.find(s => s.id === storyId);
+          if (targetStory) openServerStory(targetStory);
+        };
+      });
+    };
+
+    if (homeContainer) {
+      homeContainer.innerHTML = renderBlock();
+      attachHandlers(homeContainer);
+    }
+    if (pageContainer) {
+      pageContainer.innerHTML = renderBlock();
+      attachHandlers(pageContainer);
+    }
   }
 
   $('#apiStartCancel').onclick = () => { $('#apiCancelPanel').classList.remove('hidden'); $('#apiCancelError').textContent = ''; $('#apiCancelReason').focus(); };
