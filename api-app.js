@@ -235,6 +235,7 @@
           <div id="apiLearnerReport" class="learner-report-grid"></div>
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
+          <button id="apiDownloadProgress" class="en-outline" type="button" style="margin-top:14px">Download progress snapshot</button>
         </section>
 
       </section>
@@ -780,6 +781,15 @@
     const weekCompleted = stories.filter(story => story.completed_at && new Date(story.completed_at).getTime() >= weekStart).length;
     $('#apiHabit').innerHTML = `<strong>${weekCompleted}/1</strong><span>stories completed this week</span><small>${weekCompleted ? 'Nice reading rhythm. Keep it going.' : 'A small weekly goal: finish one story together.'}</small>`;
     $('#apiLearnerReport').innerHTML = (progressData.learners || []).map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
+    $('#apiDownloadProgress').onclick = () => {
+      const snapshot = { generatedAt: new Date().toISOString(), note: 'Story-specific reading practice snapshot; not a formal reading assessment.', learners: progressData.learners || [], stories: stories.map(story => ({ id: story.id, learner: story.learner_name, title: story.title, goal: story.learning_goal, completedAt: story.completed_at, createdAt: story.created_at })) };
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
+      link.download = 'story-sprout-progress-snapshot.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      notify('Progress snapshot downloaded privately.');
+    };
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
     $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
     const cancelButton = $('#apiStartCancel');
