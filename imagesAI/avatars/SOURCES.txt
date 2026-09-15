@@ -1,7 +1,5 @@
-Avatars generated with DiceBear (https://www.dicebear.com), style "Big Smile" (remix of "Custom Avatar" by Ashley Seo, http://www.ashleyseo.com/), licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) — attribution required. DiceBear itself is MIT licensed.
-
-Attribution: "Big Smile" avatar style, remix of "Custom Avatar" by Ashley Seo, via DiceBear (dicebear.com), CC BY 4.0.
+Avatars generated with DiceBear (https://www.dicebear.com), style "Open Peeps" (remix of "Open Peeps" by Pablo Stanley, https://www.openpeeps.com/), licensed CC0 1.0 (public domain — no attribution required). DiceBear itself is MIT licensed.
 
 maya-avatar.png   seed: Maya
-theo-avatar.png   seed: Theo-reads
-priya-avatar.png  seed: Priya-star
+theo-avatar.png   seed: Theo
+priya-avatar.png  seed: Priya99
