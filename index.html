@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#fff7ea">
-  <title>Story Sprout</title>
+  <meta name="description" content="Story Sprout creates personalized, illustrated reading stories for kids using their name, interests, and reading goals — with built-in comprehension checks parents and teachers can trust.">
+  <meta property="og:title" content="Story Sprout — Personalized reading stories for growing readers">
+  <meta property="og:description" content="Turn a child's interests into an illustrated story that builds real reading skills, with auto-scored comprehension checks and adult-controlled privacy.">
+  <meta property="og:type" content="website">
+  <title>Story Sprout — Personalized reading stories for growing readers</title>
   <style>
     :root { --ink:#21383d; --muted:#607174; --paper:#fff7ea; --card:#fffdf9; --line:#eadbc9; --coral:#df7046; --sage:#dfead7; --sun:#f4c96d; }
     * { box-sizing:border-box; }
@@ -43,47 +47,9 @@
   <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="brand"><span class="sprout"></span>Story Sprout</div>
-      <nav class="nav" aria-label="Story Sprout sections"><button id="createNav" class="active">Create</button><button id="libraryNav">Library</button></nav>
-    </header>
-    <main>
-      <section id="createView">
-        <div class="eyebrow">A STORY MADE JUST FOR THEM</div>
-        <h1>Where will your reader go today?</h1>
-        <p class="lede">Choose a few details, then make a one-of-a-kind illustrated storybook together.</p>
-        <form class="composer" id="storyForm">
-          <div><label for="name">Who is the story about?</label><input id="name" value="Maya" maxlength="32" required></div>
-          <div><label>Choose a story world</label><div class="themes" id="themes"><button class="theme active" type="button" data-theme="Moonlight"><span class="swatch"></span>Moonlight</button><button class="theme" type="button" data-theme="Rainforest"><span class="swatch"></span>Rainforest</button><button class="theme" type="button" data-theme="Ocean"><span class="swatch"></span>Ocean</button><button class="theme" type="button" data-theme="Castle"><span class="swatch"></span>Castle</button></div></div>
-          <div class="wide"><label for="adventure">What happens in the adventure?</label><textarea id="adventure" maxlength="170">finding a lost starlight seed</textarea></div>
-          <button class="create" type="submit"><span>Create my story</span><span>→</span></button><div class="note">Stories stay in this browser until you choose to share them.</div>
-        </form>
-        <h2>Tonight's little spark</h2><div class="shelf" id="featured"></div>
-      </section>
-      <section id="libraryView" class="hidden"><div class="library-heading"><div class="eyebrow">YOUR SHELF</div><h1 id="libraryTitle">Stories for Maya</h1><p class="lede">Little worlds made for one very important reader.</p></div><div class="shelf" id="library"></div></section>
-      <section id="readerView" class="hidden"><div class="reader"><div id="readerCover" class="reader-cover cover"></div><div class="page-number" id="pageNumber"></div><h1 id="readerTitle"></h1><p class="story-text" id="readerText"></p><div class="reader-controls"><button id="back">Back</button><div class="dots" id="dots"></div><button id="next">Next</button></div><div class="reader-tools"><button class="text-action" id="returnToLibrary">Back to library</button><div><button class="text-action" id="printStory">Print story</button><button class="text-action danger" id="deleteStory">Delete</button></div></div></div></section>
-    </main>
-  </div><div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script>
-    const initial={title:'Maya and the Lantern of Little Wishes',name:'Maya',theme:'Moonlight',pages:['One clear night, Maya found a tiny lantern waiting beneath the old garden gate.','Inside was a warm, golden light. It flickered once for every kind thought Maya had carried that day.','Maya held the lantern high. Its gentle glow helped the whole neighborhood find their way home.']};
-    let selectedTheme='Moonlight', current=initial, page=0;
-    let books=loadBooks();
-    const createView=document.querySelector('#createView'), libraryView=document.querySelector('#libraryView'), readerView=document.querySelector('#readerView');
-    const createNav=document.querySelector('#createNav'), libraryNav=document.querySelector('#libraryNav');
-    function loadBooks(){try{const saved=JSON.parse(localStorage.getItem('storySproutBooks')||'null');return Array.isArray(saved)&&saved.length?saved:[initial];}catch{return [initial];}}
-    function escapeHtml(value){const node=document.createElement('div');node.textContent=value;return node.innerHTML;}
-    function cover(book){const color={Moonlight:'#2d526b',Rainforest:'#477e50',Ocean:'#287ea1',Castle:'#a85f42'}[book.theme]||'#2d526b';return `<div class="cover" style="background:${color}"><span class="moon"></span><span class="hill"></span><span class="house"><span class="roof"></span></span></div>`}
-    function show(view){[createView,libraryView,readerView].forEach(item=>item.classList.add('hidden'));view.classList.remove('hidden');createNav.classList.toggle('active',view===createView);libraryNav.classList.toggle('active',view===libraryView);window.scrollTo({top:0,behavior:'smooth'});}
-    function save(){localStorage.setItem('storySproutBooks',JSON.stringify(books));}
-    function notify(message){const toast=document.querySelector('#toast');toast.textContent=message;toast.classList.add('show');window.setTimeout(()=>toast.classList.remove('show'),2200);}
-    function renderBooks(){const card=book=>`<button class="book" data-title="${encodeURIComponent(book.title)}">${cover(book)}<span class="book-copy"><h3>${escapeHtml(book.title)}</h3><p>${escapeHtml(book.theme)} adventure for ${escapeHtml(book.name)}</p><span class="open">Open book →</span></span></button>`;document.querySelector('#featured').innerHTML=card(books[0]);document.querySelector('#library').innerHTML=books.length?books.map(card).join(''):'<div class="library-empty">Your shelf is ready for its first story.</div>';document.querySelector('#libraryTitle').textContent=`Stories for ${books[0]?.name||'you'}`;document.querySelectorAll('.book').forEach(button=>button.addEventListener('click',()=>openBook(books.find(book=>book.title===decodeURIComponent(button.dataset.title)))));}
-    function openBook(book){current=book;page=0;renderReader();show(readerView);}
-    function renderReader(){document.querySelector('#readerCover').outerHTML=`<div id="readerCover" class="reader-cover">${cover(current)}</div>`;document.querySelector('#pageNumber').textContent=`PAGE ${page+1} OF ${current.pages.length}`;document.querySelector('#readerTitle').textContent=page===0?current.title:`Chapter ${page+1}`;document.querySelector('#readerText').textContent=current.pages[page];document.querySelector('#back').disabled=page===0;document.querySelector('#next').disabled=page===current.pages.length-1;document.querySelector('#dots').innerHTML=current.pages.map((_,index)=>`<span class="dot ${index===page?'active':''}"></span>`).join('');}
-    document.querySelector('#themes').addEventListener('click',event=>{const button=event.target.closest('.theme');if(!button)return;selectedTheme=button.dataset.theme;document.querySelectorAll('.theme').forEach(item=>item.classList.toggle('active',item===button));});
-    document.querySelector('#storyForm').addEventListener('submit',event=>{event.preventDefault();const name=document.querySelector('#name').value.trim()||'Your little reader';const adventure=document.querySelector('#adventure').value.trim()||'a brave little adventure';const place=selectedTheme.toLowerCase();const book={title:`${name} and the ${selectedTheme} Secret`,name,theme:selectedTheme,pages:[`On a bright ${place} morning, ${name} packed a small satchel and set out for ${adventure}.`,`Beyond the first winding path, ${name} discovered a hidden clue: being curious was the best kind of compass.`,`With a deep breath and a helpful idea, ${name} turned the clue into a wonderful new beginning.`]};books=[book,...books.filter(item=>item.title!==book.title)];save();renderBooks();openBook(book);});
-    createNav.addEventListener('click',()=>show(createView));libraryNav.addEventListener('click',()=>{renderBooks();show(libraryView)});document.querySelector('#back').addEventListener('click',()=>{if(page){page--;renderReader();}});document.querySelector('#next').addEventListener('click',()=>{if(page<current.pages.length-1){page++;renderReader();}});document.querySelector('#returnToLibrary').addEventListener('click',()=>{renderBooks();show(libraryView)});document.querySelector('#printStory').addEventListener('click',()=>window.print());document.querySelector('#deleteStory').addEventListener('click',()=>{if(!window.confirm(`Delete "${current.title}" from this browser?`))return;books=books.filter(book=>book.title!==current.title);if(!books.length)books=[initial];save();renderBooks();show(libraryView);notify('Story removed from your shelf.');});renderBooks();
-  </script>
+  <noscript><div style="font-family:Arial,sans-serif;padding:40px;max-width:640px;margin:auto;color:#21383d"><h1>Story Sprout</h1><p>Story Sprout requires JavaScript to create and read personalized stories. Please enable JavaScript in your browser to continue.</p></div></noscript>
+  <div class="app"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
   <script src="auth.js"></script>
   <script src="child-mode.js?v=20260914-child-home"></script>
