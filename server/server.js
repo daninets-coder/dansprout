@@ -244,6 +244,7 @@ const aiStoryResponseSchema = z.object({
   })).max(8).default([]),
   words: z.array(z.object({ word: z.string().trim().min(1).max(80), meaning: z.string().trim().min(1).max(300) })).max(12).default([]),
   readingGoal: z.string().trim().max(200).default('Reading practice'),
+  reflectionPrompt: z.string().trim().max(400).default(''),
 });
 
 function tokenFor(account) { return jwt.sign({ sub: account.id, role: account.role }, jwtSecret, { expiresIn: '8h', issuer: 'story-sprout' }); }
@@ -422,7 +423,7 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
     const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code LIMIT 1', [gradeLevel, parsed.data.domain]);
     const curriculumRow = curriculumRes.rows[0] || null;
     const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, theme: parsed.data.theme, customTheme: parsed.data.customTheme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
-    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
+    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, reflectionPrompt: generated.reflectionPrompt || '', meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
     await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     return res.status(201).json({ story });
   } catch (error) {
@@ -598,6 +599,19 @@ app.put('/api/stories/:storyId/preferences', requireAuth, requireChildStoryScope
     const values = { isFavorite: parsed.data.isFavorite ?? previous.is_favorite, bookmarkedPage: parsed.data.bookmarkedPage ?? previous.bookmarked_page, rating: parsed.data.rating === undefined ? previous.rating : parsed.data.rating };
     const result = await pool.query('INSERT INTO story_preferences (story_id, account_id, learner_id, is_favorite, bookmarked_page, rating, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT (story_id, account_id, learner_id) DO UPDATE SET is_favorite = EXCLUDED.is_favorite, bookmarked_page = EXCLUDED.bookmarked_page, rating = EXCLUDED.rating, updated_at = NOW() RETURNING is_favorite AS "isFavorite", bookmarked_page AS "bookmarkedPage", rating', [req.params.storyId, req.auth.sub, learnerId, values.isFavorite, values.bookmarkedPage, values.rating]);
     return res.json({ preference: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.patch('/api/stories/:storyId/reflection', requireAuth, requireChildStoryScope, async (req, res, next) => {
+  try {
+    const parsed = z.object({ response: z.string().trim().max(1000) }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: 'Please write a short reflection.' });
+    const storyRes = await pool.query('SELECT content FROM stories WHERE id = $1 AND deleted_at IS NULL', [req.params.storyId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const content = { ...storyRes.rows[0].content, reflectionResponse: parsed.data.response, reflectionRespondedAt: new Date().toISOString() };
+    await pool.query('UPDATE stories SET content = $1 WHERE id = $2', [content, req.params.storyId]);
+    return res.json({ content });
   } catch (error) {
     return next(error);
   }
@@ -1365,6 +1379,7 @@ function normalizeGeneratedStory(value) {
       meaning: extractTextValue(item?.meaning || item?.definition),
     })) : source.words,
     readingGoal: extractTextValue(source.readingGoal),
+    reflectionPrompt: extractTextValue(source.reflectionPrompt),
   };
 }
 
@@ -1494,20 +1509,21 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
             schema: {
               type: 'object',
               additionalProperties: false,
-              required: ['title', 'pages', 'questions', 'words', 'readingGoal'],
+              required: ['title', 'pages', 'questions', 'words', 'readingGoal', 'reflectionPrompt'],
               properties: {
                 title: { type: 'string' },
                 pages: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
                 questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['prompt', 'type', 'options', 'answer'], properties: { prompt: { type: 'string' }, type: { type: 'string', enum: ['multiple_choice'] }, options: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'string' } }, answer: { type: 'string' } } } },
                 words: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['word', 'meaning'], properties: { word: { type: 'string' }, meaning: { type: 'string' } } } },
                 readingGoal: { type: 'string' },
+                reflectionPrompt: { type: 'string' },
               },
             },
           },
         },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Never use true or false questions.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal, reflectionPrompt. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Never use true or false questions.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -1532,6 +1548,8 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
               middleSchool ? 'Write for a thoughtful middle-school reader: develop a meaningful problem, layered character motivation, perspective, cause and effect, and details that support inference.' : 'Keep it suitable for early elementary or middle-grade reading based on grade',
               middleSchool ? 'Make at least one question require evidence from the story, one question address inference or perspective, and one question address theme, central idea, structure, tone, or author craft when supported by the selected objective.' : 'Keep comprehension questions clear and answerable from the story.',
               middleSchool ? 'Use richer academic vocabulary with context clues, but keep the prose natural, engaging, and appropriate for grades 6-8.' : 'Use grade-appropriate vocabulary with context support.',
+              ['Mystery', 'Dystopian', 'Survival', 'Friendship Drama', 'Identity'].includes(theme) ? 'This genre calls for real tension, suspense, or emotional stakes — that is expected and desired for middle-grade readers. Still avoid graphic violence, gore, self-harm, or content requiring a content warning.' : 'Keep the tone warm and encouraging.',
+              'reflectionPrompt: if middleSchool, write one open-ended, text-dependent critical-thinking question about motivation, perspective, theme, or cause and effect that cannot be answered with a single word. Otherwise return an empty string for reflectionPrompt.',
               'Focus on reading growth, confidence, and one clear learning goal',
               interests ? `Use the reader's interests naturally as positive story inspiration: ${interests}. Do not force every interest into the story.` : 'No specific reader interests were provided; choose a broadly engaging setting.',
               `Sentence guidance: ${gradeProfile.sentenceStyle}`,
@@ -1843,6 +1861,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
         pages: generated.pages,
         questions: generated.questions,
         words: generated.words,
+        reflectionPrompt: generated.reflectionPrompt || '',
         meta: {
           gradeLevel: data.gradeLevel,
           domain: curriculumRow.domain,
