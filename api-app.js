@@ -115,12 +115,25 @@
     Desert: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
     Underwater: asset('images/banner/reno-laithienne-odHhPgEgkWM-unsplash.jpg'),
     Fairytale: asset('images/banner/matheus-viana-uMgMukqE-pg-unsplash.jpg'),
+    Mystery: asset('images/banner/matheus-viana-uMgMukqE-pg-unsplash.jpg'),
+    Dystopian: asset('images/banner/Designer.jpeg'),
+    Survival: asset('images/banner/mana5280-lblkLbfWa-I-unsplash.jpg'),
+    'Friendship Drama': asset('images/banner/annie-spratt-faAef6F6luc-unsplash.jpg'),
+    Identity: asset('images/banner/shelby-murphy-figueroa-gGbS4kHj4Ho-unsplash.jpg'),
   };
   const themeOptions = [
     ['Moonlight', '🌙'], ['Rainforest', '🌿'], ['Ocean', '🌊'], ['Castle', '🏰'], ['Garden', '🌷'],
     ['Sky', '☁️'], ['Space', '🚀'], ['Dinosaurs', '🦕'], ['Arctic', '❄️'], ['Farm', '🐄'],
     ['City', '🏙️'], ['Jungle', '🐒'], ['Desert', '🏜️'], ['Underwater', '🐠'], ['Fairytale', '🧚'],
+    ['Mystery', '🔎'], ['Dystopian', '⚙️'], ['Survival', '🧭'], ['Friendship Drama', '💬'], ['Identity', '🎭'],
   ];
+  const earlyGradeThemeKeys = ['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale'];
+  const middleGradeThemeKeys = ['Mystery', 'Dystopian', 'Survival', 'Friendship Drama', 'Identity', 'Sky', 'Space', 'City', 'Desert'];
+  const buildThemeOptions = (keys, selected) => keys.map(key => {
+    const found = themeOptions.find(([value]) => value === key);
+    const emoji = found ? found[1] : '';
+    return `<option value="${key}"${key === selected ? ' selected' : ''}>${emoji} ${key}</option>`;
+  }).join('') + `<option value="Custom"${selected === 'Custom' ? ' selected' : ''}>✏️ My own world</option>`;
     const readingSparks = [
       'Reading grows imagination one page at a time.',
       'Reading helps us notice new ideas and different points of view.',
@@ -193,7 +206,7 @@
               <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
               <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code identifies the practice area; the sentence above explains the skill in family-friendly language. Curriculum alignment is an instructional aid pending qualified educator review.</p>
             </div>
-            <label class="en-label">Choose a story world</label>
+            <label class="en-label" id="apiThemeLabel">Choose a story world</label>
             <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
             <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
             <label class="en-label">Adventure</label>
@@ -502,8 +515,23 @@
   };
 
   const updateStoryVisual = () => {
-    const theme = $('#apiTheme')?.value || 'Moonlight';
     const gradeLevel = $('#apiGradeLevel')?.value || '2';
+    const middleSchool = ['6', '7', '8'].includes(gradeLevel);
+    const themeSelect = $('#apiTheme');
+    if (themeSelect) {
+      const band = middleSchool ? 'middle' : 'early';
+      if (themeSelect.dataset.band !== band) {
+        const keys = middleSchool ? middleGradeThemeKeys : earlyGradeThemeKeys;
+        const previousValue = themeSelect.value;
+        const nextValue = keys.includes(previousValue) || previousValue === 'Custom' ? previousValue : keys[0];
+        themeSelect.innerHTML = buildThemeOptions(keys, nextValue);
+        themeSelect.dataset.band = band;
+      }
+    }
+    const theme = themeSelect?.value || 'Moonlight';
+    $('#apiCustomTheme')?.classList.toggle('hidden', theme !== 'Custom');
+    const themeLabel = $('#apiThemeLabel');
+    if (themeLabel) themeLabel.textContent = middleSchool ? 'Choose a genre or world' : 'Choose a story world';
     const gradeBandNote = $('#apiGradeBandNote');
     const selectedStandard = $('#apiGoal')?.value || '';
     const storyLength = $('#apiStoryLength');
@@ -514,14 +542,16 @@
     if (themeImage) themeImage.src = themeBannerMap[theme] || themeBannerMap.Moonlight;
     if (gradeBadge) gradeBadge.src = gradeBadgeMap[gradeLevel] || gradeBadgeMap['2'];
     if (domainIcon) domainIcon.src = domainIconMap[domain] || domainIconMap.comprehension;
-    if (gradeBandNote) gradeBandNote.textContent = ['6', '7', '8'].includes(gradeLevel)
+    if (gradeBandNote) gradeBandNote.textContent = middleSchool
       ? 'Middle school mode: longer reading, richer vocabulary, evidence-based questions, perspective, and deeper reasoning.'
       : 'The story language and questions adjust to the selected reading level.';
     if (storyLength) {
       const middleLabels = { quick: 'Focused reading', standard: 'Full story', long: 'Deep dive' };
       const youngerLabels = { quick: 'Quick read', standard: 'Standard story', long: 'Longer adventure' };
-      [...storyLength.options].forEach(option => { option.textContent = ['6', '7', '8'].includes(gradeLevel) ? middleLabels[option.value] : youngerLabels[option.value]; });
+      [...storyLength.options].forEach(option => { option.textContent = middleSchool ? middleLabels[option.value] : youngerLabels[option.value]; });
     }
+    const promptInput = $('#apiPrompt');
+    if (promptInput) promptInput.placeholder = middleSchool ? 'A secret worth keeping, a choice with real consequences...' : 'Finding a map beneath a moonlit bench';
   };
 
   async function loadCurriculumOptions(gradeLevel) {

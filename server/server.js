@@ -406,7 +406,7 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
   try {
     const parsed = z.object({
       prompt: z.string().trim().min(3).max(300),
-      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Garden'),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Mystery', 'Dystopian', 'Survival', 'Friendship Drama', 'Identity', 'Custom']).default('Garden'),
       customTheme: z.string().trim().max(80).default(''),
       domain: z.enum(['comprehension', 'vocabulary', 'fluency', 'phonics', 'oral_language', 'writing_response', 'social_emotional_reading']).default('comprehension'),
       storyLength: z.enum(['quick', 'standard', 'long']).default('quick'),
@@ -1789,7 +1789,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
       standardCode: z.string().trim().min(1).max(40),
-      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Custom']).default('Moonlight'),
+      theme: z.enum(['Moonlight', 'Rainforest', 'Ocean', 'Castle', 'Garden', 'Sky', 'Space', 'Dinosaurs', 'Arctic', 'Farm', 'City', 'Jungle', 'Desert', 'Underwater', 'Fairytale', 'Mystery', 'Dystopian', 'Survival', 'Friendship Drama', 'Identity', 'Custom']).default('Moonlight'),
       customTheme: z.string().trim().max(80).default(''),
       storyLength: z.enum(['quick', 'standard', 'long']).default('standard'),
       language: storyLanguageSchema.default('English'),
