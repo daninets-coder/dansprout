@@ -210,7 +210,6 @@
           </section>
           <aside class="en-card trial privacy-card">
             <section id="apiLastActivity" class="last-activity-card hidden"></section>
-            <section id="apiNextActions" class="next-actions-card" style="margin-bottom:18px"></section>
             <span class="en-badge" id="apiPlanBadge">PLAN</span>
             <h2 style="margin-top:14px">Private by design.</h2>
             <p>Only the signed-in parent can access learner profiles and stories.</p>
@@ -631,7 +630,6 @@
     const weeklySelect = $('#apiWeeklyPageLearner');
     if (weeklySelect && weeklySelect.value !== val) weeklySelect.value = val;
     renderLastActivity(window.__storySproutProgressLearners || [], val);
-    renderNextActions(window.__storySproutProgressLearners || [], val);
     renderWeeklyReturnActions(window.__storySproutProgressLearners || [], val);
   });
   $('#apiWeeklyPageLearner')?.addEventListener('change', event => {
@@ -639,7 +637,6 @@
     const homeSelect = $('#apiLearner');
     if (homeSelect && homeSelect.value !== val) homeSelect.value = val;
     renderLastActivity(window.__storySproutProgressLearners || [], val);
-    renderNextActions(window.__storySproutProgressLearners || [], val);
     renderWeeklyReturnActions(window.__storySproutProgressLearners || [], val);
   });
   $('#apiGoToWeeklyPage')?.addEventListener('click', () => {
@@ -1035,7 +1032,6 @@
       : (progressData.learners || []);
     window.__storySproutProgressLearners = visibleProgressLearners;
     renderLastActivity(visibleProgressLearners, $('#apiLearner')?.value);
-    renderNextActions(visibleProgressLearners, $('#apiLearner')?.value);
     renderWeeklyReturnActions(visibleProgressLearners, $('#apiLearner')?.value);
     $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div>${l.child_username ? `<div class="student-meta">Child login: ${esc(l.child_username)}</div>` : ''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="apiChildLogin en-outline" data-id="${l.id}">${l.child_username ? 'Reset child login' : 'Set child login'}</button><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
     const masteredAssessments = visibleProgressLearners.reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
@@ -1088,22 +1084,6 @@
     container.querySelector('.last-activity-open').onclick = () => {
       const story = stories.find(savedStory => savedStory.id === activity.storyId);
       if (story) openServerStory(story);
-    };
-  }
-
-  function renderNextActions(progressLearners, learnerId) {
-    const container = $('#apiNextActions');
-    if (!container) return;
-    const learner = progressLearners.find(item => item.id === learnerId);
-    const activity = learner?.last_activity;
-    const selectedStory = activity && stories.find(story => story.id === activity.storyId);
-    const action = !learner ? { title: 'Start with a learner', text: 'Add a reader so Story Sprout can shape the experience around them.', step: 'learner', label: 'Add learner' } : !activity ? { title: 'Make the first story', text: 'Choose an interest, a reading goal, and an adventure.', step: 'story', label: 'Create story' } : { title: 'Create a fresh adventure', text: `Build another story for ${learner.first_name} with a new goal or story world.`, step: 'story', label: 'Create another story' };
-    container.innerHTML = `<div class="next-actions-eyebrow">NEXT READING STEP</div><h3>${esc(action.title)}</h3><p>${esc(action.text)}</p><button type="button" class="en-outline" id="apiNextActionButton">${action.label}</button>`;
-    container.querySelector('#apiNextActionButton').onclick = () => {
-      if (action.story) return openServerStory(action.story);
-      if (action.step === 'learner') return show('learners');
-      show('home');
-      $('#apiPrompt')?.focus();
     };
   }
 
