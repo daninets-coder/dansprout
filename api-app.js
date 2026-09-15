@@ -231,6 +231,11 @@
           <div id="apiStoryList" class="story-list"></div>
         </section>
 
+        <section class="en-card story-shelf-card" style="margin-top:20px">
+          <div class="story-shelf-heading"><div><div class="en-eyebrow">YOUR STORY SHELF</div><h2>Keep the stories that matter.</h2><p>Favorite a story, leave a rating, or pick up where you stopped reading.</p></div><span class="story-shelf-mark">✦</span></div>
+          <div id="apiStoryShelf" class="story-shelf-grid"></div>
+        </section>
+
         <section class="en-card" style="margin-top:20px">
           <div class="en-eyebrow">FOR FAMILIES</div>
           <h2>How Story Sprout supports reading</h2>
@@ -589,6 +594,16 @@
     });
   }
 
+  function renderStoryShelf(shelfData) {
+    const container = $('#apiStoryShelf');
+    if (!container) return;
+    const favorites = shelfData?.favorites || [];
+    const topRated = shelfData?.topRated || [];
+    const card = story => `<button type="button" class="story-shelf-story" data-shelf-story-id="${esc(story.id)}"><span class="story-shelf-story-title">${esc(story.title)}</span><span class="story-shelf-story-meta">For ${esc(story.learner_name || 'your reader')}</span><span class="story-shelf-rating">${story.average_rating ? `★ ${Number(story.average_rating).toFixed(1)} · ${story.rating_count} ratings` : 'Not rated yet'}</span></button>`;
+    container.innerHTML = `<div class="story-shelf-column"><div class="story-shelf-label">★ Favorites</div>${favorites.length ? favorites.map(card).join('') : '<p class="story-shelf-empty">Favorite stories will appear here.</p>'}</div><div class="story-shelf-column"><div class="story-shelf-label">✦ Top rated</div>${topRated.length ? topRated.map(card).join('') : '<p class="story-shelf-empty">A story needs two ratings before it appears here.</p>'}</div>`;
+    container.querySelectorAll('[data-shelf-story-id]').forEach(button => button.onclick = () => { const story = stories.find(item => item.id === button.dataset.shelfStoryId); if (story) openServerStory(story); });
+  }
+
   $('#apiStorySearch').addEventListener('input', renderStoryList);
   $('#apiLearner').addEventListener('change', event => {
     const val = event.target.value;
@@ -649,6 +664,25 @@
     inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eef5ec;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#597076">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
+    const shelfControls = document.createElement('div');
+    shelfControls.className = 'story-shelf-controls';
+    shelfControls.innerHTML = `<button type="button" id="apiFavoriteStory" class="en-outline">${story.is_favorite ? '★ Favorited' : '☆ Favorite'}</button><label>Rating <select id="apiStoryRating" class="en-select"><option value="">Not rated</option><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option><option value="4">★★★★</option><option value="5">★★★★★</option></select></label><span id="apiBookmarkStatus"></span>`;
+    inner.querySelector('.reader-toolbar').before(shelfControls);
+    const ratingSelect = shelfControls.querySelector('#apiStoryRating');
+    if (story.rating) ratingSelect.value = String(story.rating);
+    const saveShelfPreference = async payload => {
+      const result = await api(`/api/stories/${encodeURIComponent(story.id)}/preferences`, { method: 'PUT', body: JSON.stringify(payload) });
+      Object.assign(story, { is_favorite: result.preference.isFavorite, rating: result.preference.rating, bookmarked_page: result.preference.bookmarkedPage });
+      return result.preference;
+    };
+    shelfControls.querySelector('#apiFavoriteStory').onclick = async () => {
+      try { const preference = await saveShelfPreference({ isFavorite: !story.is_favorite }); shelfControls.querySelector('#apiFavoriteStory').textContent = preference.isFavorite ? '★ Favorited' : '☆ Favorite'; await refresh(); notify(preference.isFavorite ? 'Added to favorites.' : 'Removed from favorites.'); } catch (error) { notify(error.message); }
+    };
+    ratingSelect.onchange = async () => {
+      try { await saveShelfPreference({ rating: ratingSelect.value ? Number(ratingSelect.value) : null }); await refresh(); notify('Story rating saved.'); } catch (error) { notify(error.message); }
+    };
+    const bookmarkStatus = shelfControls.querySelector('#apiBookmarkStatus');
+    bookmarkStatus.textContent = story.bookmarked_page ? `Saved at page ${Number(story.bookmarked_page) + 1}` : 'Bookmark updates as you read';
     const createdTime = formatStoryTime(story.created_at);
     if (createdTime) {
       const metadataColumn = inner.querySelector('.story-meta-footer > div');
@@ -791,6 +825,7 @@
     }
     const renderPage = () => {
       pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count" aria-live="polite">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" ${idx === pages.length - 1 ? 'disabled' : ''}>Next</button></div></article>`;
+      saveShelfPreference({ bookmarkedPage: idx }).then(() => { bookmarkStatus.textContent = `Saved at page ${idx + 1}`; }).catch(() => {});
       inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { idx -= 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
       inner.querySelector('#nextPage').onclick = () => { if (idx < pages.length - 1) { idx += 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
       bindStoryWords();
@@ -932,7 +967,7 @@
   }
 
   async function refresh() {
-    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData] = await Promise.all([
+    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData] = await Promise.all([
       api('/api/me'),
       api('/api/learners'),
       api('/api/stories'),
@@ -941,11 +976,13 @@
       api('/api/subscription/offer'),
       api('/api/reminders/preferences'),
       api('/api/progress'),
+      api('/api/story-shelf').catch(() => ({ favorites: [], topRated: [] })),
     ]);
 
     me = meData.account;
     learners = learnerData.learners || [];
     stories = storyData.stories || [];
+    renderStoryShelf(shelfData);
     const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
     const score = scoreData.scorecard;
     const progressNav = $('#apiProgressNav');

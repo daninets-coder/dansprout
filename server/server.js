@@ -553,7 +553,45 @@ app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConf
   }
 });
 app.delete('/api/learners/:learnerId', requireAuth, requireParentConfirmation, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
-app.get('/api/stories', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name FROM stories s INNER JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
+app.get('/api/stories', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name, COALESCE(sp.is_favorite, FALSE) AS is_favorite, COALESCE(sp.bookmarked_page, 0) AS bookmarked_page, sp.rating FROM stories s INNER JOIN learners l ON l.id = s.learner_id LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1 AND sp.learner_id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
+app.get('/api/story-shelf', requireAuth, async (req, res, next) => {
+  try {
+    const childScope = req.auth.childMode === true ? ' AND s.learner_id = $2' : '';
+    const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub];
+    const result = await pool.query(`
+      SELECT s.id, s.title, s.theme, s.learner_id, l.first_name AS learner_name,
+             COALESCE(AVG(sp.rating) FILTER (WHERE sp.rating IS NOT NULL), 0)::numeric(3,2) AS average_rating,
+             COUNT(sp.rating)::int AS rating_count,
+             BOOL_OR(sp.is_favorite) AS is_favorite,
+             MAX(sp.bookmarked_page)::int AS bookmarked_page
+      FROM stories s JOIN learners l ON l.id = s.learner_id
+      LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1
+      WHERE l.account_id = $1 AND s.deleted_at IS NULL${childScope}
+      GROUP BY s.id, l.first_name
+      ORDER BY s.created_at DESC
+    `, params);
+    const topRated = result.rows.filter(row => Number(row.rating_count) >= 2).sort((a, b) => Number(b.average_rating) - Number(a.average_rating) || Number(b.rating_count) - Number(a.rating_count)).slice(0, 3);
+    return res.json({ favorites: result.rows.filter(row => row.is_favorite), topRated });
+  } catch (error) {
+    return next(error);
+  }
+});
+app.put('/api/stories/:storyId/preferences', requireAuth, requireChildStoryScope, async (req, res, next) => {
+  try {
+    const parsed = z.object({ isFavorite: z.boolean().optional(), bookmarkedPage: z.number().int().min(0).optional(), rating: z.number().int().min(1).max(5).nullable().optional() }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: 'Choose a valid favorite, bookmark, or rating.' });
+    const storyRes = await pool.query('SELECT learner_id FROM stories WHERE id = $1 AND deleted_at IS NULL', [req.params.storyId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const learnerId = storyRes.rows[0].learner_id;
+    const current = await pool.query('SELECT is_favorite, bookmarked_page, rating FROM story_preferences WHERE story_id = $1 AND account_id = $2 AND learner_id = $3', [req.params.storyId, req.auth.sub, learnerId]);
+    const previous = current.rows[0] || { is_favorite: false, bookmarked_page: 0, rating: null };
+    const values = { isFavorite: parsed.data.isFavorite ?? previous.is_favorite, bookmarkedPage: parsed.data.bookmarkedPage ?? previous.bookmarked_page, rating: parsed.data.rating === undefined ? previous.rating : parsed.data.rating };
+    const result = await pool.query('INSERT INTO story_preferences (story_id, account_id, learner_id, is_favorite, bookmarked_page, rating, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT (story_id, account_id, learner_id) DO UPDATE SET is_favorite = EXCLUDED.is_favorite, bookmarked_page = EXCLUDED.bookmarked_page, rating = EXCLUDED.rating, updated_at = NOW() RETURNING is_favorite AS "isFavorite", bookmarked_page AS "bookmarkedPage", rating', [req.params.storyId, req.auth.sub, learnerId, values.isFavorite, values.bookmarkedPage, values.rating]);
+    return res.json({ preference: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+});
 app.delete('/api/stories/:storyId', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const scope = req.auth.childMode === true ? ' AND s.learner_id = $3' : '';
