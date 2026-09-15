@@ -556,7 +556,7 @@ app.delete('/api/learners/:learnerId', requireAuth, requireParentConfirmation, a
 app.get('/api/stories', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name, COALESCE(sp.is_favorite, FALSE) AS is_favorite, COALESCE(sp.bookmarked_page, 0) AS bookmarked_page, sp.rating FROM stories s INNER JOIN learners l ON l.id = s.learner_id LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1 AND sp.learner_id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
 app.get('/api/stories/deleted', requireAuth, requireAdultAccount, async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT s.id, s.title, s.deleted_at, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NOT NULL AND s.deleted_at >= NOW() - INTERVAL \'30 days\' ORDER BY s.deleted_at DESC', [req.auth.sub]);
+    const { rows } = await pool.query('SELECT s.id, s.title, s.deleted_at, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NOT NULL ORDER BY s.deleted_at DESC', [req.auth.sub]);
     return res.json({ stories: rows });
   } catch (error) { return next(error); }
 });

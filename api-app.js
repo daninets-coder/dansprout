@@ -232,7 +232,7 @@
         </section>
 
         <section id="apiDeletedStoriesCard" class="en-card deleted-stories-card" style="margin-top:20px">
-          <div class="deleted-stories-heading"><div><div class="en-eyebrow">RECOVERY</div><h2>Recently deleted</h2><p>Restore a story within 30 days, or permanently remove it.</p></div><span class="deleted-stories-mark">↺</span></div>
+          <div class="deleted-stories-heading"><div><div class="en-eyebrow">RECOVERY</div><h2>Recently deleted</h2><p>Restore a retained story, or permanently remove it.</p></div><span class="deleted-stories-mark">↺</span></div>
           <div id="apiDeletedStories" class="deleted-stories-list"></div>
         </section>
 
