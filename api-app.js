@@ -231,6 +231,11 @@
           <div id="apiStoryList" class="story-list"></div>
         </section>
 
+        <section id="apiDeletedStoriesCard" class="en-card deleted-stories-card" style="margin-top:20px">
+          <div class="deleted-stories-heading"><div><div class="en-eyebrow">RECOVERY</div><h2>Recently deleted</h2><p>Restore a story within 30 days, or permanently remove it.</p></div><span class="deleted-stories-mark">↺</span></div>
+          <div id="apiDeletedStories" class="deleted-stories-list"></div>
+        </section>
+
         <section class="en-card story-shelf-card" style="margin-top:20px">
           <div class="story-shelf-heading"><div><div class="en-eyebrow">YOUR STORY SHELF</div><h2>Keep the stories that matter.</h2><p>Favorite a story, leave a rating, or pick up where you stopped reading.</p></div><span class="story-shelf-mark">✦</span></div>
           <div id="apiStoryShelf" class="story-shelf-grid"></div>
@@ -604,6 +609,22 @@
     container.querySelectorAll('[data-shelf-story-id]').forEach(button => button.onclick = () => { const story = stories.find(item => item.id === button.dataset.shelfStoryId); if (story) openServerStory(story); });
   }
 
+  function renderDeletedStories(deletedStories) {
+    const card = $('#apiDeletedStoriesCard');
+    const container = $('#apiDeletedStories');
+    if (!card || !container) return;
+    if (isChildSession) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    container.innerHTML = deletedStories.length ? deletedStories.map(story => `<div class="deleted-story-row"><div><strong>${esc(story.title)}</strong><span>For ${esc(story.learner_name || 'your reader')} · Deleted ${esc(formatStoryDate(story.deleted_at))}</span></div><div class="deleted-story-actions"><button type="button" class="en-outline restore-story" data-id="${esc(story.id)}">Restore</button><button type="button" class="deleted-permanent permanent-delete-story" data-id="${esc(story.id)}">Delete forever</button></div></div>`).join('') : '<p class="deleted-stories-empty">Deleted stories will appear here for recovery.</p>';
+    container.querySelectorAll('.restore-story').forEach(button => button.onclick = async () => {
+      try { await api(`/api/stories/${encodeURIComponent(button.dataset.id)}/restore`, { method: 'PATCH' }); await refresh(); notify('Story restored to Saved stories.'); } catch (error) { notify(error.message); }
+    });
+    container.querySelectorAll('.permanent-delete-story').forEach(button => button.onclick = async () => {
+      if (!window.confirm('Permanently delete this story? This cannot be undone.')) return;
+      try { await api(`/api/stories/${encodeURIComponent(button.dataset.id)}/permanent`, { method: 'DELETE' }); await refresh(); notify('Story permanently deleted.'); } catch (error) { notify(error.message); }
+    });
+  }
+
   $('#apiStorySearch').addEventListener('input', renderStoryList);
   $('#apiLearner').addEventListener('change', event => {
     const val = event.target.value;
@@ -967,7 +988,7 @@
   }
 
   async function refresh() {
-    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData] = await Promise.all([
+    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData, deletedStoryData] = await Promise.all([
       api('/api/me'),
       api('/api/learners'),
       api('/api/stories'),
@@ -977,12 +998,14 @@
       api('/api/reminders/preferences'),
       api('/api/progress'),
       api('/api/story-shelf').catch(() => ({ favorites: [], topRated: [] })),
+      api('/api/stories/deleted').catch(() => ({ stories: [] })),
     ]);
 
     me = meData.account;
     learners = learnerData.learners || [];
     stories = storyData.stories || [];
     renderStoryShelf(shelfData);
+    renderDeletedStories(deletedStoryData.stories || []);
     const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
     const score = scoreData.scorecard;
     const progressNav = $('#apiProgressNav');

@@ -554,6 +554,12 @@ app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConf
 });
 app.delete('/api/learners/:learnerId', requireAuth, requireParentConfirmation, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
 app.get('/api/stories', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name, COALESCE(sp.is_favorite, FALSE) AS is_favorite, COALESCE(sp.bookmarked_page, 0) AS bookmarked_page, sp.rating FROM stories s INNER JOIN learners l ON l.id = s.learner_id LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1 AND sp.learner_id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
+app.get('/api/stories/deleted', requireAuth, requireAdultAccount, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT s.id, s.title, s.deleted_at, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NOT NULL AND s.deleted_at >= NOW() - INTERVAL \'30 days\' ORDER BY s.deleted_at DESC', [req.auth.sub]);
+    return res.json({ stories: rows });
+  } catch (error) { return next(error); }
+});
 app.get('/api/story-shelf', requireAuth, async (req, res, next) => {
   try {
     const childScope = req.auth.childMode === true ? ' AND s.learner_id = $2' : '';
@@ -602,6 +608,20 @@ app.delete('/api/stories/:storyId', requireAuth, requireParentConfirmation, asyn
   } catch (error) {
     return next(error);
   }
+});
+app.patch('/api/stories/:storyId/restore', requireAuth, requireAdultAccount, requireParentConfirmation, async (req, res, next) => {
+  try {
+    const result = await pool.query('UPDATE stories s SET deleted_at = NULL FROM learners l WHERE s.id = $1 AND s.learner_id = l.id AND l.account_id = $2 AND s.deleted_at IS NOT NULL RETURNING s.id', [req.params.storyId, req.auth.sub]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Deleted story not found.' });
+    return res.status(204).end();
+  } catch (error) { return next(error); }
+});
+app.delete('/api/stories/:storyId/permanent', requireAuth, requireAdultAccount, requireParentConfirmation, async (req, res, next) => {
+  try {
+    const result = await pool.query('DELETE FROM stories s USING learners l WHERE s.id = $1 AND s.learner_id = l.id AND l.account_id = $2 AND s.deleted_at IS NOT NULL', [req.params.storyId, req.auth.sub]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Deleted story not found.' });
+    return res.status(204).end();
+  } catch (error) { return next(error); }
 });
 app.post('/api/stories', requireAuth, validate(storySchema, 'body'), async (req, res) => {
   return res.status(410).json({
@@ -958,7 +978,7 @@ app.get('/api/stories/:storyId.pdf', requireAuth, async (req, res, next) => {
              l.first_name AS learner_name, l.age_band
       FROM stories s
       JOIN learners l ON l.id = s.learner_id
-      WHERE s.id = $1 AND l.account_id = $2
+      WHERE s.id = $1 AND l.account_id = $2 AND s.deleted_at IS NULL
     `, [req.params.storyId, req.auth.sub]);
     if (!result.rowCount) return res.status(404).json({ error: 'Story not found.' });
 
