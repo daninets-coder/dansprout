@@ -260,6 +260,8 @@ async function requireChildLearnerScope(req, res, next) {
   return next();
 }
 async function requireChildStoryScope(req, res, next) {
+  if (req.params.storyId === 'deleted') return next();
+  if (typeof req.params.storyId === 'string' && req.params.storyId.endsWith('.pdf')) req.params.storyId = req.params.storyId.slice(0, -4);
   try {
     const childScope = req.auth?.childMode === true ? ' AND s.learner_id = $3' : '';
     const params = req.auth?.childMode === true ? [req.params.storyId, req.auth.sub, req.auth.learnerId] : [req.params.storyId, req.auth.sub];
