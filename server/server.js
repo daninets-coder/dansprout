@@ -261,7 +261,7 @@ async function requireChildLearnerScope(req, res, next) {
   return next();
 }
 async function requireChildStoryScope(req, res, next) {
-  if (req.params.storyId === 'deleted') return next();
+  if (req.params.storyId === 'deleted' || req.params.storyId === 'generate') return next();
   // restore/permanent act on already soft-deleted stories, so they must not be blocked by the "not deleted" scope check below
   if (req.path.endsWith('/restore') || req.path.endsWith('/permanent')) return next();
   if (typeof req.params.storyId === 'string' && req.params.storyId.endsWith('.pdf')) req.params.storyId = req.params.storyId.slice(0, -4);
@@ -1581,6 +1581,7 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
       questions: Array.isArray(parsed.questions) && parsed.questions.length ? parsed.questions.map(normalizeQuestion).filter(question => question?.prompt && question.options?.length >= 2 && question.answer) : [],
       words,
       readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
+      reflectionPrompt: cleanText(parsed.reflectionPrompt) || '',
       curriculumObjective: curriculumRow?.objective || null,
       curriculumId: curriculumRow?.id || null,
       createdBy: 'openai',

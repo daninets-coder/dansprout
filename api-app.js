@@ -157,6 +157,8 @@
   let me = null;
   let curriculumOptions = [];
   let editingLearnerId = null;
+  let renderLastActivity;
+  let renderWeeklyReturnActions;
 
   app.className = 'enterprise';
   app.innerHTML = `
@@ -1127,7 +1129,7 @@
     renderOnboarding(subscription);
 
 
-  function renderLastActivity(progressLearners, learnerId) {
+  renderLastActivity = function (progressLearners, learnerId) {
     const container = $('#apiLastActivity');
     if (!container) return;
     const item = progressLearners.find(learner => learner.id === learnerId);
@@ -1149,7 +1151,7 @@
     };
   }
 
-  function renderWeeklyReturnActions(progressLearners, learnerId) {
+  renderWeeklyReturnActions = function (progressLearners, learnerId) {
     const homeContainer = $('#apiWeeklyReturnActions');
     const pageContainer = $('#apiWeeklyPageContent');
     if (!homeContainer && !pageContainer) return;
