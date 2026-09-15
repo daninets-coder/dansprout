@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS stories (
     content JSONB NOT NULL,
     completed_at TIMESTAMPTZ,
     created_by TEXT NOT NULL DEFAULT 'local_app',
+        deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
