@@ -261,6 +261,8 @@ async function requireChildLearnerScope(req, res, next) {
 }
 async function requireChildStoryScope(req, res, next) {
   if (req.params.storyId === 'deleted') return next();
+  // restore/permanent act on already soft-deleted stories, so they must not be blocked by the "not deleted" scope check below
+  if (req.path.endsWith('/restore') || req.path.endsWith('/permanent')) return next();
   if (typeof req.params.storyId === 'string' && req.params.storyId.endsWith('.pdf')) req.params.storyId = req.params.storyId.slice(0, -4);
   try {
     const childScope = req.auth?.childMode === true ? ' AND s.learner_id = $3' : '';
@@ -1047,8 +1049,14 @@ app.get('/api/stories/:storyId.pdf', requireAuth, async (req, res, next) => {
       doc.moveDown(0.55);
     });
     doc.moveDown(1.3);
-    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('STORY CHECK NOTE', { characterSpacing: 1.1 });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('Any score connected to this story measures understanding of this story\'s questions. It is practice feedback, not a complete reading assessment or proof of overall mastery.', { width: 470 });
+    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('PARENT REVIEW REQUIRED', { characterSpacing: 1.1 });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('This story was generated with AI for reading practice and entertainment. A parent, guardian, or qualified educator should review it before sharing it with a child.', { width: 470 });
+    doc.moveDown(0.7);
+    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('PRACTICE FEEDBACK', { characterSpacing: 1.1 });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('Any score connected to this story measures understanding of this story\'s questions only. It is not a complete reading assessment, diagnosis, proof of mastery, or guarantee of educational outcomes.', { width: 470 });
+    doc.moveDown(0.7);
+    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('KEEP THIS STORY PRIVATE', { characterSpacing: 1.1 });
+    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('This PDF may contain personalized learner information. Keep it secure, do not share it publicly, and delete it when it is no longer needed. Story Sprout is not a substitute for a teacher, school curriculum, or professional advice.', { width: 470 });
     doc.moveDown(1.2);
     doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(10).text('Story Sprout  •  dansprout.com', { align: 'center' });
     doc.end();
