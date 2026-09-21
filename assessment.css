@@ -126,6 +126,44 @@
   background: linear-gradient(135deg, #fff8e8, #edf5e9);
 }
 
+.home-hero {
+  margin-bottom: 18px;
+  padding: 22px 22px 20px;
+  border: 1px solid #d8c7ad;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(219, 111, 71, .11), transparent 40%),
+    linear-gradient(135deg, #fffdf9 0%, #f3f8ef 100%);
+  box-shadow: 0 10px 24px rgba(33, 70, 60, .05);
+}
+
+.home-hero .en-title {
+  margin-bottom: 10px;
+  max-width: 14ch;
+}
+
+.home-hero .en-lede {
+  max-width: 68ch;
+}
+
+.hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.hero-pills span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eef6ec;
+  border: 1px solid #cce0c9;
+  color: #235d3d;
+  font: 700 12px Arial, sans-serif;
+}
+
 .story-window {
   padding: 18px;
   border: 1px solid #e6d4bb;
@@ -232,6 +270,15 @@
 }
 
 @media(max-width:800px) {
+  .home-hero {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .home-hero .en-title {
+    max-width: none;
+  }
+
   .story-window {
     padding: 14px;
     border-radius: 14px;

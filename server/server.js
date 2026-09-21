@@ -165,7 +165,7 @@ async function ensureBaseSchema() {
 
 const priceConfig = {
   individual_1000: { cents: 1000, trialDays: 7, lookupEnv: 'STRIPE_PRICE_INDIVIDUAL_1000' },
-  family_1500: { cents: 1500, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_1500' },
+  family_1500: { cents: 1499, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_1500' },
   additional_learner_200: { cents: 200, trialDays: 0, lookupEnv: 'STRIPE_PRICE_ADDITIONAL_LEARNER_200' },
   classroom_2900: { cents: 2900, trialDays: 7, lookupEnv: 'STRIPE_PRICE_CLASSROOM_2900' },
 };
@@ -889,11 +889,11 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     const basePriceId = process.env[baseConfig.lookupEnv];
     if (!basePriceId) return res.status(400).json({ error: `Missing ${baseConfig.lookupEnv} in environment.` });
     const lineItems = [{ price: basePriceId, quantity: 1 }];
-    if (plan === 'family' && learnerCount > 2) {
+    if (plan === 'family' && learnerCount > 3) {
       const additionalConfig = priceConfig.additional_learner_200;
       const additionalPriceId = process.env[additionalConfig.lookupEnv];
       if (!additionalPriceId) return res.status(400).json({ error: `Missing ${additionalConfig.lookupEnv} in environment.` });
-      lineItems.push({ price: additionalPriceId, quantity: learnerCount - 2 });
+      lineItems.push({ price: additionalPriceId, quantity: learnerCount - 3 });
     }
 
     const session = await stripe.checkout.sessions.create({

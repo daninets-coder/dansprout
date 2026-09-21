@@ -183,9 +183,16 @@
     </header>
     <main class="en-main">
       <section id="apiHomeView">
-        <div class="en-eyebrow">SECURE FAMILY WORKSPACE</div>
-        <h1 class="en-title">Welcome, ${esc(account.displayName || 'Reader')}.</h1>
-        <p class="en-lede">Story Sprout helps parents and children create personalized stories that build reading skills, confidence, and a love of books.</p>
+        <div class="home-hero">
+          <div class="en-eyebrow">PRIVATE READING STUDIO</div>
+          <h1 class="en-title">Create stories kids want to finish.</h1>
+          <p class="en-lede">Story Sprout helps parents and children make personalized stories, read them together, and get a clear next step after each session.</p>
+          <div class="hero-pills">
+            <span>Private family stories</span>
+            <span>Story-specific evidence</span>
+            <span>One clear next step</span>
+          </div>
+        </div>
         <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Parents should review each story before sharing it with a child.</p>
         <section class="en-card" style="margin-top:18px;border:1px solid #d8c7ad;background:linear-gradient(135deg,#fff8ea 0%,#f2f8ef 100%);box-shadow:0 8px 18px rgba(33,70,60,.04)">
           <div class="en-eyebrow">WHY FAMILIES STAY</div>
@@ -412,16 +419,16 @@
 
       <section id="apiBillingView" class="hidden">
         <div class="en-eyebrow">PLANS AND BILLING</div>
-        <h1 class="en-title">Choose the right shelf size.</h1>
+        <h1 class="en-title">Choose the plan that fits your family.</h1>
         <p class="en-lede">Choose a plan for the people who will use it every week. Story Sprout gives families private story creation, reading evidence, and a simple next step after each session.</p>
-        <p style="margin:12px 0 20px;color:#597076;font:13px/1.45 Arial,sans-serif">Canceling stops future renewal but does not delete learner profiles, stories, or reading progress. Cancellation does not automatically issue a prorated refund for the current billing period. Billing errors, duplicate charges, accidental renewals, or service problems can be reviewed through Support. <button type="button" class="en-outline" id="apiBillingPrivacy" style="margin-left:6px;padding:6px 9px">Manage Privacy & data</button></p>
+        <p style="margin:12px 0 20px;color:#597076;font:13px/1.45 Arial,sans-serif">Canceling stops future renewal but does not delete learner profiles, stories, or reading progress. Billing questions, duplicate charges, accidental renewals, and refunds can go through Support. <button type="button" class="en-outline" id="apiBillingPrivacy" style="margin-left:6px;padding:6px 9px">Manage Privacy & data</button></p>
         <div class="plan-grid">
           <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><p>One learner with limited monthly story creation.</p><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
           <article class="plan"><h3>Individual</h3><div class="plan-price">$10 <small>/ month</small></div><p>One learner with generous story creation and reading tools.</p><button class="en-outline apiPlan" data-plan="individual">Choose Individual demo</button><button class="en-outline apiCheckout" data-plan="individual" style="margin-top:8px">Start paid checkout</button></article>
-          <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$15</span> <small>/ month</small></div><p>Up to two learners. Add learners for $2/month each.</p><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
-          <article class="plan"><h3>Classroom</h3><div class="plan-price">$29 <small>/ month</small></div><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
+          <article class="plan selected"><h3>Family</h3><div class="plan-price"><span id="apiFamilyPrice">$14.99</span> <small>/ month</small></div><p>Up to three learners. Add learners for $2/month each.</p><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button></article>
+          <article class="plan"><h3>Classroom</h3><div class="plan-price">$29 <small>/ month</small></div><p>Best for a teacher-led pilot with classroom progress tools.</p><button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button><button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Start paid checkout</button></article>
         </div>
-        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p><p style="color:#597076;font:13px/1.45 Arial,sans-serif">Refund policy draft: cancellation stops future renewal. It does not automatically refund the current billing period. Contact Support for duplicate charges, billing errors, accidental renewals, or service problems. Applicable law always applies.</p><div id="apiCancelPanel" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2"><h3 style="margin:0 0 7px;color:#8f352b">Before you cancel</h3><p style="margin:0;color:#597076;font:14px/1.5 Arial,sans-serif">Your learner profiles, stories, and progress will remain saved. No future renewal will be charged after the parent confirms through email.</p><label class="en-label" style="margin-top:12px">Current password</label><input id="apiCancelPassword" class="en-input" type="password" autocomplete="current-password"><label class="en-label" style="margin-top:12px">Why are you canceling? <span style="font-weight:400">Optional</span></label><select id="apiCancelReason" class="en-select"><option value="">Choose a reason</option><option>Too expensive</option><option>Not using it right now</option><option>Needs a different learning experience</option><option>Technical problem</option><option>Other</option></select><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="en-outline" id="apiKeepSubscription">Keep my plan</button><button type="button" class="en-button" id="apiConfirmCancel">Send confirmation email</button></div><p id="apiCancelError" role="alert" style="margin:10px 0 0;color:#a63e31;font:13px Arial,sans-serif"></p></div><button type="button" class="en-outline" id="apiStartCancel" style="margin-top:12px">Cancel subscription</button></div>
+        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p><p style="color:#597076;font:13px/1.45 Arial,sans-serif">Cancellation stops future renewal. If you need help with billing, refunds, or a duplicate charge, contact Support.</p><div id="apiCancelPanel" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2"><h3 style="margin:0 0 7px;color:#8f352b">Before you cancel</h3><p style="margin:0;color:#597076;font:14px/1.5 Arial,sans-serif">Your learner profiles, stories, and progress will remain saved. No future renewal will be charged after the parent confirms through email.</p><label class="en-label" style="margin-top:12px">Current password</label><input id="apiCancelPassword" class="en-input" type="password" autocomplete="current-password"><label class="en-label" style="margin-top:12px">Why are you canceling? <span style="font-weight:400">Optional</span></label><select id="apiCancelReason" class="en-select"><option value="">Choose a reason</option><option>Too expensive</option><option>Not using it right now</option><option>Needs a different learning experience</option><option>Technical problem</option><option>Other</option></select><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="en-outline" id="apiKeepSubscription">Keep my plan</button><button type="button" class="en-button" id="apiConfirmCancel">Send confirmation email</button></div><p id="apiCancelError" role="alert" style="margin:10px 0 0;color:#a63e31;font:13px Arial,sans-serif"></p></div><button type="button" class="en-outline" id="apiStartCancel" style="margin-top:12px">Cancel subscription</button></div>
       </section>
     </main>
     <div id="apiToast" class="toast" role="status" aria-live="polite"></div>
@@ -1602,7 +1609,7 @@
       }
     };
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
-    $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
+    $('#apiBillingStatus').textContent = `Current plan: ${String(subscription.plan || 'explorer').replace(/^[a-z]/, match => match.toUpperCase())}. Status: ${subscription.status}.`;
     const cancelButton = $('#apiStartCancel');
     const cancelPanel = $('#apiCancelPanel');
     const canCancel = ['active', 'demo'].includes(subscription.status) && subscription.plan !== 'explorer';
@@ -1700,7 +1707,7 @@
     if (score) $('#apiBusinessScore').innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${score.current.pilotCustomers}</strong><span>pilot customers (target ${score.targets.pilotCustomers})</span></div><div class="en-stat"><strong>${retentionPct}%</strong><span>4-week retention (target ${Math.round(score.targets.retention4wRate * 100)}%)</span></div><div class="en-stat"><strong>${score.current.teacherAccounts}</strong><span>teacher accounts (target ${score.targets.schoolPilots})</span></div></div><p style="margin-top:8px;color:#4c4c4c">Reading streak: ${(score.myAccount?.currentReadingStreak || 0)} day(s).</p>`;
 
     const familyPrice = Number(offerData.offer?.familyPriceCents || 800) / 100;
-    $('#apiFamilyPrice').textContent = `$${familyPrice.toFixed(0)}`;
+    $('#apiFamilyPrice').textContent = `$${familyPrice.toFixed(2)}`;
     $('#apiPricingOffer').innerHTML = `<strong>Your offer:</strong> Family $${familyPrice.toFixed(2)} / month, ${offerData.offer?.trialDays || 7}-day trial.`;
 
     $('#apiAiStatus').textContent = me.ai_external_opt_in
