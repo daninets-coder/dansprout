@@ -164,7 +164,7 @@ async function ensureBaseSchema() {
 }
 
 const priceConfig = {
-  individual_1000: { cents: 1000, trialDays: 7, lookupEnv: 'STRIPE_PRICE_INDIVIDUAL_1000' },
+  individual_1000: { cents: 999, trialDays: 7, lookupEnv: 'STRIPE_PRICE_INDIVIDUAL_1000' },
   family_1500: { cents: 1499, trialDays: 7, lookupEnv: 'STRIPE_PRICE_FAMILY_1500' },
   additional_learner_200: { cents: 200, trialDays: 0, lookupEnv: 'STRIPE_PRICE_ADDITIONAL_LEARNER_200' },
   classroom_2900: { cents: 2900, trialDays: 7, lookupEnv: 'STRIPE_PRICE_CLASSROOM_2900' },
@@ -884,11 +884,26 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     const learnerCountRes = await pool.query('SELECT COUNT(*)::int AS count FROM learners WHERE account_id = $1', [req.auth.sub]);
     const learnerCount = learnerCountRes.rows[0]?.count || 0;
     if (plan === 'individual' && learnerCount > 1) return res.status(400).json({ error: 'Individual is limited to one learner. Choose Family for more learners.' });
-    const baseKey = plan === 'classroom' ? 'classroom_2900' : plan === 'individual' ? 'individual_1000' : 'family_1500';
+    if (plan === 'classroom') return res.status(400).json({ error: 'Classroom plans are custom. Please contact us for pricing.' });
+    const baseKey = plan === 'individual' ? 'individual_1000' : 'family_1500';
     const baseConfig = priceConfig[baseKey];
     const basePriceId = process.env[baseConfig.lookupEnv];
-    if (!basePriceId) return res.status(400).json({ error: `Missing ${baseConfig.lookupEnv} in environment.` });
-    const lineItems = [{ price: basePriceId, quantity: 1 }];
+    const lineItems = basePriceId
+      ? [{ price: basePriceId, quantity: 1 }]
+      : [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: plan === 'individual' ? 'Story Sprout Individual' : 'Story Sprout Family',
+            description: plan === 'individual'
+              ? 'One learner profile and a private story shelf.'
+              : 'Up to 3 learners, a shared library, and progress tracking.',
+          },
+          unit_amount: baseConfig.cents,
+          recurring: { interval: 'month' },
+        },
+        quantity: 1,
+      }];
     if (plan === 'family' && learnerCount > 3) return res.status(400).json({ error: 'Family is capped at three learners. Remove extra learners or choose Classroom.' });
 
     const session = await stripe.checkout.sessions.create({
