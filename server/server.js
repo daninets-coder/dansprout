@@ -889,12 +889,7 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
     const basePriceId = process.env[baseConfig.lookupEnv];
     if (!basePriceId) return res.status(400).json({ error: `Missing ${baseConfig.lookupEnv} in environment.` });
     const lineItems = [{ price: basePriceId, quantity: 1 }];
-    if (plan === 'family' && learnerCount > 3) {
-      const additionalConfig = priceConfig.additional_learner_200;
-      const additionalPriceId = process.env[additionalConfig.lookupEnv];
-      if (!additionalPriceId) return res.status(400).json({ error: `Missing ${additionalConfig.lookupEnv} in environment.` });
-      lineItems.push({ price: additionalPriceId, quantity: learnerCount - 3 });
-    }
+    if (plan === 'family' && learnerCount > 3) return res.status(400).json({ error: 'Family is capped at three learners. Remove extra learners or choose Classroom.' });
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
