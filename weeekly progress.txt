@@ -1,0 +1,90 @@
+
+Compacted conversation
+
+Yes, I think that is an important missing layer: parents need to see the learning trail, not just that a story was completed. I’ll trace the existing progress, vocabulary, and goal data first so I can distinguish what the product already records from what the interface is failing to explain.
+
+Yes. I think this is an important improvement. Parents should be able to answer:
+
+“What did my child practice, what words did they encounter, and what did they show in the story?”
+
+Right now Story Sprout has most of the underlying information, but it is scattered:
+
+The story has a reading goal and curriculum objective.
+The story has vocabulary words in the Word garden.
+The progress endpoint stores the learner’s goals and latest activity.
+The latest activity shows only a few vocabulary words.
+The progress summary shows counts and average scores, but not a clear learning history.
+So the product is recording learning evidence, but it is not yet presenting a useful learning record.
+
+What “reading goal” means
+
+The reading goal is the skill being practiced through the story. It is separate from the story’s theme.
+
+For example:
+
+Story theme: A child explores a moonlit garden.
+Reading goal: Comprehension.
+Specific objective: Answer questions using details from the story.
+Vocabulary: observe, pathway, discover.
+Evidence: The child answered 2 of 3 story questions correctly.
+A parent-friendly explanation could say:
+
+“This story helped Maya practice comprehension by finding important details and answering questions about what happened.”
+
+For another story:
+
+“This story helped Maya practice vocabulary by meeting new words in context and discussing what they mean.”
+
+The curriculum code can remain available, but it should be secondary. Parents should see the plain-English explanation first.
+
+What I would add
+
+On the Home progress area, I would add a section called What your reader practiced with four parts:
+
+Reading goal
+
+“Comprehension”
+“Finding details and explaining what happened”
+Words encountered
+
+Show all vocabulary from recent stories, not only the latest three.
+Include the word, child-friendly definition, story title, and date.
+Let the parent mark a word as “Practiced again” or revisit it.
+What the reader showed
+
+“Answered 2 of 3 story questions correctly”
+“Used details from the story”
+“Practiced perspective and evidence”
+For Grades 6–8, show evidence, inference, theme, perspective, or author craft when applicable.
+Recent learning history
+
+Date
+Story title
+Goal
+Objective
+Vocabulary
+Story-check result
+Whether the story was completed
+The wording should be careful. We should say:
+
+Practiced
+Encountered
+Showed evidence of
+Received positive story-check feedback
+We should not say:
+
+“Mastered reading”
+“Learned permanently”
+“Passed the grade”
+“Reading level improved”
+A single story cannot prove overall mastery. But a collection of story activities can give parents a meaningful picture of what the child is practicing and where they may need more support.
+
+My recommendation is to make this a prominent part of the Progress area and also include a shorter version after each story:
+
+Today’s reading work
+Goal: Finding details
+Words: observe, pathway, discover
+Story check: 2 of 3 correct
+Next step: Try another story with the same goal
+
+That would make Story Sprout feel much more educational and trustworthy. The parent would understand not only that a story was created, but why it was created and what the child did with it.

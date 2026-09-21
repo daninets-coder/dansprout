@@ -3,3 +3,9 @@ node_modules/
 npm-debug.log*
 *.log
 server.err
+/logs/
+/story-illustrations/
+/story-audio/
+
+/test-results/
+/playwright-report/

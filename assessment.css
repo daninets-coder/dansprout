@@ -126,6 +126,47 @@
   background: linear-gradient(135deg, #fff8e8, #edf5e9);
 }
 
+.story-window {
+  padding: 18px;
+  border: 1px solid #e6d4bb;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 210, 154, .32), transparent 42%),
+    linear-gradient(180deg, #fffdf8 0%, #f4f8f1 100%);
+  box-shadow: 0 10px 28px rgba(35, 72, 61, .07);
+}
+
+.story-window-head {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eadfcb;
+}
+
+.story-window-head h2 {
+  margin: 8px 0 6px;
+  color: #21474f;
+  font-size: 28px;
+}
+
+.story-window-head p {
+  margin: 0;
+  color: #5d7478;
+  font: 15px/1.5 Arial, sans-serif;
+  max-width: 62ch;
+}
+
+.story-window-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.story-window-form {
+  display: grid;
+  gap: 0;
+}
+
 .story-generation-button {
   display: grid !important;
   grid-template-columns: 32px 1fr 24px;
@@ -188,6 +229,21 @@
   color: #597076;
   font: 12px/1.45 Arial, sans-serif;
   text-align: center;
+}
+
+@media(max-width:800px) {
+  .story-window {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .story-window-head h2 {
+    font-size: 24px;
+  }
+
+  .story-window-body {
+    grid-template-columns: 1fr;
+  }
 }
 
 .story-generation-progress {
@@ -261,6 +317,28 @@
   border-color: #43815b;
   background: #e3f2df;
   color: #2f6c50;
+}
+
+.achievement-icon {
+  margin-right: 5px;
+}
+
+.reader-level-badge {
+  display: inline-block;
+  padding: 10px 16px;
+  margin-top: 17px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fef3d9, #eaf5e4);
+  border: 1px solid #e0c988;
+  color: #8a5a1e;
+  font: 800 15px Georgia, 'Times New Roman', serif;
+}
+
+.reader-level-next {
+  display: block;
+  margin-top: 6px;
+  color: #687a7c;
+  font: 13px/1.4 Arial, sans-serif;
 }
 
 .habit-card {

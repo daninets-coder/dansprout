@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
@@ -9,12 +10,18 @@ import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import jwt from 'jsonwebtoken';
 import PDFDocument from 'pdfkit';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { pool } from './db.js';
 import { runMigrations } from './migrate.js';
+import { createPublicFiles } from './modules/public-files.js';
+import { createAuthentication } from './modules/authentication.js';
+import { createLearnerAccess } from './modules/learner-access.js';
+import { registerBillingWebhook } from './modules/billing.js';
+import { createStoryGeneration } from './modules/story-generation.js';
+import { createReadingRouter } from './modules/reading-experience.js';
+import { storyQualityIssues } from './story-quality.js';
 
 const app = express();
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,11 +42,83 @@ if (trustProxy) {
   app.set('trust proxy', trustProxySetting);
 }
 
+// All crash/error events are persisted here (in addition to console output) so
+// they survive after the terminal/process that produced them is gone. *.log is
+// gitignored; the directory is created on first run if it does not exist.
+const logDir = path.join(rootDir, 'logs');
+try { mkdirSync(logDir, { recursive: true }); } catch (dirError) { console.error('Failed to create log directory:', dirError.message); }
+const errorLogPath = path.join(logDir, 'error.log');
+
+// Generated story illustrations live here, served automatically by the
+// express.static(rootDir) mount below -- no separate route needed. Access is
+// by unguessable UUID filename (same trust model as the theme banner images
+// already served this way), not authenticated; a story ID does not reveal
+// anything else about the account it belongs to.
+const illustrationsDir = path.join(rootDir, 'story-illustrations');
+try { mkdirSync(illustrationsDir, { recursive: true }); } catch (dirError) { console.error('Failed to create illustrations directory:', dirError.message); }
+
+// Same trust/serving model as illustrations: unguessable UUID-based filenames,
+// served automatically by express.static(rootDir).
+const audioDir = path.join(rootDir, 'story-audio');
+try { mkdirSync(audioDir, { recursive: true }); } catch (dirError) { console.error('Failed to create audio directory:', dirError.message); }
+const narrationVoices = { warm: 'nova', calm: 'onyx', playful: 'fable' };
+const errorLogMaxBytes = Number(process.env.ERROR_LOG_MAX_BYTES || 5 * 1024 * 1024); // 5 MB per file
+const errorLogMaxBackups = Math.max(1, Number(process.env.ERROR_LOG_MAX_BACKUPS || 5));
+
+// Keeps error.log from growing forever. When it reaches errorLogMaxBytes,
+// shift error.log.(N-1) -> error.log.N (dropping whatever was in the oldest
+// slot) and rename the current file to error.log.1, freeing error.log for new
+// writes. Runs synchronously and rarely (only once per rotation), so it does
+// not need to be fast -- just correct and never able to lose the error that
+// triggered it.
+function rotateErrorLogIfNeeded() {
+  let size = 0;
+  try {
+    size = statSync(errorLogPath).size;
+  } catch {
+    return; // file does not exist yet -- nothing to rotate
+  }
+  if (size < errorLogMaxBytes) return;
+  for (let n = errorLogMaxBackups - 1; n >= 1; n -= 1) {
+    try { renameSync(`${errorLogPath}.${n}`, `${errorLogPath}.${n + 1}`); } catch { /* that backup slot is not filled yet */ }
+  }
+  try {
+    renameSync(errorLogPath, `${errorLogPath}.1`);
+  } catch (rotateError) {
+    console.error('Failed to rotate error log:', rotateError.message);
+  }
+}
+
 function structuredLog(level, event, metadata = {}) {
   const entry = { timestamp: new Date().toISOString(), level, event, service: 'story-sprout-web', ...metadata };
   const output = JSON.stringify(entry);
-  if (level === 'error') console.error(output); else console.log(output);
+  if (level === 'error') {
+    console.error(output);
+    try {
+      rotateErrorLogIfNeeded();
+      appendFileSync(errorLogPath, output + '\n');
+    } catch (writeError) {
+      // Do not let a logging failure itself crash the process or hide the
+      // original error -- just note it went missing from the file.
+      console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', event: 'error_log_write_failed', service: 'story-sprout-web', message: writeError.message }));
+    }
+  } else {
+    console.log(output);
+  }
 }
+
+// Safety net for crashes that happen outside any request (e.g. a bug in a
+// background job, or a rejected promise nobody awaited). Without this, Node
+// would print a stack trace to stderr and exit with nothing durable recorded.
+process.on('uncaughtException', (error) => {
+  structuredLog('error', 'uncaught_exception', { message: error?.message, stack: error?.stack });
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  structuredLog('error', 'unhandled_rejection', { message: error.message, stack: error.stack });
+  process.exit(1);
+});
 
 async function recordOpsEvent(eventType, severity, message, metadata = null, requestId = null) {
   structuredLog(severity, eventType, { requestId, message, ...(metadata || {}) });
@@ -105,64 +184,7 @@ app.use(cors({
     return cb(new Error('CORS origin not allowed.'));
   },
 }));
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  if (!stripe || !stripeWebhookSecret) return res.status(501).json({ error: 'Stripe is not configured.' });
-  const signature = req.headers['stripe-signature'];
-  if (!signature) return res.status(400).json({ error: 'Missing stripe signature.' });
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
-  } catch (error) {
-    void recordOpsEvent('stripe_webhook_rejected', 'warn', error.message, { reason: 'signature' }, req.requestId);
-    return res.status(400).send(`Webhook Error: ${error.message}`);
-  }
-
-  try {
-    const received = await pool.query('INSERT INTO stripe_webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING', [event.id, event.type]);
-    if (!received.rowCount) return res.json({ received: true, duplicate: true });
-    const object = event.data?.object;
-    if (event.type === 'checkout.session.completed') {
-      const accountId = object?.metadata?.accountId;
-      if (accountId) {
-        await upsertSubscriptionFromStripe({
-          accountId,
-          plan: object?.metadata?.plan || 'family',
-          status: 'active',
-          customerId: object?.customer || null,
-          subscriptionId: object?.subscription || null,
-        });
-        await trackGrowthEvent(accountId, 'plan_selected', { plan: object?.metadata?.plan || 'family', status: 'active', source: 'stripe_checkout' });
-      }
-    }
-
-    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      const subscription = object;
-      const customerId = subscription?.customer;
-      if (customerId) {
-        const accountRes = await pool.query('SELECT id FROM accounts WHERE id = (SELECT account_id FROM subscriptions WHERE provider_customer_id = $1 ORDER BY updated_at DESC LIMIT 1)', [String(customerId)]);
-        const accountId = accountRes.rows?.[0]?.id;
-        if (accountId) {
-          const active = ['active', 'trialing', 'past_due'].includes(subscription?.status);
-          await upsertSubscriptionFromStripe({
-            accountId,
-            plan: subscription?.metadata?.plan || 'family',
-            status: active ? 'active' : 'canceled',
-            customerId: String(customerId),
-            subscriptionId: subscription?.id || null,
-          });
-        }
-      }
-    }
-
-    await pool.query("UPDATE stripe_webhook_events SET status = 'processed', processed_at = NOW() WHERE event_id = $1", [event.id]);
-    return res.json({ received: true });
-  } catch (error) {
-    await pool.query("UPDATE stripe_webhook_events SET status = 'failed', error_message = $2 WHERE event_id = $1", [event?.id, error.message]);
-    void recordOpsEvent('stripe_webhook_failed', 'error', error.message, { eventType: event?.type }, req.requestId);
-    return res.status(500).json({ error: 'Webhook handler failed.' });
-  }
-});
+registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent });
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
 const registrationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many registration attempts. Please try again later.' } });
@@ -184,6 +206,13 @@ const childModeLimiter = rateLimit({
   message: { error: 'Too many Child Mode attempts. Please wait before trying again.' },
 });
 app.use('/api/stories/generate', storyGenerationLimiter);
+app.use(['/api/stories/generate', '/api/child-mode/stories/generate'], (req, res, next) => {
+  if (req.method !== 'POST') return next();
+  const started = Date.now();
+  res.once('finish', () => { void recordOpsEvent('story_generation_finished', res.statusCode >= 500 ? 'error' : 'info', 'Story generation request completed.', { durationMs: Date.now() - started, status: res.statusCode, successful: res.statusCode === 201 }, req.requestId); });
+  next();
+});
+
 
 app.post('/api/support', supportLimiter, async (req, res, next) => {
   try {
@@ -217,7 +246,7 @@ const loginSchema = z.object({ email: z.string().email(), password: z.string().m
 const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
 const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(6).max(128), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const passwordResetCodeSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()), code: z.string().regex(/^\d{6}$/), password: z.string().min(6).max(128) });
-const learnerSchema = z.object({ firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
+const learnerSchema = z.object({ readingLevel: z.enum(['PreK','K','1','2','3','4','5','6','7','8']).default('2'), firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'individual', 'family', 'classroom']) });
 const storySchema = z.object({
   learnerId: z.string().uuid(),
@@ -241,67 +270,61 @@ const aiStoryResponseSchema = z.object({
     type: z.literal('multiple_choice'),
     options: z.array(z.string().trim().min(1).max(200)).min(2).max(3),
     answer: z.string().trim().min(1).max(200),
+    evidence: z.string().trim().min(1).max(2000),
   })).max(8).default([]),
   words: z.array(z.object({ word: z.string().trim().min(1).max(80), meaning: z.string().trim().min(1).max(300) })).max(12).default([]),
   readingGoal: z.string().trim().max(200).default('Reading practice'),
   reflectionPrompt: z.string().trim().max(400).default(''),
 });
 
-function tokenFor(account) { return jwt.sign({ sub: account.id, role: account.role }, jwtSecret, { expiresIn: '8h', issuer: 'story-sprout' }); }
-function childModeTokenFor(accountId, learnerId) { return jwt.sign({ sub: accountId, role: 'child', childMode: true, learnerId }, jwtSecret, { expiresIn: '4h', issuer: 'story-sprout' }); }
-function parentConfirmationTokenFor(account) { return jwt.sign({ sub: account.id, role: account.role, parentAction: true }, jwtSecret, { expiresIn: '10m', issuer: 'story-sprout' }); }
-function requireAuth(req, res, next) { const token = req.headers.authorization?.replace(/^Bearer\s+/i, ''); if (!token) return res.status(401).json({ error: 'Authentication required.' }); try { req.auth = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' }); return next(); } catch { return res.status(401).json({ error: 'Session expired. Please sign in again.' }); } }
-function requireChildSession(req, res, next) {
-  if (req.auth?.childMode !== true || !req.auth.learnerId) return res.status(403).json({ error: 'Child Mode session required.' });
-  return next();
-}
-async function requireChildLearnerScope(req, res, next) {
-  if (req.auth?.childMode !== true) return next();
-  if (req.params.learnerId !== req.auth.learnerId) return res.status(404).json({ error: 'Learner not found.' });
-  return next();
-}
-async function requireChildStoryScope(req, res, next) {
-  if (req.params.storyId === 'deleted' || req.params.storyId === 'generate') return next();
-  // restore/permanent act on already soft-deleted stories, so they must not be blocked by the "not deleted" scope check below
-  if (req.path.endsWith('/restore') || req.path.endsWith('/permanent')) return next();
-  if (typeof req.params.storyId === 'string' && req.params.storyId.endsWith('.pdf')) req.params.storyId = req.params.storyId.slice(0, -4);
-  try {
-    const childScope = req.auth?.childMode === true ? ' AND s.learner_id = $3' : '';
-    const params = req.auth?.childMode === true ? [req.params.storyId, req.auth.sub, req.auth.learnerId] : [req.params.storyId, req.auth.sub];
-    const result = await pool.query(`SELECT s.id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2 AND s.deleted_at IS NULL${childScope}`, params);
-    if (!result.rowCount) return res.status(404).json({ error: 'Story not found.' });
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-}
-function requireParentConfirmation(req, res, next) {
-  const token = req.headers['x-parent-confirmation'];
-  if (!token) return res.status(403).json({ error: 'Parent confirmation is required for this action.', code: 'PARENT_CONFIRMATION_REQUIRED' });
-  try {
-    const confirmation = jwt.verify(token, jwtSecret, { issuer: 'story-sprout' });
-    if (confirmation.sub !== req.auth.sub || confirmation.parentAction !== true) throw new Error('Invalid parent confirmation.');
-    return next();
-  } catch {
-    return res.status(403).json({ error: 'Parent confirmation expired. Please confirm again.', code: 'PARENT_CONFIRMATION_REQUIRED' });
-  }
-}
-async function requireAdultAccount(req, res, next) {
-  try {
-    if (req.auth?.childMode === true) return res.status(403).json({ error: 'Parent session required for this action.' });
-    const { rows } = await pool.query('SELECT "role" FROM accounts WHERE id = $1', [req.auth.sub]);
-    if (!rows[0] || !['parent', 'teacher'].includes(rows[0].role)) return res.status(403).json({ error: 'An adult parent or teacher account is required for this action.' });
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-}
-async function requireVerifiedEmail(req, res, next) { try { const { rows } = await pool.query('SELECT email_verified_at FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); if (!rows[0].email_verified_at) return res.status(403).json({ error: 'Please verify your email before using Story Sprout.' , code: 'EMAIL_NOT_VERIFIED' }); return next(); } catch (error) { return next(error); } }
+const { tokenFor, childModeTokenFor, parentConfirmationTokenFor, requireAuth, requireChildSession, requireParentConfirmation, requireAdultAccount, requireVerifiedEmail } = createAuthentication({ pool, jwtSecret });
+const { requireChildLearnerScope, requireChildStoryScope } = createLearnerAccess({ pool });
+app.use('/api/reading', requireAuth, requireVerifiedEmail, createReadingRouter({ pool, requireAdultAccount }));
+
 function validate(schema, source) { return (req, res, next) => { const result = schema.safeParse(req[source]); if (!result.success) return res.status(400).json({ error: 'Please check the submitted information.', details: result.error.flatten() }); req[source] = result.data; return next(); }; }
 
 async function sendVerificationEmail(account, token) { if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) throw new Error('Email verification is not configured.'); const verifyUrl = `${appBaseUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}`; const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [account.email], subject: 'Verify your Story Sprout email', text: `Hi ${account.displayName},\n\nVerify your Story Sprout account by opening this link within 24 hours:\n${verifyUrl}\n\nIf you did not create this account, you can ignore this email.` }) }); if (!response.ok) throw new Error(`Email provider returned ${response.status}`); }
 async function issueVerification(account) { const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query("UPDATE accounts SET email_verification_token_hash = $1, email_verification_expires_at = NOW() + INTERVAL '24 hours' WHERE id = $2", [tokenHash, account.id]); await sendVerificationEmail(account, token); }
-app.post('/api/auth/register', registrationLimiter, validate(registerSchema, 'body'), async (req, res, next) => { try { const account = { id: randomUUID(), ...req.body }; const variant = pickPricingVariant(); const variantConfig = priceConfig[variant] || priceConfig.family_800; const passwordHash = await bcrypt.hash(account.password, 12); await pool.query('INSERT INTO accounts (id, email, password_hash, display_name, "role", consented_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, guardian_consent_version, pricing_variant, family_price_cents, trial_days) VALUES ($1, $2, $3, $4, $5, NOW(), NULL, TRUE, NOW(), $6, $7, $8, $9, $10)', [account.id, account.email, passwordHash, account.displayName, account.role, account.policyVersion, account.policyVersion, variant, variantConfig.cents, variantConfig.trialDays]); await pool.query('INSERT INTO reminder_preferences (account_id, weekly_email_enabled) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET weekly_email_enabled = EXCLUDED.weekly_email_enabled, updated_at = NOW()', [account.id, false]); await logConsentEvent(account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true }); await issueVerification(account); await trackGrowthEvent(account.id, 'account_registered', { role: account.role, variant }); return res.status(201).json({ verificationRequired: true, message: 'Check your email to verify your Story Sprout account before signing in.' }); } catch (error) { if (error.code === '23505') return res.status(409).json({ error: 'An account already exists for this email.' }); return next(error); } });
+app.post('/api/auth/register', registrationLimiter, validate(registerSchema, 'body'), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const account = { id: randomUUID(), ...req.body };
+    const variant = pickPricingVariant();
+    const variantConfig = priceConfig[variant] || priceConfig.family_1500;
+    const passwordHash = await bcrypt.hash(account.password, 12);
+    // If email verification isn't configured (e.g. local/dev environments with no
+    // Resend key), there is no way for the account to ever become verified, and
+    // login hard-requires email_verified_at. Rather than insert an account that can
+    // never sign in, auto-verify it up front in that case.
+    const emailConfigured = emailProvider === 'resend' && Boolean(resendApiKey) && Boolean(emailFrom);
+
+    await client.query('BEGIN');
+    await client.query('INSERT INTO accounts (id, email, password_hash, display_name, "role", consented_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, guardian_consent_version, pricing_variant, family_price_cents, trial_days) VALUES ($1, $2, $3, $4, $5, NOW(), $6, TRUE, NOW(), $7, $8, $9, $10, $11)', [account.id, account.email, passwordHash, account.displayName, account.role, emailConfigured ? null : new Date(), account.policyVersion, account.policyVersion, variant, variantConfig.cents, variantConfig.trialDays]);
+    await client.query('INSERT INTO reminder_preferences (account_id, weekly_email_enabled) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET weekly_email_enabled = EXCLUDED.weekly_email_enabled, updated_at = NOW()', [account.id, false]);
+    await client.query('INSERT INTO consent_audit_log (id, account_id, event_type, policy_version, metadata) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true }]);
+    await client.query('COMMIT');
+
+    trackGrowthEvent(account.id, 'account_registered', { role: account.role, variant }).catch(() => {});
+
+    if (!emailConfigured) {
+      return res.status(201).json({ verificationRequired: false, message: 'Your account was created. Email verification is not configured in this environment, so you can sign in now.' });
+    }
+    try {
+      await issueVerification(account);
+      return res.status(201).json({ verificationRequired: true, message: 'Check your email to verify your Story Sprout account before signing in.' });
+    } catch {
+      // Account is safely committed and unverified; the outage is on the email
+      // provider's side. Say so rather than implying failure the user must retry.
+      return res.status(201).json({ verificationRequired: true, message: 'Your account was created, but we could not send the verification email right now. Please try again shortly or contact support.' });
+    }
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    if (error.code === '23505') return res.status(409).json({ error: 'An account already exists for this email.' });
+    return next(error);
+  } finally {
+    client.release();
+  }
+});
 app.post('/api/auth/login', loginLimiter, validate(loginSchema, 'body'), async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, password_hash, display_name, "role", email_verified_at FROM accounts WHERE email = $1', [req.body.email.trim().toLowerCase()]); const account = rows[0]; if (!account || !(await bcrypt.compare(req.body.password, account.password_hash))) return res.status(401).json({ error: 'Email or password is incorrect.' }); if (!account.email_verified_at) return res.status(403).json({ error: 'Please verify your email before signing in.', code: 'EMAIL_NOT_VERIFIED' }); await trackGrowthEvent(account.id, 'account_login'); return res.json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.display_name, role: account.role } }); } catch (error) { return next(error); } });
 app.post('/api/auth/child-login', loginLimiter, async (req, res, next) => {
   try {
@@ -381,10 +404,10 @@ app.post('/api/child-mode/stories/:storyId/assessment', requireAuth, requireChil
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
     const responses = parsed.data.responses.slice(0, questions.length);
-    const objectiveQuestions = questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
+    const objectiveQuestions = questions.length > 0 && questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
     const correct = objectiveQuestions ? questions.slice(0, responses.length).filter((question, index) => responses[index] === question.answer).length : 0;
-    const score = objectiveQuestions ? (responses.length ? Math.round((correct / responses.length) * 100) : 0) : 0;
-    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, reviewed_at, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)', [randomUUID(), req.params.storyId, req.auth.learnerId, JSON.stringify(responses), score, objectiveQuestions && score >= 80, objectiveQuestions ? 'auto_scored' : 'pending', objectiveQuestions ? 0.95 : 0.5, JSON.stringify({ answered: responses.filter(Boolean).length, questionCount: questions.length })]);
+    const score = objectiveQuestions ? (questions.length ? Math.round((correct / questions.length) * 100) : 0) : 0;
+    await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, reviewed_at, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)', [randomUUID(), req.params.storyId, req.auth.learnerId, JSON.stringify(responses), score, objectiveQuestions && score >= 80, objectiveQuestions ? 'auto_scored' : 'pending', objectiveQuestions ? 0.95 : 0.5, JSON.stringify({ correct: objectiveQuestions ? correct : null, answered: responses.filter(Boolean).length, questionCount: questions.length })]);
     await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1 AND learner_id = $2', [req.params.storyId, req.auth.learnerId]);
     return res.status(201).json({ score, correct: objectiveQuestions ? correct : null, answered: responses.length, questionCount: questions.length });
   } catch (error) {
@@ -413,17 +436,19 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
       storyLength: z.enum(['quick', 'standard', 'long']).default('quick'),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Tell us what adventure you want, using at least 3 characters.' });
-    const learnerRes = await pool.query('SELECT id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
+    const learnerRes = await pool.query('SELECT id, first_name, age_band, reading_level, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
     if (!learnerRes.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const learner = learnerRes.rows[0];
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story creation is not available until the adult enables AI story generation.' });
     await assertAiBudget(req.auth.sub);
-    const gradeLevel = learner.age_band === '3-5' ? 'PreK' : learner.age_band === '9-11' ? '4' : '2';
+    const gradeLevel = learner.reading_level || (learner.age_band === '3-5' ? 'PreK' : learner.age_band === '9-11' ? '4' : '2');
     const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code LIMIT 1', [gradeLevel, parsed.data.domain]);
     const curriculumRow = curriculumRes.rows[0] || null;
     const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, theme: parsed.data.theme, customTheme: parsed.data.customTheme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
-    const story = { id: randomUUID(), learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, reflectionPrompt: generated.reflectionPrompt || '', meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, model: 'gpt-4o-mini' } } };
+    const childStoryId = randomUUID();
+    const childIllustrationUrl = await generateStoryIllustration({ storyId: childStoryId, title: generated.title, theme: parsed.data.theme, customTheme: parsed.data.customTheme, firstPageText: generated.pages?.[0], accountId: req.auth.sub });
+    const story = { id: childStoryId, learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, reflectionPrompt: generated.reflectionPrompt || '', meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, illustrationUrl: childIllustrationUrl, model: 'gpt-4o-mini' } } };
     await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     return res.status(201).json({ story });
   } catch (error) {
@@ -541,9 +566,9 @@ app.post('/api/auth/reset-password', validate(passwordResetSchema, 'body'), asyn
 app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, display_name, "role", created_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, pricing_variant, family_price_cents, trial_days FROM accounts WHERE id = $1', [req.auth.sub]); if (!rows[0]) return res.status(404).json({ error: 'Account not found.' }); return res.json({ account: { ...rows[0], isSiteOwner: ownerEmail.length > 0 && rows[0].email.toLowerCase() === ownerEmail } }); } catch (error) { return next(error); } });
 app.use('/api/learners/:learnerId', requireAuth, requireChildLearnerScope);
 app.use('/api/stories/:storyId', requireAuth, requireChildStoryScope);
-app.get('/api/learners', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.child_username, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params); return res.json({ learners: rows }); } catch (error) { return next(error); } });
-app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options) VALUES ($1, $2, $3, $4, $5, $6, $7)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
-app.patch('/api/learners/:learnerId', requireAuth, requireParentConfirmation, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
+app.get('/api/learners', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.reading_level, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.child_username, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, reading_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.body.readingLevel]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
+app.patch('/api/learners/:learnerId', requireAuth, requireParentConfirmation, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, reading_level = $8, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub, req.body.readingLevel]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
 app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
     const parsed = z.object({ username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9._-]+$/), password: z.string().min(6).max(128) }).safeParse(req.body);
@@ -581,8 +606,16 @@ app.get('/api/story-shelf', requireAuth, async (req, res, next) => {
       GROUP BY s.id, l.first_name
       ORDER BY s.created_at DESC
     `, params);
-    const topRated = result.rows.filter(row => Number(row.rating_count) >= 2).sort((a, b) => Number(b.average_rating) - Number(a.average_rating) || Number(b.rating_count) - Number(a.rating_count)).slice(0, 3);
-    return res.json({ favorites: result.rows.filter(row => row.is_favorite), topRated });
+    // Three independent sections, capped at five each. A story may appear in
+    // more than one. result.rows is ordered created_at DESC, so slicing keeps
+    // recency for saved and favorites.
+    const shelfLimit = 5;
+    const saved = result.rows.slice(0, shelfLimit);
+    const favorites = result.rows.filter(row => row.is_favorite).slice(0, shelfLimit);
+    // One preference row exists per (story, account), so rating_count tops out
+    // at 1 -- anything rated at all qualifies here.
+    const topRated = result.rows.filter(row => Number(row.rating_count) >= 1).sort((a, b) => Number(b.average_rating) - Number(a.average_rating) || Number(b.rating_count) - Number(a.rating_count)).slice(0, shelfLimit);
+    return res.json({ saved, favorites, topRated });
   } catch (error) {
     return next(error);
   }
@@ -659,12 +692,12 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     const responses = parsed.data.responses.slice(0, total);
     const answered = responses.filter(Boolean).length;
     const pages = Array.isArray(storyRes.rows[0].content?.pages) ? storyRes.rows[0].content.pages.map(extractTextValue) : [];
-    const objectiveQuestions = questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
+    const objectiveQuestions = questions.length > 0 && questions.every(question => question && typeof question === 'object' && question.answer && Array.isArray(question.options));
     const correct = objectiveQuestions ? questions.slice(0, total).filter((question, index) => responses[index] === question.answer).length : 0;
-    const score = objectiveQuestions ? (total ? Math.round((correct / total) * 100) : 0) : scoreReadingResponses(questions, responses, pages);
+    const score = objectiveQuestions ? (questions.length ? Math.round((correct / questions.length) * 100) : 0) : scoreReadingResponses(questions, responses, pages);
     const autoScored = objectiveQuestions;
     const storyMeta = storyRes.rows[0].content?.meta || {};
-    const evidence = { standardCode: storyMeta.curriculumStandard || null, objective: storyMeta.curriculumObjective || null, answered, questionCount: questions.length };
+    const evidence = { standardCode: storyMeta.curriculumStandard || null, objective: storyMeta.curriculumObjective || null, correct: autoScored ? correct : null, answered, questionCount: questions.length };
     await pool.query('INSERT INTO reading_assessments (id, story_id, learner_id, responses, score, mastered, review_status, reviewed_at, confidence, standards_evidence) VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8 THEN NOW() ELSE NULL END, $9, $10)', [randomUUID(), req.params.storyId, storyRes.rows[0].learner_id, JSON.stringify(responses), score, autoScored && score >= 80, autoScored ? 'auto_scored' : 'pending', autoScored, autoScored ? 0.95 : 0.5, JSON.stringify(evidence)]);
     await pool.query('UPDATE stories SET completed_at = COALESCE(completed_at, NOW()) WHERE id = $1', [req.params.storyId]);
     await trackGrowthEvent(req.auth.sub, 'story_completed', { storyId: req.params.storyId, assessmentScore: score });
@@ -713,7 +746,52 @@ app.post('/api/stories/:storyId/vocabulary', requireAuth, async (req, res, next)
     return next(error);
   }
 });
-app.get('/api/progress', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE AND ra.review_status IN ('auto_scored', 'reviewed', 'corrected')) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.review_status IN ('auto_scored', 'reviewed', 'corrected')), 0) AS average_assessment_score, COALESCE((SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS assessments_completed, (SELECT json_build_object('storyId', latest.id, 'title', latest.title, 'learningGoal', latest.learning_goal, 'objective', latest.content->'meta'->>'curriculumObjective', 'vocabulary', COALESCE(latest.content->'words', '[]'::jsonb), 'completedAt', latest.completed_at, 'createdAt', latest.created_at, 'assessment', (SELECT json_build_object('score', ra.score, 'answered', COALESCE((ra.standards_evidence->>'answered')::int, jsonb_array_length(ra.responses)), 'questionCount', COALESCE((ra.standards_evidence->>'questionCount')::int, jsonb_array_length(latest.content->'questions'))) FROM reading_assessments ra WHERE ra.story_id = latest.id ORDER BY ra.created_at DESC LIMIT 1)) FROM stories latest WHERE latest.learner_id = l.id ORDER BY latest.created_at DESC LIMIT 1) AS last_activity FROM learners l LEFT JOIN stories s ON s.learner_id = l.id WHERE l.account_id = $1 GROUP BY l.id ORDER BY l.created_at`, [req.auth.sub]); return res.json({ learners: rows }); } catch (error) { return next(error); } });
+// Real AI narration (replaces the browser's built-in speechSynthesis voices,
+// which sound robotic and vary wildly by OS). One audio file per
+// (story, page-or-whole-story, voice) is generated once and cached on disk --
+// repeat plays of the same page cost nothing further.
+app.post('/api/stories/:storyId/narration', requireAuth, requireChildStoryScope, async (req, res, next) => {
+  try {
+    const parsed = z.object({
+      pageIndex: z.number().int().min(0).max(50).optional(),
+      voice: z.enum(['warm', 'calm', 'playful']).default('warm'),
+    }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid narration request.' });
+
+    const storyRes = await pool.query('SELECT content FROM stories WHERE id = $1 AND deleted_at IS NULL', [req.params.storyId]);
+    if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
+    const pages = storyRes.rows[0].content?.pages || [];
+    const { pageIndex } = parsed.data;
+    const text = pageIndex === undefined ? pages.join(' ') : (pages[pageIndex] || '');
+    if (!text.trim()) return res.status(400).json({ error: 'Nothing to read for this page.' });
+    if (text.length > 4000) return res.status(400).json({ error: 'This story is too long to narrate all at once. Try reading one page at a time.' });
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return res.status(403).json({ error: 'Read-aloud is not configured for this deployment.' });
+    await assertAiBudget(req.auth.sub);
+
+    const cacheKey = `${req.params.storyId}-${pageIndex === undefined ? 'full' : pageIndex}-${parsed.data.voice}.mp3`;
+    const filePath = path.join(audioDir, cacheKey);
+    if (!existsSync(filePath)) {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: narrationVoices[parsed.data.voice], input: text, response_format: 'mp3' }),
+      });
+      if (!response.ok) {
+        structuredLog('error', 'narration_generation_failed', { storyId: req.params.storyId, status: response.status });
+        return res.status(502).json({ error: 'Could not generate narration right now. Please try again.' });
+      }
+      await writeFile(filePath, Buffer.from(await response.arrayBuffer()));
+      try {
+        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, req.params.storyId, 'openai', 'gpt-4o-mini-tts', text.length, null, null]);
+      } catch { /* cost logging is best-effort */ }
+    }
+    return res.json({ url: `/story-audio/${cacheKey}` });
+  } catch (error) {
+    return next(error);
+  }
+});
 app.get('/api/progress', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE(json_agg(DISTINCT s.learning_goal) FILTER (WHERE s.learning_goal IS NOT NULL), '[]') AS learning_goals, (SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.mastered = TRUE AND ra.review_status IN ('auto_scored', 'reviewed', 'corrected')) AS mastered_assessments, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.review_status IN ('auto_scored', 'reviewed', 'corrected')), 0) AS average_assessment_score, COALESCE((SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS assessments_completed, (SELECT json_build_object('storyId', latest.id, 'title', latest.title, 'learningGoal', latest.learning_goal, 'objective', latest.content->'meta'->>'curriculumObjective', 'vocabulary', COALESCE(latest.content->'words', '[]'::jsonb), 'completedAt', latest.completed_at, 'createdAt', latest.created_at, 'assessment', (SELECT json_build_object('score', ra.score, 'answered', COALESCE((ra.standards_evidence->>'answered')::int, jsonb_array_length(ra.responses)), 'questionCount', COALESCE((ra.standards_evidence->>'questionCount')::int, jsonb_array_length(latest.content->'questions'))) FROM reading_assessments ra WHERE ra.story_id = latest.id ORDER BY ra.created_at DESC LIMIT 1)) FROM stories latest WHERE latest.learner_id = l.id AND latest.deleted_at IS NULL ORDER BY latest.created_at DESC LIMIT 1) AS last_activity FROM learners l LEFT JOIN stories s ON s.learner_id = l.id AND s.deleted_at IS NULL WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params); return res.json({ learners: rows }); } catch (error) { return next(error); } });
 app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, next) => {
   try {
@@ -981,6 +1059,66 @@ app.get('/api/classroom/progress-summary.pdf', requireAuth, async (req, res, nex
       doc.fontSize(12).text(`${index + 1}. ${row.first_name} (Ages ${row.age_band})`);
       doc.fontSize(10).fillColor('#555').text(`Stories created: ${row.stories_created} | Stories completed: ${row.stories_completed}`);
       doc.fillColor('#111').moveDown(0.4);
+    });
+
+    doc.end();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/progress-summary.pdf', requireAuth, requireVerifiedEmail, async (req, res, next) => {
+  try {
+    const scope = req.auth.childMode === true ? ' AND l.id = $2' : '';
+    const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub];
+    const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, COUNT(s.id)::int AS stories_created, COUNT(s.completed_at)::int AS stories_completed, COALESCE((SELECT ROUND(AVG(ra.score))::int FROM reading_assessments ra WHERE ra.learner_id = l.id AND ra.review_status IN ('auto_scored', 'reviewed', 'corrected')), 0) AS average_assessment_score, COALESCE((SELECT COUNT(*)::int FROM reading_assessments ra WHERE ra.learner_id = l.id), 0) AS assessments_completed, (SELECT json_build_object('storyId', latest.id, 'title', latest.title, 'learningGoal', latest.learning_goal, 'objective', latest.content->'meta'->>'curriculumObjective', 'completedAt', latest.completed_at, 'createdAt', latest.created_at, 'assessment', (SELECT json_build_object('score', ra.score, 'answered', COALESCE((ra.standards_evidence->>'answered')::int, jsonb_array_length(ra.responses)), 'questionCount', COALESCE((ra.standards_evidence->>'questionCount')::int, jsonb_array_length(latest.content->'questions'))) FROM reading_assessments ra WHERE ra.story_id = latest.id ORDER BY ra.created_at DESC LIMIT 1)) FROM stories latest WHERE latest.learner_id = l.id AND latest.deleted_at IS NULL ORDER BY latest.created_at DESC LIMIT 1) AS last_activity FROM learners l LEFT JOIN stories s ON s.learner_id = l.id AND s.deleted_at IS NULL WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params);
+    const accountRes = await pool.query('SELECT display_name, role FROM accounts WHERE id = $1', [req.auth.sub]);
+    const accountName = accountRes.rows[0]?.display_name || 'Story Sprout family';
+    const safeFilename = 'story-sprout-progress-report.pdf';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+
+    const doc = new PDFDocument({ size: 'LETTER', margins: { top: 54, bottom: 54, left: 54, right: 54 }, bufferPages: true });
+    doc.pipe(res);
+    const colors = { ink: '#25464e', accent: '#c45f3f', sage: '#6c956d', line: '#dfc9a9', muted: '#667779' };
+
+    doc.fontSize(18).fillColor(colors.ink).text('Story Sprout Reading Progress Report');
+    doc.moveDown(0.4);
+    doc.fontSize(11).fillColor(colors.muted).text(`Family: ${accountName}`);
+    doc.text(`Generated: ${new Date().toISOString().slice(0, 10)}`);
+    if (req.auth.childMode === true) doc.text('View: Child Mode reading shelf');
+    doc.moveDown(0.8);
+
+    if (!rows.length) {
+      doc.fillColor(colors.muted).fontSize(12).text('No learner progress is available yet.');
+      doc.end();
+      return;
+    }
+
+    rows.forEach((row, index) => {
+      const latest = row.last_activity || null;
+      const assessment = latest?.assessment || null;
+      const nextStep = assessment
+        ? 'Revisit one question and find the sentence that answers it.'
+        : latest?.completedAt
+          ? 'Read again or choose the next story at a similar level.'
+          : 'Finish the story together, then answer the questions.';
+      const latestTitle = latest?.title || 'No completed story yet';
+      const latestStatus = latest?.completedAt ? 'Story completed' : latest ? 'Story in progress' : 'No recent story';
+
+      if (index > 0) doc.addPage();
+      doc.fillColor(colors.ink).fontSize(13).text(`${index + 1}. ${row.first_name} (Ages ${row.age_band})`);
+      doc.moveDown(0.35);
+      doc.fontSize(10).fillColor(colors.muted).text(`Stories created: ${row.stories_created} | Stories completed: ${row.stories_completed} | Story checks: ${row.assessments_completed} | Average check score: ${row.average_assessment_score || 0}%`);
+      doc.text(`Latest story: ${latestTitle}`);
+      doc.text(`Status: ${latestStatus}`);
+      if (latest?.objective) doc.text(`Objective: ${latest.objective}`);
+      if (assessment) doc.text(`Story check: ${assessment.score}/100 (${assessment.answered} of ${assessment.questionCount} questions answered)`);
+      doc.text(`Next step: ${nextStep}`);
+      doc.moveDown(0.6);
+      doc.moveTo(54, doc.y).lineTo(558, doc.y).strokeColor(colors.line).lineWidth(1).stroke();
+      doc.moveDown(0.5);
     });
 
     doc.end();
@@ -1330,6 +1468,8 @@ function failsLocalSafetyCheck(value) {
 }
 
 async function failsOpenAIModeration(value, apiKey) {
+  // Only skip moderation when it is explicitly unconfigured/disabled -- that is a
+  // deliberate admin choice, not a failure.
   if (!apiKey || String(process.env.OPENAI_ENABLE_MODERATION || 'true') !== 'true') return false;
   try {
     const moderationModel = process.env.OPENAI_MODERATION_MODEL || 'omni-moderation-latest';
@@ -1341,11 +1481,15 @@ async function failsOpenAIModeration(value, apiKey) {
       },
       body: JSON.stringify({ model: moderationModel, input: String(value || '') }),
     });
-    if (!response.ok) return false;
+    // Fail closed: if the moderation service itself is unavailable (rate limited,
+    // timed out, erroring), treat the content as unverified and block it. This is
+    // child-facing content -- a broken safety check must never silently pass
+    // content through. Callers surface this the same way as a real policy flag.
+    if (!response.ok) return true;
     const payload = await response.json();
     return payload?.results?.[0]?.flagged === true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -1391,6 +1535,7 @@ function normalizeQuestion(question) {
     type: 'multiple_choice',
     options,
     answer: extractTextValue(question.answer || question.correctAnswer || question.correct_option),
+    evidence: extractTextValue(question.evidence),
   };
 }
 
@@ -1399,6 +1544,8 @@ function validateGeneratedStory(value) {
   if (!parsed.success) throw new Error('AI returned an invalid story structure.');
   const totalCharacters = parsed.data.pages.reduce((total, page) => total + page.length, 0);
   if (totalCharacters > 12000) throw new Error('AI returned a story that is too long.');
+  const issues = storyQualityIssues(parsed.data);
+  if (issues.length) throw new Error(`Story quality check failed: ${issues.join(' ')}`);
   return parsed.data;
 }
 
@@ -1409,232 +1556,51 @@ function estimateOpenAICost(usage) {
   return Number(((inputTokens / 1000000 * 0.15) + (outputTokens / 1000000 * 0.60)).toFixed(6));
 }
 
-
-
-async function generateStoryContent({ learnerName, interests = '', prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false }) {
+// One AI-generated hero illustration per story (not per page -- a per-page
+// version costs several times as much per story and is a natural follow-up
+// once this is validated). Illustration failure never blocks story creation:
+// on any error this returns null and the client falls back to the existing
+// static theme banner, exactly as it does today for stories with no
+// illustration at all.
+async function generateStoryIllustration({ storyId, title, theme, customTheme, firstPageText, accountId }) {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !allowExternalAI) {
-    throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
-  }
-
-  if (failsLocalSafetyCheck(`${prompt} ${customTheme || ''}`)) {
-    await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation', reason: 'local_filter' });
-    throw new Error('Prompt rejected by child-safety filter. Please use a gentler adventure prompt.');
-  }
-  const moderationBlocked = await failsOpenAIModeration(prompt, apiKey);
-  if (moderationBlocked) {
-    await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation' });
-    throw new Error('Prompt blocked by safety moderation. Please rewrite and try again.');
-  }
-
-  const gradeProfiles = {
-    PreK: {
-      sentenceStyle: 'Very short, mostly simple present-tense sentences (3-6 words).',
-      vocabularyLevel: 'Concrete everyday words with repetition and sound play.',
-      structure: 'Strong repetition and predictable phrasing.',
-    },
-    K: {
-      sentenceStyle: 'Short sentences (4-8 words), clear punctuation, direct actions.',
-      vocabularyLevel: 'Early-reader words, light repetition, one new word at a time.',
-      structure: 'Simple sequence with obvious beginning-middle-end.',
-    },
-    '1': {
-      sentenceStyle: 'Short sentences (5-10 words), mostly one idea per sentence.',
-      vocabularyLevel: 'High-frequency words with 1-2 beginner challenge words.',
-      structure: 'Clear event order and easy transitions.',
-    },
-    '2': {
-      sentenceStyle: 'Short-to-medium sentences (6-12 words).',
-      vocabularyLevel: 'Simple descriptive words and familiar verbs.',
-      structure: 'Single clear problem and solution arc.',
-    },
-    '3': {
-      sentenceStyle: 'Mixed sentence lengths (8-14 words), still clear and direct.',
-      vocabularyLevel: 'Age-appropriate academic words with context clues.',
-      structure: 'Stronger character motivation and cause/effect links.',
-    },
-    '4': {
-      sentenceStyle: 'Medium sentences (9-16 words) with varied structure.',
-      vocabularyLevel: 'Richer descriptive language and content words.',
-      structure: 'Include inference opportunities and nuanced detail.',
-    },
-    '5': {
-      sentenceStyle: 'Medium sentences (10-18 words), occasional complex sentence.',
-      vocabularyLevel: 'Subject-linked terminology explained in context.',
-      structure: 'Multi-step problem solving and clear reflection.',
-    },
-    '6': {
-      sentenceStyle: 'Medium-to-long sentences (10-20 words), controlled complexity.',
-      vocabularyLevel: 'Middle-grade tiered vocabulary with context support.',
-      structure: 'Subtle character growth and evidence-based comprehension signals.',
-    },
-    '7': {
-      sentenceStyle: 'Varied sentence lengths with moderate complexity.',
-      vocabularyLevel: 'Domain-linked vocabulary and figurative language used carefully.',
-      structure: 'Theme and perspective should be explicit but age-appropriate.',
-    },
-    '8': {
-      sentenceStyle: 'Varied sentence structures with stronger cohesion.',
-      vocabularyLevel: 'Middle-grade academic language balanced with clarity.',
-      structure: 'Deeper reflection and analytical comprehension opportunities.',
-    },
-  };
-  const gradeProfile = gradeProfiles[gradeLevel] || gradeProfiles['2'];
-  const middleSchool = ['6', '7', '8'].includes(gradeLevel);
-  const lengthProfiles = {
-    quick: middleSchool ? { pages: '3-4 pages', words: '250-400 words total' } : { pages: '3 short pages', words: '100-180 words total' },
-    standard: middleSchool ? { pages: '4-6 pages', words: '400-650 words total' } : { pages: '3-4 pages', words: '180-350 words total' },
-    long: middleSchool ? { pages: '6-8 pages', words: '650-950 words total' } : { pages: '4-6 pages', words: '350-700 words total' },
-  };
-  const lengthProfile = lengthProfiles[storyLength] || lengthProfiles.standard;
-  const topicLabels = { scary_creatures: 'scary creatures', storms: 'storms', getting_lost: 'getting lost', separation: 'separation', loud_noises: 'loud noises', medical_topics: 'medical topics', death_or_grief: 'death or grief', fighting: 'fighting' };
-  const avoidedTopics = topicsToAvoid.map(topic => topicLabels[topic] || topic);
-
+  if (!apiKey) return null;
   try {
-    const safeLearner = 'A curious reader';
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'reading_story',
-            strict: true,
-            schema: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['title', 'pages', 'questions', 'words', 'readingGoal', 'reflectionPrompt'],
-              properties: {
-                title: { type: 'string' },
-                pages: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
-                questions: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['prompt', 'type', 'options', 'answer'], properties: { prompt: { type: 'string' }, type: { type: 'string', enum: ['multiple_choice'] }, options: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'string' } }, answer: { type: 'string' } } } },
-                words: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['word', 'meaning'], properties: { word: { type: 'string' }, meaning: { type: 'string' } } } },
-                readingGoal: { type: 'string' },
-                reflectionPrompt: { type: 'string' },
-              },
-            },
-          },
-        },
-        messages: [{
-          role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal, reflectionPrompt. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Never use true or false questions.`
-        }, {
-          role: 'user',
-          content: JSON.stringify({
-            learnerName: safeLearner,
-            interests: interests || null,
-            gradeLevel,
-            domain,
-            theme,
-            customTheme: customTheme || null,
-            language,
-            prompt,
-            curriculumObjective: curriculumRow?.objective || 'Support comprehension and confidence in reading.',
-            curriculumStandard: curriculumRow?.standard_code || null,
-            standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
-            topicsToAvoid: avoidedTopics,
-            customTopicsToAvoid: customTopicsToAvoid || null,
-            constraints: [
-              'Warm, child-safe, age-appropriate language',
-              `Length target: ${lengthProfile.pages}, approximately ${lengthProfile.words}.`,
-              'Include exactly 3 multiple-choice comprehension questions that can be answered from the story; use exactly 2 or 3 options and one correct answer',
-              'Include 2-3 vocabulary words with meanings',
-              middleSchool ? 'Write for a thoughtful middle-school reader: develop a meaningful problem, layered character motivation, perspective, cause and effect, and details that support inference.' : 'Keep it suitable for early elementary or middle-grade reading based on grade',
-              middleSchool ? 'Make at least one question require evidence from the story, one question address inference or perspective, and one question address theme, central idea, structure, tone, or author craft when supported by the selected objective.' : 'Keep comprehension questions clear and answerable from the story.',
-              middleSchool ? 'Use richer academic vocabulary with context clues, but keep the prose natural, engaging, and appropriate for grades 6-8.' : 'Use grade-appropriate vocabulary with context support.',
-              ['Mystery', 'Dystopian', 'Survival', 'Friendship Drama', 'Identity'].includes(theme) ? 'This genre calls for real tension, suspense, or emotional stakes — that is expected and desired for middle-grade readers. Still avoid graphic violence, gore, self-harm, or content requiring a content warning.' : 'Keep the tone warm and encouraging.',
-              'reflectionPrompt: if middleSchool, write one open-ended, text-dependent critical-thinking question about motivation, perspective, theme, or cause and effect that cannot be answered with a single word. Otherwise return an empty string for reflectionPrompt.',
-              'Focus on reading growth, confidence, and one clear learning goal',
-              interests ? `Use the reader's interests naturally as positive story inspiration: ${interests}. Do not force every interest into the story.` : 'No specific reader interests were provided; choose a broadly engaging setting.',
-              `Sentence guidance: ${gradeProfile.sentenceStyle}`,
-              `Vocabulary guidance: ${gradeProfile.vocabularyLevel}`,
-              `Structure guidance: ${gradeProfile.structure}`,
-              avoidedTopics.length || customTopicsToAvoid ? `Avoid these parent-selected sensitivities: ${[...avoidedTopics, customTopicsToAvoid].filter(Boolean).join('; ')}.` : 'No additional parent-selected sensitivities were provided.',
-              'Never include a parent-selected avoided topic unless it is necessary to discuss the avoidance in a gentle, parent-approved context.',
-            ],
-          })
-        }],
-      }),
-    });
+    const setting = customTheme || theme || 'a gentle storybook setting';
+    const scenePrompt = `Warm, gentle children's picture-book illustration. Setting: ${setting}. Scene inspired by this moment: ${cleanText(firstPageText || title || '').slice(0, 260)}. Soft colors, whimsical and friendly art style, no text or words anywhere in the image, no realistic human faces, safe and gentle for young children.`;
+    if (failsLocalSafetyCheck(scenePrompt)) return null;
+    if (await failsOpenAIModeration(scenePrompt, apiKey)) return null;
 
-    if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
-    const payload = await response.json();
-    const text = payload.choices?.[0]?.message?.content;
-    if (!text) throw new Error('No content from OpenAI');
-    const parsed = validateGeneratedStory(JSON.parse(text));
-    const outputText = JSON.stringify({ title: parsed.title, pages: parsed.pages, questions: parsed.questions, words: parsed.words });
-    if (await failsOpenAIModeration(outputText, apiKey)) {
-      await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_generation' });
-      throw new Error('The generated story did not pass the safety review. Please try a different prompt.');
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'gpt-image-1', prompt: scenePrompt, size: '1024x1024', quality: 'low', n: 1 }),
+    });
+    if (!response.ok) {
+      structuredLog('error', 'illustration_generation_failed', { storyId, status: response.status });
+      return null;
     }
-    
-    const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
-    return {
-      title: cleanText(parsed.title),
-      pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
-      questions: Array.isArray(parsed.questions) && parsed.questions.length ? parsed.questions.map(normalizeQuestion).filter(question => question?.prompt && question.options?.length >= 2 && question.answer) : [],
-      words,
-      readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
-      reflectionPrompt: cleanText(parsed.reflectionPrompt) || '',
-      curriculumObjective: curriculumRow?.objective || null,
-      curriculumId: curriculumRow?.id || null,
-      createdBy: 'openai',
-      usage: payload.usage || null,
-    };
+    const payload = await response.json();
+    const b64 = payload?.data?.[0]?.b64_json;
+    if (!b64) return null;
+
+    const fileName = `${storyId}.png`;
+    await writeFile(path.join(illustrationsDir, fileName), Buffer.from(b64, 'base64'));
+
+    if (accountId) {
+      try {
+        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), accountId, storyId, 'openai', 'gpt-image-1', payload.usage?.input_tokens || null, payload.usage?.output_tokens || null, null]);
+      } catch { /* cost logging is best-effort and must not fail the request */ }
+    }
+
+    return `/story-illustrations/${fileName}`;
   } catch (error) {
-    throw new Error(`OpenAI story generation failed: ${error.message}`);
+    structuredLog('error', 'illustration_generation_error', { storyId, message: error.message });
+    return null;
   }
 }
 
-async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, language = 'English', curriculumRow, accountId, allowExternalAI = false }) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !allowExternalAI) throw new Error('OpenAI is required for story revisions. Enable AI opt-in and configure the OpenAI key.');
-  if (failsLocalSafetyCheck(revisionPrompt)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'local_filter' }); throw new Error('Revision rejected by child-safety filter. Please request a gentler change.'); }
-  if (await failsOpenAIModeration(revisionPrompt, apiKey)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'moderation' }); throw new Error('Revision blocked by safety moderation. Please rewrite the request.'); }
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-      messages: [{
-        role: 'system',
-        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be multiple_choice with exactly 2 or 3 options and an answer matching one option exactly. Never use true or false questions.`
-      }, {
-        role: 'user',
-        content: JSON.stringify({
-          originalStory: { title: story.title, pages: story.content?.pages || [], questions: story.content?.questions || [], words: story.content?.words || [] },
-          revisionRequest: revisionPrompt,
-          gradeLevel,
-          domain,
-          curriculumObjective: curriculumRow?.objective || story.content?.meta?.curriculumObjective || 'Support comprehension and confidence in reading.',
-          constraints: ['Keep the story warm and school-appropriate.', 'Keep 3-4 short pages.', 'Keep exactly 3 multiple-choice comprehension questions with 2 or 3 choices and one exact answer. Do not use true or false.', 'Keep 2-3 vocabulary words with simple definitions.', 'Change only what is needed for the revision request.'],
-        }),
-      }],
-    }),
-  });
-  if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
-  const payload = await response.json();
-  const parsed = validateGeneratedStory(JSON.parse(payload.choices?.[0]?.message?.content || '{}'));
-  if (await failsOpenAIModeration(JSON.stringify(parsed), apiKey)) { await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_revision' }); throw new Error('The revised story did not pass the safety review.'); }
-  const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
-  return {
-    title: cleanText(parsed.title),
-    pages: parsed.pages.map(item => extractTextValue(item)).filter(Boolean),
-    questions: Array.isArray(parsed.questions) ? parsed.questions.map(normalizeQuestion).filter(question => question?.prompt && question.options?.length >= 2 && question.answer) : [],
-    words,
-    readingGoal: cleanText(parsed.readingGoal) || 'Reading practice',
-    usage: payload.usage || null,
-  };
-}
+const { generateStoryContent, reviseStoryContent } = createStoryGeneration({ failsLocalSafetyCheck, failsOpenAIModeration, logSafetyEvent, validateGeneratedStory, fillVocabulary, extractTextValue, cleanText, normalizeQuestion });
 
 app.get('/api/curriculum', requireAuth, async (req, res, next) => {
   try {
@@ -1653,6 +1619,27 @@ app.get('/api/curriculum', requireAuth, async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+// Client-side crash reporting: the browser has no durable log of its own, so
+// JS errors (like a dashboard render crashing silently) would otherwise only
+// ever be seen by someone with devtools open. No auth -- errors can happen
+// before a user is signed in -- but rate-limited and payload-capped so a
+// broken/malicious client can't use this to fill the disk.
+const clientErrorLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false });
+const clientErrorSchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  stack: z.string().trim().max(4000).optional(),
+  url: z.string().trim().max(500).optional(),
+  userAgent: z.string().trim().max(300).optional(),
+  source: z.string().trim().max(120).optional(),
+});
+app.post('/api/client-error', clientErrorLimiter, (req, res) => {
+  const parsed = clientErrorSchema.safeParse(req.body || {});
+  // A malformed telemetry payload should never itself surface as a user-visible
+  // error, so this always responds 204 rather than 400.
+  if (parsed.success) structuredLog('error', 'client_error', parsed.data);
+  return res.status(204).end();
 });
 
 app.get('/api/healthz', async (req, res) => {
@@ -1683,7 +1670,11 @@ app.get('/api/ops/metrics', requireAuth, async (req, res, next) => {
       pool.query("SELECT COUNT(*)::int AS calls, COALESCE(SUM(CASE WHEN provider = 'openai' THEN 1 ELSE 0 END), 0)::int AS openai_calls, COALESCE(SUM(input_tokens), 0)::int AS input_tokens, COALESCE(SUM(output_tokens), 0)::int AS output_tokens, COALESCE(SUM(estimated_cost_usd), 0)::numeric AS estimated_cost_usd FROM ai_invocations WHERE created_at >= NOW() - INTERVAL '24 hours'"),
       pool.query("SELECT COUNT(*)::int AS received, COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM stripe_webhook_events WHERE received_at >= NOW() - INTERVAL '24 hours'"),
     ]);
-    return res.json({ generatedAt: new Date().toISOString(), window: '24h', errors: errors.rows[0], ai: ai.rows[0], stripeWebhooks: webhooks.rows[0] });
+    const generation = await pool.query(`SELECT COUNT(*)::int AS requests, COUNT(*) FILTER (WHERE (metadata->>'successful')::boolean = true)::int AS successful, COUNT(*) FILTER (WHERE (metadata->>'successful')::boolean = false)::int AS unsuccessful, ROUND(AVG((metadata->>'durationMs')::numeric)) AS average_wait_ms FROM ops_events WHERE event_type = 'story_generation_finished' AND created_at >= NOW() - INTERVAL '24 hours'`);
+    const costs = await pool.query(`SELECT COUNT(DISTINCT s.id)::int AS completed_stories, COALESCE(SUM(a.estimated_cost_usd), 0) AS known_estimated_cost_usd, COUNT(a.id) FILTER (WHERE a.estimated_cost_usd IS NULL)::int AS unpriced_calls FROM stories s LEFT JOIN ai_invocations a ON a.story_id = s.id WHERE s.completed_at >= NOW() - INTERVAL '24 hours' AND s.deleted_at IS NULL`);
+    const cost = costs.rows[0];
+    const readingOperations = { generation: generation.rows[0], completedStoryCosts: { ...cost, knownEstimatedCostPerCompletedStory: Number(cost.completed_stories) ? Number(cost.known_estimated_cost_usd) / Number(cost.completed_stories) : null, note: 'Partial estimate using recorded prices; unpriced image/audio calls and unrecorded calls are excluded.' } };
+    return res.json({ readingOperations, generatedAt: new Date().toISOString(), window: '24h', errors: errors.rows[0], ai: ai.rows[0], stripeWebhooks: webhooks.rows[0] });
   } catch (error) {
     return next(error);
   }
@@ -1804,6 +1795,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
   try {
     const createSchema = z.object({
       learnerId: z.string().uuid(),
+      continuationStoryId: z.string().uuid().optional(),
       prompt: z.string().trim().min(1).max(300),
       gradeLevel: z.enum(['PreK', 'K', '1', '2', '3', '4', '5', '6', '7', '8']).default('K'),
       domain: z.enum(['oral_language', 'phonics', 'fluency', 'vocabulary', 'comprehension', 'writing_response', 'social_emotional_reading']).default('comprehension'),
@@ -1818,9 +1810,15 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
 
     const data = parsed.data;
     if (data.theme === 'Custom' && !data.customTheme) return res.status(400).json({ error: 'Please name your story world.' });
-    const learnerQuery = await pool.query('SELECT id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
+    const learnerQuery = await pool.query('SELECT id, first_name, age_band, reading_level, interests, topics_to_avoid, topics_to_avoid_options FROM learners WHERE id = $1 AND account_id = $2', [data.learnerId, req.auth.sub]);
     if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const learner = learnerQuery.rows[0];
+    let previousStory = null;
+    if (data.continuationStoryId) {
+      const previous = await pool.query('SELECT s.* FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND s.learner_id = $2 AND l.account_id = $3 AND s.deleted_at IS NULL', [data.continuationStoryId, data.learnerId, req.auth.sub]);
+      if (!previous.rowCount) return res.status(404).json({ error: 'Previous chapter not found for this learner.' });
+      previousStory = previous.rows[0];
+    }
 
     const acct = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     const allowExternalAI = acct.rows?.[0]?.ai_external_opt_in === true;
@@ -1836,6 +1834,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     // OpenAI ONLY - no fallback
     const generated = await generateStoryContent({
       learnerName: learner.first_name,
+      continuity: previousStory ? { title: previousStory.title, pages: previousStory.content.pages, nextChapter: Number(previousStory.content.meta?.chapter || 1) + 1 } : null,
       interests: learner.interests || '',
       prompt: data.prompt,
       gradeLevel: data.gradeLevel,
@@ -1851,8 +1850,18 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       allowExternalAI,
     });
 
+    const storyId = randomUUID();
+    const illustrationUrl = previousStory?.content?.meta?.illustrationUrl || await generateStoryIllustration({
+      storyId,
+      title: generated.title,
+      theme: data.theme,
+      customTheme: data.customTheme,
+      firstPageText: generated.pages?.[0],
+      accountId: req.auth.sub,
+    });
+
     const story = {
-      id: randomUUID(),
+      id: storyId,
       learnerId: learner.id,
       title: generated.title,
       theme: data.theme,
@@ -1864,10 +1873,15 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
         words: generated.words,
         reflectionPrompt: generated.reflectionPrompt || '',
         meta: {
+          seriesId: previousStory?.content?.meta?.seriesId || previousStory?.id || storyId,
+          previousStoryId: previousStory?.id || null,
+          chapter: previousStory ? Number(previousStory.content.meta?.chapter || 1) + 1 : 1,
+          sharedSeriesCover: Boolean(previousStory?.content?.meta?.illustrationUrl),
           gradeLevel: data.gradeLevel,
           domain: curriculumRow.domain,
           language: data.language,
           customTheme: data.customTheme || null,
+          illustrationUrl,
           curriculumStandard: curriculumRow?.standard_code || null,
           standardsSource: curriculumRow?.source_framework || 'U.S. educational standards',
           curriculumObjective: generated.curriculumObjective,
@@ -1929,15 +1943,7 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
   }
 });
 
-app.use((req, res, next) => {
-  if (/\.(?:html?|js|css)$/i.test(req.path)) res.setHeader('Cache-Control', 'no-store, max-age=0');
-  next();
-});
-app.use(express.static(rootDir));
-app.use('/api/', (req, res, next) => next());
-app.use((req, res) => {
-  return res.sendFile(path.join(rootDir, 'index.html'));
-});
+app.use(createPublicFiles(rootDir));
 
 app.use((error, req, res, next) => {
   void recordOpsEvent('http_error', 'error', error?.message || 'Server error', { method: req.method, path: req.path }, req.requestId);

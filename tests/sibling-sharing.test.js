@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
+import { readFile } from 'node:fs/promises';
+import express from 'express';
+import { newDb } from 'pg-mem';
+import { registerSiblingSharing } from '../server/modules/sibling-sharing.js';
+import { createAuthentication } from '../server/modules/authentication.js';
+
+test('sharing stays within a family and creates independent, idempotent copies', async t => {
+ const db=newDb();
+ db.public.none(`CREATE TABLE accounts(id UUID PRIMARY KEY, role TEXT); CREATE TABLE learners(id UUID PRIMARY KEY, account_id UUID REFERENCES accounts(id), first_name TEXT); CREATE TABLE stories(id UUID PRIMARY KEY,learner_id UUID REFERENCES learners(id),title TEXT,theme TEXT,learning_goal TEXT,prompt TEXT,content JSONB,created_by TEXT,completed_at TIMESTAMPTZ,deleted_at TIMESTAMPTZ);`);
+ db.public.none(await readFile(new URL('../server/migrations/011_sibling_sharing.sql',import.meta.url),'utf8'));
+ const {Pool}=db.adapters.createPg();const pool=new Pool();
+ const family=randomUUID(),other=randomUUID(),child=randomUUID(),sibling=randomUUID(),outsider=randomUUID(),story=randomUUID();
+ for(const id of [family,other]) await pool.query("INSERT INTO accounts(id,role) VALUES($1,'parent')",[id]);
+ for(const [id,account,name] of [[child,family,'Brother'],[sibling,family,'Sister'],[outsider,other,'Other family']]) await pool.query('INSERT INTO learners VALUES($1,$2,$3)',[id,account,name]);
+ await pool.query('INSERT INTO stories(id,learner_id,title,theme,learning_goal,prompt,content,completed_at) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[story,child,'Moon story','Moonlight','Reading','private prompt',{pages:['A moon.'],questions:[],words:[],reflectionResponse:'private answer',meta:{gradeLevel:'2'}}]);
+ const auth=createAuthentication({pool,jwtSecret:'test-secret-more-than-thirty-two-characters'});
+ const app=express();app.use(express.json());app.use(auth.requireAuth);registerSiblingSharing(app,{pool,requireAdultAccount:auth.requireAdultAccount});app.use((e,req,res,next)=>res.status(500).json({error:e.message}));
+ const server=app.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>{server.closeAllConnections();server.close();pool.end();});
+ const parentToken=auth.tokenFor({id:family,role:'parent'}),childToken=auth.childModeTokenFor(family,child),siblingToken=auth.childModeTokenFor(family,sibling);
+ const request=async(token,path,method='GET',body)=>{const r=await fetch(`http://127.0.0.1:${server.address().port}${path}`,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,data:await r.json()};};
+ assert.equal((await request(childToken,`/stories/${story}/sharing`,'POST',{learnerId:sibling})).status,403);
+ assert.equal((await request(childToken,'/sharing/settings','PUT',{enabled:true})).status,403);
+ assert.equal((await request(parentToken,'/sharing/settings','PUT',{enabled:true})).status,200);
+ const choices=await request(childToken,`/stories/${story}/sharing`);assert.deepEqual(choices.data.learners.map(l=>l.id),[sibling]);
+ assert.equal((await request(childToken,`/stories/${story}/sharing`,'POST',{learnerId:outsider})).status,400);
+ assert.equal((await request(siblingToken,`/stories/${story}/sharing`,'POST',{learnerId:child})).status,404);
+ assert.equal((await request(childToken,`/stories/${story}/sharing`,'POST',{learnerId:sibling})).status,201);
+ const again=await request(childToken,`/stories/${story}/sharing`,'POST',{learnerId:sibling});assert.equal(again.data.alreadyShared,true);
+ const copies=await pool.query('SELECT * FROM stories WHERE learner_id=$1',[sibling]);assert.equal(copies.rowCount,1);assert.equal(copies.rows[0].completed_at,null);assert.equal(copies.rows[0].content.reflectionResponse,undefined);assert.notEqual(copies.rows[0].prompt,'private prompt');assert.deepEqual(copies.rows[0].content.pages,['A moon.']);
+ await request(parentToken,'/sharing/settings','PUT',{enabled:false});assert.equal((await request(childToken,`/stories/${story}/sharing`,'POST',{learnerId:sibling})).status,403);
+});

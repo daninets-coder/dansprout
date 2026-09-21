@@ -1,0 +1,242 @@
+[
+  {
+    "id": "benchmark-PreK",
+    "gradeLevel": "PreK",
+    "source": "authored fictional benchmark, not generated output",
+    "review": {
+      "educatorStatus": "pending",
+      "reviewer": null,
+      "scores": null
+    },
+    "story": {
+      "title": "The Red Cup",
+      "pages": [
+        "Pip has a red cup.",
+        "Pip puts water in it.",
+        "Pip gives the cup to Nan."
+      ],
+      "questions": [
+        {
+          "prompt": "Which event appears on page 1?",
+          "options": [
+            "Pip has a red cup.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip has a red cup.",
+          "evidence": "Pip has a red cup."
+        },
+        {
+          "prompt": "Which event appears on page 2?",
+          "options": [
+            "Pip puts water in it.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip puts water in it.",
+          "evidence": "Pip puts water in it."
+        },
+        {
+          "prompt": "Which event appears on page 3?",
+          "options": [
+            "Pip gives the cup to Nan.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip gives the cup to Nan.",
+          "evidence": "Pip gives the cup to Nan."
+        }
+      ],
+      "words": []
+    }
+  },
+  {
+    "id": "benchmark-K",
+    "gradeLevel": "K",
+    "source": "authored fictional benchmark, not generated output",
+    "review": {
+      "educatorStatus": "pending",
+      "reviewer": null,
+      "scores": null
+    },
+    "story": {
+      "title": "The Seed",
+      "pages": [
+        "Pip has a seed.",
+        "Pip puts the seed in a pot.",
+        "A green leaf grows. Pip smiles."
+      ],
+      "questions": [
+        {
+          "prompt": "Which event appears on page 1?",
+          "options": [
+            "Pip has a seed.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip has a seed.",
+          "evidence": "Pip has a seed."
+        },
+        {
+          "prompt": "Which event appears on page 2?",
+          "options": [
+            "Pip puts the seed in a pot.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip puts the seed in a pot.",
+          "evidence": "Pip puts the seed in a pot."
+        },
+        {
+          "prompt": "Which event appears on page 3?",
+          "options": [
+            "A green leaf grows. Pip smiles.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "A green leaf grows. Pip smiles.",
+          "evidence": "A green leaf grows. Pip smiles."
+        }
+      ],
+      "words": []
+    }
+  },
+  {
+    "id": "benchmark-2",
+    "gradeLevel": "2",
+    "source": "authored fictional benchmark, not generated output",
+    "review": {
+      "educatorStatus": "pending",
+      "reviewer": null,
+      "scores": null
+    },
+    "story": {
+      "title": "The Garden Map",
+      "pages": [
+        "Pip found a map by the tree.",
+        "The map showed a garden. Pip followed the path.",
+        "Pip planted a seed and shared the map."
+      ],
+      "questions": [
+        {
+          "prompt": "Which event appears on page 1?",
+          "options": [
+            "Pip found a map by the tree.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip found a map by the tree.",
+          "evidence": "Pip found a map by the tree."
+        },
+        {
+          "prompt": "Which event appears on page 2?",
+          "options": [
+            "The map showed a garden. Pip followed the path.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "The map showed a garden. Pip followed the path.",
+          "evidence": "The map showed a garden. Pip followed the path."
+        },
+        {
+          "prompt": "Which event appears on page 3?",
+          "options": [
+            "Pip planted a seed and shared the map.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Pip planted a seed and shared the map.",
+          "evidence": "Pip planted a seed and shared the map."
+        }
+      ],
+      "words": []
+    }
+  },
+  {
+    "id": "benchmark-5",
+    "gradeLevel": "5",
+    "source": "authored fictional benchmark, not generated output",
+    "review": {
+      "educatorStatus": "pending",
+      "reviewer": null,
+      "scores": null
+    },
+    "story": {
+      "title": "The Bridge Plan",
+      "pages": [
+        "Mira designed a bridge of folded paper for the class model. The first bridge bent under the toy cart.",
+        "She noticed the folded edges stayed firm. She added folds across the center to spread the weight.",
+        "The cart crossed without a wobble. Mira saved both models so her classmates could compare the designs."
+      ],
+      "questions": [
+        {
+          "prompt": "Which event appears on page 1?",
+          "options": [
+            "Mira designed a bridge of folded paper for the class model. The first bridge bent under the toy cart.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Mira designed a bridge of folded paper for the class model. The first bridge bent under the toy cart.",
+          "evidence": "Mira designed a bridge of folded paper for the class model. The first bridge bent under the toy cart."
+        },
+        {
+          "prompt": "Which event appears on page 2?",
+          "options": [
+            "She noticed the folded edges stayed firm. She added folds across the center to spread the weight.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "She noticed the folded edges stayed firm. She added folds across the center to spread the weight.",
+          "evidence": "She noticed the folded edges stayed firm. She added folds across the center to spread the weight."
+        },
+        {
+          "prompt": "Which event appears on page 3?",
+          "options": [
+            "The cart crossed without a wobble. Mira saved both models so her classmates could compare the designs.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "The cart crossed without a wobble. Mira saved both models so her classmates could compare the designs.",
+          "evidence": "The cart crossed without a wobble. Mira saved both models so her classmates could compare the designs."
+        }
+      ],
+      "words": []
+    }
+  },
+  {
+    "id": "benchmark-8",
+    "gradeLevel": "8",
+    "source": "authored fictional benchmark, not generated output",
+    "review": {
+      "educatorStatus": "pending",
+      "reviewer": null,
+      "scores": null
+    },
+    "story": {
+      "title": "The Quiet Proposal",
+      "pages": [
+        "At the town meeting, Noor proposed turning an unused parking lot into a garden. Her diagram included accessible paths, but the shopkeepers worried about losing delivery space.",
+        "Instead of treating their objection as a rejection, Noor visited the shops and mapped when deliveries arrived. She revised the plan to reserve a loading lane before noon.",
+        "The council approved a one-season trial. Noor understood that a useful compromise had strengthened her proposal rather than diminished it."
+      ],
+      "questions": [
+        {
+          "prompt": "Which event appears on page 1?",
+          "options": [
+            "At the town meeting, Noor proposed turning an unused parking lot into a garden. Her diagram included accessible paths, but the shopkeepers worried about losing delivery space.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "At the town meeting, Noor proposed turning an unused parking lot into a garden. Her diagram included accessible paths, but the shopkeepers worried about losing delivery space.",
+          "evidence": "At the town meeting, Noor proposed turning an unused parking lot into a garden. Her diagram included accessible paths, but the shopkeepers worried about losing delivery space."
+        },
+        {
+          "prompt": "Which event appears on page 2?",
+          "options": [
+            "Instead of treating their objection as a rejection, Noor visited the shops and mapped when deliveries arrived. She revised the plan to reserve a loading lane before noon.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "Instead of treating their objection as a rejection, Noor visited the shops and mapped when deliveries arrived. She revised the plan to reserve a loading lane before noon.",
+          "evidence": "Instead of treating their objection as a rejection, Noor visited the shops and mapped when deliveries arrived. She revised the plan to reserve a loading lane before noon."
+        },
+        {
+          "prompt": "Which event appears on page 3?",
+          "options": [
+            "The council approved a one-season trial. Noor understood that a useful compromise had strengthened her proposal rather than diminished it.",
+            "A spaceship landed on the moon."
+          ],
+          "answer": "The council approved a one-season trial. Noor understood that a useful compromise had strengthened her proposal rather than diminished it.",
+          "evidence": "The council approved a one-season trial. Noor understood that a useful compromise had strengthened her proposal rather than diminished it."
+        }
+      ],
+      "words": []
+    }
+  }
+]

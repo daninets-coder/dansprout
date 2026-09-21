@@ -1,1 +1,30 @@
 .story-finished-state{margin-top:10px;padding:12px 14px;background:#e2efdd;border:1px solid #43815b;border-radius:8px;color:#28553f;font:700 14px Arial,sans-serif}
+
+/* First-session reading and sample controls. */
+.story-advanced { margin: 18px 0; padding: 12px; border: 1px solid #d5dfd1; border-radius: 8px; }
+.story-advanced summary { cursor: pointer; font-weight: 700; }
+.sample-story-dialog { width: min(600px, calc(100% - 32px)); max-height: 85dvh; overflow: auto; border: 1px solid #d5dfd1; border-radius: 14px; padding: clamp(20px, 5vw, 36px); background: #fffdf9; color: #21383d; }
+.sample-story-dialog::backdrop { background: rgb(20 50 55 / 55%); }
+.sample-story-dialog h2 { margin-top: 0; }
+.sample-story-dialog article { font-size: clamp(22px, 4vw, 28px); line-height: 1.65; margin: 24px 0; }
+.sample-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.sample-actions button { min-height: 44px; padding: 10px 16px; border-radius: 8px; border: 1px solid #597076; background: #eef5ec; color: #21383d; }
+.story-check-feedback { margin-top: 16px; line-height: 1.6; }
+.book-modal button:focus-visible, .sample-story-dialog button:focus-visible, .story-advanced summary:focus-visible { outline: 3px solid #b95737; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .book-modal *, .sample-story-dialog * { scroll-behavior: auto !important; transition: none !important; } }
+
+.reading-evidence-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 20px; }
+.reading-evidence-grid h3 { margin: 12px 0 6px; }
+.reading-evidence-grid small { color: #52676c; line-height: 1.5; }
+.reader-adult-notes, .reader-series { margin-top: 24px; padding: 16px; border-top: 1px solid #d5dfd1; }
+.reader-adult-notes summary { cursor: pointer; font-weight: bold; }
+.reader-adult-notes label { margin-top: 14px; }
+.reading-focused .story-meta-footer, .reading-focused .book-modal-edit, .reading-focused #apiStoryAssessment, .reading-focused #apiAssessmentResult, .reading-focused #apiStoryWords, .reading-focused .book-modal-subtitle, .reading-focused .reader-adult-notes, .reading-focused .story-shelf-controls, .reading-focused #apiRefreshWords { display: none !important; }
+.book-modal-card .book-modal-hero { max-height: 220px; object-fit: cover; }
+.reader-toolbar button { min-height: 44px; }
+@media(max-width: 600px) { .book-modal-card { width: 100%; padding: 16px; } .reader-toolbar { gap: 6px !important; } .book-modal-head { align-items: flex-start; } .book-modal-title { font-size: 26px; } }
+
+.reader-family-share { margin: 18px 0; padding: 14px; border: 1px solid #d5dfd1; border-radius: 8px; }
+.reader-family-share summary { cursor: pointer; font-weight: bold; }
+.reader-family-share input[type="checkbox"] { display: inline-block; width: auto; margin-right: 8px; }
+.sibling-share-choices button { margin-top: 10px; }

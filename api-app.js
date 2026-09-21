@@ -157,12 +157,13 @@
   let me = null;
   let curriculumOptions = [];
   let editingLearnerId = null;
-  let renderLastActivity;
-  let renderWeeklyReturnActions;
+  // renderLastActivity/renderWeeklyReturnActions are declared as hoisted function
+  // declarations below (not let + function-expression assignment) because they are
+  // called from inside refresh() before the point in the file where they are defined.
 
   app.className = 'enterprise';
   app.innerHTML = `
-    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
+    <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);color:#20454c;padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
     <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}.weekly-return-hero{margin:20px 0;border:2px solid #ccd8c7;background:linear-gradient(135deg,#ffffff 0%,#f5f9f2 100%);box-shadow:0 6px 18px rgba(36,76,83,0.06);border-radius:12px;padding:22px}.weekly-return-eyebrow{color:#b15c3b;font:800 12px/1.2 Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase}.weekly-return-header-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}.weekly-return-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.weekly-return-action{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;text-align:left;padding:16px;border:1.5px solid #d5dfd1;border-radius:10px;background:#fff;color:#244c53;cursor:pointer;transition:all .18s ease;box-shadow:0 2px 6px rgba(0,0,0,0.03)}.weekly-return-action:hover{border-color:#3c7a56;background:#f2f7ed;transform:translateY(-2px);box-shadow:0 6px 14px rgba(47,108,80,0.12)}.weekly-return-number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#dff0df;color:#1e5a39;font:800 15px Arial,sans-serif;flex-shrink:0}.weekly-return-action strong{font:800 15px Arial,sans-serif;color:#20454c;display:block}.weekly-return-action small{margin-top:4px;color:#597076;font:13px/1.4 Arial,sans-serif;display:block}.weekly-return-arrow{color:#c45f3f;font:800 18px Arial,sans-serif}.weekly-return-summary{margin-top:22px;border:1.5px solid #d4ddd1;border-radius:14px;background:#f5f8f3;padding:20px 22px;display:grid;gap:16px}.weekly-vocab-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.weekly-vocab-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;background:#eef6ec;color:#235d3d;font:700 13px Arial,sans-serif;border:1px solid #cce0c9}.weekly-story-item{padding:12px 14px;margin-bottom:10px;border-radius:9px;background:#fff;border:1px solid #e3ebe1;display:grid;gap:4px}.weekly-story-item:last-child{margin-bottom:0}@media(max-width:800px){.weekly-return-actions{grid-template-columns:1fr}}</style>
     <header class="en-header">
       <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
@@ -186,6 +187,15 @@
         <h1 class="en-title">Welcome, ${esc(account.displayName || 'Reader')}.</h1>
         <p class="en-lede">Story Sprout helps parents and children create personalized stories that build reading skills, confidence, and a love of books.</p>
         <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Parents should review each story before sharing it with a child.</p>
+        <section class="en-card" style="margin-top:18px;border:1px solid #d8c7ad;background:linear-gradient(135deg,#fff8ea 0%,#f2f8ef 100%);box-shadow:0 8px 18px rgba(33,70,60,.04)">
+          <div class="en-eyebrow">WHY FAMILIES STAY</div>
+          <h2 style="margin-top:8px">A child gets a story. A parent gets evidence. Everyone gets a next step.</h2>
+          <div class="en-stat-grid" style="margin-top:16px">
+            <div class="en-stat"><strong>1</strong><span>Make a story that fits the child.</span></div>
+            <div class="en-stat"><strong>2</strong><span>See what was read and how it went.</span></div>
+            <div class="en-stat"><strong>3</strong><span>Know exactly what to do next.</span></div>
+          </div>
+        </section>
 
         <section class="en-card" style="margin-bottom:20px">
           <h2>Getting started</h2>
@@ -194,34 +204,43 @@
 
         <div class="en-grid">
           <section class="en-card">
-            <h2>Create a story together</h2>
-            <p>Choose your learner's interests, reading goal, and adventure to make a child-friendly story you can read, discuss, and explore together.</p>
-            <label class="en-label">Learner</label>
-            <select id="apiLearner" class="en-select"></select>
-            <div style="width:100%">
-              <label class="en-label">Grade level</label>
-              <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select><p id="apiGradeBandNote" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
+            <div class="story-window">
+              <div class="story-window-head">
+                <div class="en-eyebrow">STORY WINDOW</div>
+                <h2>Create a story together</h2>
+                <p>Make the place where the magic happens feel clear. Choose a learner, pick a reading level, and add one idea to begin.</p>
+              </div>
+              <div class="story-window-body">
+                <div class="story-window-form">
+                  <label class="en-label">Learner</label>
+                  <select id="apiLearner" class="en-select"></select>
+                  <div style="width:100%">
+                    <label class="en-label">Grade level</label>
+                    <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select><p id="apiGradeBandNote" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
+                  </div>
+                  <details class="story-advanced"><summary>Optional reading skill</summary><div style="width:100%;margin-top:12px">
+                    <label class="en-label">Reading skill for this grade</label>
+                    <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
+                    <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
+                    <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code identifies the practice area; the sentence above explains the skill in family-friendly language. Curriculum alignment is an instructional aid pending qualified educator review.</p>
+                  </div>
+                  </details><label class="en-label" id="apiThemeLabel">Choose a story world</label>
+                  <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
+                  <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
+                  <label class="en-label">Adventure</label>
+                  <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
+                  <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
+                  <label class="en-label">Story length</label>
+                  <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
+                  <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
+                  <div class="story-generation-panel" aria-live="polite">
+                    <button id="apiCreate" class="en-button story-generation-button" type="button"><span class="story-generation-icon">✦</span><span><strong>Start your story</strong><small>Create a personalized reading adventure</small></span><span class="story-generation-arrow">→</span></button>
+                    <div id="apiGenerationStatus" class="story-generation-status">Your choices shape the story, questions, and vocabulary.</div>
+                    <div id="apiGenerationProgress" class="story-generation-progress hidden" role="progressbar" aria-label="Story generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style="width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #e7d9c4">
-              <label class="en-label">Reading skill for this grade</label>
-              <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
-              <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
-              <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code identifies the practice area; the sentence above explains the skill in family-friendly language. Curriculum alignment is an instructional aid pending qualified educator review.</p>
-            </div>
-            <label class="en-label" id="apiThemeLabel">Choose a story world</label>
-            <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
-            <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
-            <label class="en-label">Adventure</label>
-            <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
-            <label class="en-label">Story length</label>
-            <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
-            <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
-            <div class="story-generation-panel" aria-live="polite">
-              <button id="apiCreate" class="en-button story-generation-button" type="button"><span class="story-generation-icon">✦</span><span><strong>Generate my story</strong><small>Build a personalized reading adventure</small></span><span class="story-generation-arrow">→</span></button>
-              <div id="apiGenerationStatus" class="story-generation-status">Your choices shape the story, questions, and vocabulary.</div>
-              <div id="apiGenerationProgress" class="story-generation-progress hidden" role="progressbar" aria-label="Story generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-            </div>
-            <div class="story-visual" id="apiStoryVisual"><img id="apiThemeImage" class="story-visual-banner" alt="Story world image"><div class="story-visual-overlay"><img id="apiGradeBadge" class="story-visual-grade" alt="Grade badge"><img id="apiDomainIcon" class="story-visual-icon" alt="Reading skill icon"></div></div>
           </section>
           <aside class="en-card trial privacy-card">
             <section id="apiLastActivity" class="last-activity-card hidden"></section>
@@ -239,7 +258,7 @@
 
         <section class="en-card" style="margin-top:20px">
           <h2>Saved stories</h2>
-          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Your most recent reports appear at the top.</p>
+          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">Open, share, or delete recent stories from here.</p>
           <input id="apiStorySearch" class="en-input" type="search" placeholder="Search stories by title, learner, world, or standard" aria-label="Search saved stories" style="margin-bottom:14px">
           <div class="story-list-head" style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(120px,.8fr) auto;gap:16px;padding:0 0 8px;border-bottom:2px solid #e7d9c4;color:#597076;font:700 11px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase"><span>Story</span><span>Learner</span><span>Actions</span></div>
           <div id="apiStoryList" class="story-list"></div>
@@ -286,14 +305,16 @@
 
         <section class="en-card" style="margin-top:20px">
           <h2>Learner progress</h2>
+          <div id="apiJourneyDashboard" class="journey-dashboard" style="margin:14px 0 16px"></div>
           <div id="apiStats" class="en-stat-grid"></div>
           <div id="apiProgressBars" class="progress-bars"></div>
+          <div id="apiReaderLevel"></div>
           <div id="apiAchievements" class="achievement-row"></div>
           <div id="apiHabit" class="habit-card"></div>
           <div id="apiLearnerReport" class="learner-report-grid"></div>
           <div id="apiAiStatus" style="margin-top:10px"></div>
           <div id="apiReminderOpt" style="margin-top:10px"></div>
-          <button id="apiDownloadProgress" class="en-outline" type="button" style="margin-top:14px">Download progress snapshot</button>
+          <button id="apiDownloadProgress" class="en-outline" type="button" style="margin-top:14px">Download progress PDF</button>
         </section>
 
       </section>
@@ -317,52 +338,46 @@
             <h2>Start here</h2>
             <ol style="font:15px/1.65 Arial,sans-serif;color:#597076;padding-left:22px">
               <li>Add a learner and choose an age range.</li>
-              <li>Edit the learner's name, interests, or topics to avoid when needed.</li>
-              <li>Choose a grade and reading skill.</li>
-              <li>Choose a story world and adventure together.</li>
-              <li>Select Quick read, Standard story, or Longer adventure.</li>
-              <li>Generate the story and read or listen together.</li>
-              <li>Answer the multiple-choice questions and check the score.</li>
-              <li>Choose a next reading step from the weekly menu.</li>
+              <li>Pick a story world and one idea for the adventure.</li>
+              <li>Generate the story, read it together, and answer the questions.</li>
+              <li>Use the weekly menu to decide the next reading step.</li>
             </ol>
           </section>
           <section class="en-card">
             <h2>What the score means</h2>
-            <p>The score shows how many questions the child answered correctly from that story. It is useful practice feedback, not a complete reading assessment.</p>
-            <p>Use <strong>Try again</strong> to repeat the questions, or <strong>Close</strong> to finish the activity.</p>
-            <p>A positive result is evidence from one story activity. It is not automatic proof of overall reading mastery.</p>
+            <p>The score shows how many story questions were answered correctly. It is practice feedback, not a full reading assessment.</p>
+            <p>A good result is evidence from one story. Use it to choose the next story, not to decide overall mastery.</p>
           </section>
         </div>
         <section class="en-card" style="margin-top:20px">
-          <h2>Keep reading going</h2>
-          <p>After a story, the Home page offers a weekly reading menu based on the selected learner's saved activity.</p>
+          <h2>What keeps families coming back</h2>
+          <p>After a story, Home shows the next easiest action so reading does not stall.</p>
           <div class="en-stat-grid" style="margin-top:16px">
             <div class="en-stat"><strong>1</strong><span>Continue an unfinished story.</span></div>
-            <div class="en-stat"><strong>2</strong><span>Practice the same reading goal again.</span></div>
-            <div class="en-stat"><strong>3</strong><span>Review vocabulary from the latest story.</span></div>
-            <div class="en-stat"><strong>4</strong><span>Create a follow-up adventure in the same world.</span></div>
+            <div class="en-stat"><strong>2</strong><span>Try the same goal again.</span></div>
+            <div class="en-stat"><strong>3</strong><span>Review a few new words.</span></div>
+            <div class="en-stat"><strong>4</strong><span>Create the next story in the same world.</span></div>
           </div>
-          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">Grades 6-8 also receive an evidence and perspective challenge with deeper reasoning.</p>
+          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">Grades 6-8 add deeper reasoning, evidence, and perspective so the work grows with the reader.</p>
         </section>
         <section class="en-card" style="margin-top:20px">
-          <h2>What the reading code means</h2>
-          <p>Each story uses a grade-level reading objective. The plain-English objective explains the skill; the code helps identify the curriculum area.</p>
+          <h2>Reading codes, in plain language</h2>
+          <p>Each story uses a grade-level objective. The plain-English line says what the child is practicing; the code is there for families, teachers, and curriculum records.</p>
           <div class="en-stat-grid" style="margin-top:16px">
             <div class="en-stat"><strong>RF</strong><span>Reading Foundational Skills</span></div>
             <div class="en-stat"><strong>RL</strong><span>Reading Literature</span></div>
             <div class="en-stat"><strong>RI</strong><span>Reading Informational Text</span></div>
             <div class="en-stat"><strong>L / W</strong><span>Language / Writing</span></div>
           </div>
-          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">For Grades 6-8, stories may be longer and include richer vocabulary, evidence, perspective, theme, structure, tone, and author craft.</p>
+          <p style="margin-top:14px;color:#597076;font:13px/1.5 Arial,sans-serif">For Grades 6-8, stories get longer and ask for richer vocabulary, evidence, perspective, theme, structure, tone, and author craft.</p>
         </section>
         <section class="en-card" style="margin-top:20px">
           <h2>Save and share privately</h2>
-          <p>Parents can download a framed story PDF containing the learner name, date, reading focus, story pages, vocabulary, questions, Story Sprout branding, and a story-check note.</p>
-          <p>Parents can also download a private progress snapshot. Story Sprout does not create public child profiles or public achievement links.</p>
+          <p>Parents can download a story PDF or a private progress snapshot. Nothing is public, and nothing is shared outside the family unless a parent chooses it.</p>
         </section>
         <section class="en-card" style="margin-top:20px">
           <h2>Plans, privacy, and support</h2>
-          <p><strong>Plans & billing:</strong> View plans, start checkout when configured, and cancel through parent password and one-time email confirmation. Cancellation stops renewal but does not delete learner data.</p>
+          <p><strong>Plans & billing:</strong> Choose a family or classroom plan when you are ready to use the product regularly. Cancel through parent password and one-time email confirmation. Cancellation stops renewal but does not delete learner data.</p>
           <p><strong>Privacy & data:</strong> Export data, review vendor and AI information, delete a learner, or request full account deletion. Learner deletion and account deletion require clear in-page confirmation.</p>
           <p><strong>Support:</strong> Use the in-page Support form for account, billing, privacy, story safety, or technical questions. Never send passwords, card numbers, or secret keys.</p>
         </section>
@@ -387,10 +402,10 @@
           <section class="en-card"><h2>Saved learners</h2><div id="apiLearnerList" class="student-list"></div></section>
           <form id="apiLearnerForm" class="en-card">
             <h2 id="apiLearnerFormTitle">Add a learner</h2>
-            <label class="en-label">First name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
-            <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160"></div></div>
-            <label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and parent review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
-            <button class="en-button" style="width:100%;margin-top:18px">Save learner</button><button id="apiCancelLearnerEdit" class="en-outline hidden" type="button" style="width:100%;margin-top:8px">Cancel editing</button>
+            <label class="en-label" for="apiFirstName">Nickname or first name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
+            <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160" placeholder="One interest, such as dinosaurs" aria-label="Learner interests"></div></div>
+            <label class="en-label" for="apiReadingLevel">Reading level</label><select id="apiReadingLevel" class="en-select"><option value="PreK">Pre-K: listening and simple words</option><option value="K">Kindergarten: early reading</option>${[1,2,3,4,5,6,7,8].map(grade => `<option value="${grade}">Grade ${grade}</option>`).join('')}</select><details class="story-advanced"><summary>Optional sensitivities and topics to avoid</summary><label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and parent review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
+            </details><button class="en-button" style="width:100%;margin-top:18px">Save learner</button><button id="apiCancelLearnerEdit" class="en-outline hidden" type="button" style="width:100%;margin-top:8px">Cancel editing</button>
           </form>
         </div>
       </section>
@@ -398,7 +413,7 @@
       <section id="apiBillingView" class="hidden">
         <div class="en-eyebrow">PLANS AND BILLING</div>
         <h1 class="en-title">Choose the right shelf size.</h1>
-        <p class="en-lede">Choose a free demo or start a monthly subscription through Stripe.</p>
+        <p class="en-lede">Choose a plan for the people who will use it every week. Story Sprout gives families private story creation, reading evidence, and a simple next step after each session.</p>
         <p style="margin:12px 0 20px;color:#597076;font:13px/1.45 Arial,sans-serif">Canceling stops future renewal but does not delete learner profiles, stories, or reading progress. Cancellation does not automatically issue a prorated refund for the current billing period. Billing errors, duplicate charges, accidental renewals, or service problems can be reviewed through Support. <button type="button" class="en-outline" id="apiBillingPrivacy" style="margin-left:6px;padding:6px 9px">Manage Privacy & data</button></p>
         <div class="plan-grid">
           <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><p>One learner with limited monthly story creation.</p><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
@@ -502,12 +517,12 @@
   const renderOnboarding = (subscription) => {
     const doneLearner = learners.length > 0;
     const doneStory = stories.length > 0;
-    const donePlan = ['demo', 'active'].includes(subscription.status) && ['individual', 'family', 'classroom'].includes(subscription.plan);
-    $('#apiOnboarding').innerHTML = `<div class="onboarding-progress"><strong>${[doneLearner, doneStory, donePlan].filter(Boolean).length} of 3 started</strong><span>Build a learner, make a story, then choose the plan that fits your family.</span></div><div class="en-stat-grid"><button type="button" class="en-stat apiStartStep ${doneLearner ? 'is-done' : ''}" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep ${doneStory ? 'is-done' : ''}" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep ${donePlan ? 'is-done' : ''}" data-step="plan"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'Plan selected' : 'Choose a plan'}</span></button></div>`;
+    const donePlan = stories.some(story => story.completed_at);
+    $('#apiOnboarding').innerHTML = `<div class="onboarding-progress"><strong>${[doneLearner, doneStory, donePlan].filter(Boolean).length} of 3 started</strong><span>Add a learner, create a short story, then read and talk about it together.</span></div><div class="en-stat-grid"><button type="button" class="en-stat apiStartStep ${doneLearner ? 'is-done' : ''}" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep ${doneStory ? 'is-done' : ''}" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep ${donePlan ? 'is-done' : ''}" data-step="read"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'First reading finished' : 'Read your first story'}</span></button></div>`;
     document.querySelectorAll('.apiStartStep').forEach(button => {
       button.onclick = () => {
-        if (button.dataset.step === 'learner') show('learners');
-        if (button.dataset.step === 'plan') show('billing');
+        if (button.dataset.step === 'learner') { show('learners'); $('#apiFirstName')?.focus(); }
+        if (button.dataset.step === 'read') { const next = stories.find(story => !story.completed_at) || stories[0]; if (next) openServerStory(next); else { show('home'); $('#apiPrompt')?.focus(); } }
         if (button.dataset.step === 'story') {
           show('home');
           $('#apiPrompt')?.focus();
@@ -606,18 +621,90 @@
       const objectiveLabel = s?.content?.meta?.curriculumObjective || '';
       const createdTimeLabel = formatStoryDateTime(s.created_at);
       const detail = [s.content?.meta?.customTheme || s.theme || '', s.learning_goal || '', gradeLabel, domainLabel].filter(Boolean).join(' • ');
-      return `<div class="story-row" style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(120px,.8fr) auto;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid #eee"><div><div style="font-weight:700">${esc(s.title)}</div><div style="font-size:12px;color:#666">${esc(detail)}${s.created_by ? ` • generated by ${esc(friendlySource(s.created_by))}` : ''}</div>${createdTimeLabel ? `<div style="font-size:10px;color:#888;margin-top:2px">Created ${esc(createdTimeLabel)}</div>` : ''}<div style="font-size:10px;color:#888;margin-top:2px">Story ID: ${esc(s.id)}</div>${objectiveLabel ? `<div style="font-size:11px;color:#888;margin-top:2px">Objective: ${esc(objectiveLabel)}</div>` : ''}</div><div style="font-weight:700;color:#315b40">${esc(s.learner_name || 'Unassigned')}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="open-story en-button" data-id="${s.id}" style="min-width:86px">Open</button>${!isChildSession ? `<button class="delete-story en-outline" data-id="${s.id}" style="min-width:86px">Delete</button>` : ''}</div></div>`;
+      return `<div class="story-row" style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(120px,.8fr) auto;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid #eee"><div><div style="font-weight:700">${esc(s.title)}</div><div style="font-size:12px;color:#666">${esc(detail)}${s.created_by ? ` • generated by ${esc(friendlySource(s.created_by))}` : ''}</div>${createdTimeLabel ? `<div style="font-size:10px;color:#888;margin-top:2px">Created ${esc(createdTimeLabel)}</div>` : ''}<div style="font-size:10px;color:#888;margin-top:2px">ID: ${esc(s.id)}</div>${objectiveLabel ? `<div style="font-size:11px;color:#888;margin-top:2px">Goal: ${esc(objectiveLabel)}</div>` : ''}</div><div style="font-weight:700;color:#315b40">${esc(s.learner_name || 'Unassigned')}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="share-story en-outline" data-id="${s.id}" style="min-width:86px">Share</button><button type="button" class="open-story en-button" data-id="${s.id}" style="min-width:86px">Open</button>${!isChildSession ? `<button type="button" class="delete-story en-outline" data-id="${s.id}" style="min-width:86px">Delete</button>` : ''}</div></div>`;
     }).join('');
+    const openShareDialog = async story => {
+      const existing = document.getElementById('apiSiblingShareDialog');
+      if (existing) existing.remove();
+      const dialog = document.createElement('div');
+      dialog.id = 'apiSiblingShareDialog';
+      dialog.innerHTML = `<style>#apiSiblingShareDialog{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(20,63,74,.38);box-sizing:border-box}#apiSiblingShareDialog *{box-sizing:border-box}#apiSiblingShareDialog .share-dialog{width:min(520px,100%);max-height:calc(100vh - 40px);overflow:auto;padding:24px;background:#fffdf9;border:1px solid #cbdcc9;border-radius:10px;box-shadow:0 20px 50px rgba(20,63,74,.25)}#apiSiblingShareDialog h2{margin:8px 0;color:#294f55}#apiSiblingShareDialog p{color:#597076;font:14px/1.5 Arial,sans-serif}#apiSiblingShareDialog .share-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}#apiSiblingShareDialog .share-status{min-height:18px;color:#a63e31;font:13px Arial,sans-serif}#apiSiblingShareDialog label{display:block;margin:12px 0 6px;color:#28444c;font:700 13px Arial,sans-serif}#apiSiblingShareDialog select,#apiSiblingShareDialog input{width:100%;padding:11px;border:1px solid #cdbeb2;border-radius:5px;font:14px Arial,sans-serif}.share-setting-row{display:flex;align-items:center;gap:8px;margin-top:12px}.share-setting-row input{width:auto}</style><section class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="apiSiblingShareTitle"><div class="last-activity-eyebrow">SHARE STORY</div><h2 id="apiSiblingShareTitle">${esc(story.title)}</h2><p>Share this story with another learner in the same family. They get their own copy and their own progress.</p>${isChildSession ? '' : '<label class="share-setting-row"><input type="checkbox" id="apiSiblingSharingEnabled"> Allow children in this family to share stories</label>'}<div class="share-choices"></div><p class="share-status" role="status" aria-live="polite"></p><div class="share-actions"><button type="button" class="en-outline" data-share-cancel>Close</button></div></section>`;
+      document.body.appendChild(dialog);
+      const close = () => { dialog.remove(); document.removeEventListener('keydown', onKeyDown); };
+      const onKeyDown = event => { if (event.key === 'Escape') close(); };
+      document.addEventListener('keydown', onKeyDown);
+      dialog.addEventListener('click', event => { if (event.target === dialog) close(); });
+      dialog.querySelector('[data-share-cancel]').onclick = close;
+      const status = dialog.querySelector('.share-status');
+      const choices = dialog.querySelector('.share-choices');
+      const settingsToggle = dialog.querySelector('#apiSiblingSharingEnabled');
+      const refresh = async () => {
+        try {
+          const data = await api(`/api/reading/stories/${story.id}/sharing`);
+          if (!dialog.isConnected) return;
+          if (settingsToggle) settingsToggle.checked = data.enabled;
+          if (!data.enabled) {
+            choices.innerHTML = '<p>A parent needs to enable sibling sharing first.</p>';
+            return;
+          }
+          if (!data.learners.length) {
+            choices.innerHTML = '<p>Add another learner to your family to share stories.</p>';
+            return;
+          }
+          choices.innerHTML = `<label for="apiSiblingRecipient">Choose a sibling</label><select id="apiSiblingRecipient">${data.learners.map(l => `<option value="${esc(l.id)}">${esc(l.first_name)}</option>`).join('')}</select><button type="button" class="en-button" id="apiSiblingShareSubmit">Share story</button>`;
+          choices.querySelector('#apiSiblingShareSubmit').onclick = async () => {
+            const submit = choices.querySelector('#apiSiblingShareSubmit');
+            submit.disabled = true;
+            status.textContent = 'Sharing…';
+            try {
+              const result = await api(`/api/reading/stories/${story.id}/sharing`, { method: 'POST', body: JSON.stringify({ learnerId: choices.querySelector('#apiSiblingRecipient').value }) });
+              status.textContent = result.alreadyShared ? 'This story is already in their library.' : 'Shared. They can open it from Saved stories.';
+            } catch (error) {
+              status.textContent = error.message;
+            } finally {
+              submit.disabled = false;
+            }
+          };
+        } catch (error) {
+          status.textContent = error.message;
+        }
+      };
+      settingsToggle?.addEventListener('change', async event => {
+        const toggle = event.target;
+        toggle.disabled = true;
+        status.textContent = 'Saving sharing setting…';
+        try {
+          await api('/api/reading/sharing/settings', { method: 'PUT', body: JSON.stringify({ enabled: toggle.checked }) });
+          status.textContent = toggle.checked ? 'Sibling sharing enabled.' : 'Sibling sharing disabled for new copies.';
+          await refresh();
+        } catch (error) {
+          toggle.checked = !toggle.checked;
+          status.textContent = error.message;
+        } finally {
+          toggle.disabled = false;
+        }
+      });
+      await refresh();
+    };
     document.querySelectorAll('.open-story').forEach(btn => {
       btn.onclick = () => {
         const st = stories.find(x => x.id === btn.dataset.id);
         if (st) openServerStory(st);
       };
     });
+    document.querySelectorAll('.share-story').forEach(btn => {
+      btn.onclick = () => {
+        const st = stories.find(x => x.id === btn.dataset.id);
+        if (st) openShareDialog(st);
+      };
+    });
     document.querySelectorAll('.delete-story').forEach(btn => {
       btn.onclick = async () => {
         const story = stories.find(item => item.id === btn.dataset.id);
-        if (!story || !window.confirm(`Delete "${story.title}" from your saved stories?`)) return;
+        if (!story) return;
+        const previousLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
         try {
           await api(`/api/stories/${encodeURIComponent(story.id)}`, { method: 'DELETE' });
           stories = stories.filter(item => item.id !== story.id);
@@ -625,6 +712,8 @@
           notify('Story deleted from your saved stories.');
         } catch (error) {
           notify(error.message);
+          btn.disabled = false;
+          btn.textContent = previousLabel;
         }
       };
     });
@@ -633,10 +722,16 @@
   function renderStoryShelf(shelfData) {
     const container = $('#apiStoryShelf');
     if (!container) return;
+    const saved = shelfData?.saved || [];
     const favorites = shelfData?.favorites || [];
     const topRated = shelfData?.topRated || [];
-    const card = story => `<button type="button" class="story-shelf-story" data-shelf-story-id="${esc(story.id)}"><span class="story-shelf-story-title">${esc(story.title)}</span><span class="story-shelf-story-meta">For ${esc(story.learner_name || 'your reader')}</span><span class="story-shelf-rating">${story.average_rating ? `★ ${Number(story.average_rating).toFixed(1)} · ${story.rating_count} ratings` : 'Not rated yet'}</span></button>`;
-    container.innerHTML = `<div class="story-shelf-column"><div class="story-shelf-label">★ Favorites</div>${favorites.length ? favorites.map(card).join('') : '<p class="story-shelf-empty">Favorite stories will appear here.</p>'}</div><div class="story-shelf-column"><div class="story-shelf-label">✦ Top rated</div>${topRated.length ? topRated.map(card).join('') : '<p class="story-shelf-empty">A story needs two ratings before it appears here.</p>'}</div>`;
+    const card = (story, markFavorite) => `<button type="button" class="story-shelf-story" data-shelf-story-id="${esc(story.id)}"><span class="story-shelf-story-title">${markFavorite && story.is_favorite ? '★ ' : ''}${esc(story.title)}</span><span class="story-shelf-story-meta">For ${esc(story.learner_name || 'your reader')}</span><span class="story-shelf-rating">${Number(story.average_rating) > 0 ? `★ ${Number(story.average_rating).toFixed(1)} · ${story.rating_count} ${story.rating_count === 1 ? 'rating' : 'ratings'}` : 'Not rated yet'}</span></button>`;
+    const column = (label, rows, emptyText, markFavorite) => `<div class="story-shelf-column"><div class="story-shelf-label">${label}</div>${rows.length ? rows.map(story => card(story, markFavorite)).join('') : `<p class="story-shelf-empty">${emptyText}</p>`}</div>`;
+    container.innerHTML = [
+      column('📚 Saved stories', saved, 'Stories you create will appear here.', true),
+      column('★ Favorites', favorites, 'Favorite a story and it will appear here.', false),
+      column('✦ Top rated', topRated, 'Rate a story and it will appear here.', false),
+    ].join('');
     container.querySelectorAll('[data-shelf-story-id]').forEach(button => button.onclick = () => { const story = stories.find(item => item.id === button.dataset.shelfStoryId); if (story) openServerStory(story); });
   }
 
@@ -659,6 +754,10 @@
   $('#apiStorySearch').addEventListener('input', renderStoryList);
   $('#apiLearner').addEventListener('change', event => {
     const val = event.target.value;
+    const learner = learners.find(item => item.id === val);
+    if (learner?.reading_level) { $('#apiGradeLevel').value = learner.reading_level; loadCurriculumOptions(learner.reading_level); }
+    window.StorySproutReading.renderProgress({ learnerId: val, api, esc, openStory: openServerStory, isChildSession });
+    renderJourneyDashboard(window.__storySproutProgressLearners || [], val);
     const weeklySelect = $('#apiWeeklyPageLearner');
     if (weeklySelect && weeklySelect.value !== val) weeklySelect.value = val;
     renderLastActivity(window.__storySproutProgressLearners || [], val);
@@ -701,6 +800,10 @@
     modal.className = 'book-modal';
     const inner = document.createElement('div');
     inner.className = 'book-modal-card';
+    inner.setAttribute('role', 'dialog');
+    inner.setAttribute('aria-modal', 'true');
+    inner.setAttribute('aria-label', story.title || 'Story reader');
+    const returnFocus = document.activeElement;
     const modalGrade = story?.content?.meta?.gradeLevel ? `Grade ${story.content.meta.gradeLevel}` : '';
     const earlyReader = ['PreK', 'K', '1'].includes(story?.content?.meta?.gradeLevel);
     const modalDomain = story?.content?.meta?.domain ? story.content.meta.domain.replaceAll('_', ' ') : '';
@@ -708,7 +811,7 @@
     const modalStandard = story?.content?.meta?.curriculumStandard || '';
     const middleSchool = ['6', '7', '8'].includes(story?.content?.meta?.gradeLevel);
     const povButtonMarkup = middleSchool ? '<button type="button" id="apiRetellPOV" class="en-outline" style="margin-top:8px;margin-left:8px">Retell from another character&rsquo;s POV</button>' : '';
-    const adultEditorMarkup = earlyReader ? '' : `<section class="book-modal-edit"><h3 class="book-modal-subtitle">Parent story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button>${povButtonMarkup}</form></section>`;
+    const adultEditorMarkup = (earlyReader || isChildSession) ? '' : `<section class="book-modal-edit"><h3 class="book-modal-subtitle">Parent story editor</h3><p class="book-modal-meta">Use AI to adjust this story while keeping its reading level and learning goal.</p><form id="apiStoryRevision"><label class="en-label" for="apiRevisionPrompt">What should change?</label><textarea id="apiRevisionPrompt" class="en-input" rows="3" maxlength="500" placeholder="Make the ending more surprising, but keep the same reading skill." required></textarea><button type="submit" class="en-outline" style="margin-top:10px">Revise this story</button>${povButtonMarkup}</form></section>`;
     const reflectionPrompt = story?.content?.reflectionPrompt || '';
     const reflectionResponse = story?.content?.reflectionResponse || '';
     const reflectionMarkup = middleSchool && reflectionPrompt ? `<section class="book-modal-edit" style="margin-top:16px"><h3 class="book-modal-subtitle">Think deeper</h3><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">${esc(reflectionPrompt)}</p><textarea id="apiReflectionResponse" class="en-input" rows="3" maxlength="1000" placeholder="Write a few sentences...">${esc(reflectionResponse)}</textarea><button type="button" id="apiSaveReflection" class="en-outline" style="margin-top:10px">Save reflection</button></section>` : '';
@@ -716,7 +819,7 @@
     const modalMeta = [story.learner_name || '', story.content?.meta?.customTheme || story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
     const modalGradeBadge = gradeBadgeMap[story?.content?.meta?.gradeLevel] || gradeBadgeMap['2'];
-    inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${themeBannerMap[story.theme] || themeBannerMap.Moonlight}" alt="Story illustration"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eef5ec;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#597076">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${reflectionMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
+    inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${esc(story?.content?.meta?.illustrationUrl || themeBannerMap[story.theme] || themeBannerMap.Moonlight)}" alt="Story illustration" onerror="this.onerror=null;this.src='${themeBannerMap[story.theme] || themeBannerMap.Moonlight}';"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eef5ec;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#597076">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #ead8bb"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${reflectionMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
     const shelfControls = document.createElement('div');
@@ -725,10 +828,15 @@
     inner.querySelector('.reader-toolbar').before(shelfControls);
     const ratingSelect = shelfControls.querySelector('#apiStoryRating');
     if (story.rating) ratingSelect.value = String(story.rating);
-    const saveShelfPreference = async payload => {
+    let preferenceQueue = Promise.resolve();
+    const saveShelfPreference = payload => {
+      const save = preferenceQueue.catch(() => {}).then(async () => {
       const result = await api(`/api/stories/${encodeURIComponent(story.id)}/preferences`, { method: 'PUT', body: JSON.stringify(payload) });
       Object.assign(story, { is_favorite: result.preference.isFavorite, rating: result.preference.rating, bookmarked_page: result.preference.bookmarkedPage });
       return result.preference;
+      });
+      preferenceQueue = save;
+      return save;
     };
     shelfControls.querySelector('#apiFavoriteStory').onclick = async () => {
       try { const preference = await saveShelfPreference({ isFavorite: !story.is_favorite }); shelfControls.querySelector('#apiFavoriteStory').textContent = preference.isFavorite ? '★ Favorited' : '☆ Favorite'; await refresh(); notify(preference.isFavorite ? 'Added to favorites.' : 'Removed from favorites.'); } catch (error) { notify(error.message); }
@@ -810,8 +918,7 @@
     reportForm.querySelector('#apiCancelSafetyReport').onclick = () => { reportForm.classList.add('hidden'); reportButton.classList.remove('hidden'); };
     if (story.completed_at) {
       const completeButton = inner.querySelector('#apiCompleteStory');
-      completeButton.disabled = true;
-      completeButton.textContent = 'Story complete';
+      completeButton.textContent = 'Review story questions';
     }
     const voiceSelect = document.createElement('select');
     voiceSelect.id = 'apiVoiceSelect';
@@ -819,43 +926,73 @@
     voiceSelect.setAttribute('aria-label', 'Narration voice');
     voiceSelect.style.width = 'auto';
     voiceSelect.style.marginLeft = 'auto';
-    voiceSelect.innerHTML = '<option value="">Natural voice</option>';
+    voiceSelect.innerHTML = '<option value="warm">Warm narrator</option><option value="calm">Calm narrator</option><option value="playful">Playful narrator</option>';
     inner.querySelector('.reader-toolbar').insertBefore(voiceSelect, inner.querySelector('.reader-toolbar span'));
 
     const pagesEl = inner.querySelector('#apiStoryPages');
     const pages = story?.content?.pages || [];
     const resumeKey = `storySproutResume:${story.id}`;
-    let idx = Math.min(Number(localStorage.getItem(resumeKey) || 0), Math.max(0, pages.length - 1));
-    let textSize = 24;
+    const savedPage = Number(localStorage.getItem(resumeKey) ?? story.bookmarked_page ?? 0);
+    let idx = Number.isFinite(savedPage) ? Math.max(0, Math.min(Math.floor(savedPage), pages.length - 1)) : 0;
+    const savedSize = Number(localStorage.getItem('storySproutTextSize') || 24);
+    let textSize = Number.isFinite(savedSize) ? Math.max(18, Math.min(34, savedSize)) : 24;
     const learnedWords = new Set();
-    const storyWordMarkup = text => String(text || '').replace(/[A-Za-z][A-Za-z'-]*/g, (word, offset, fullText) => {
+    const storyWordMarkup = text => esc(text).replace(/&(?:[a-z]+|#\d+);|[A-Za-z][A-Za-z'-]*/g, (word, offset, fullText) => {
+      if (word.startsWith('&')) return word;
       const firstLetter = fullText.slice(0, offset).match(/[A-Za-z]/) ? '' : `<span style="font-size:1.85em;line-height:.8;color:#b35d3e;font-weight:700">${esc(word[0])}</span>`;
       return `<button type="button" class="apiStoryWord" data-word="${esc(word.toLowerCase())}" style="border:0;border-bottom:1px dashed #b35d3e;background:transparent;color:inherit;padding:0;cursor:pointer">${firstLetter}${esc(firstLetter ? word.slice(1) : word)}</button>`;
     });
-    const speak = text => {
-      if (!('speechSynthesis' in window)) return notify('Read-aloud is not supported in this browser.');
-      window.speechSynthesis.cancel();
-      const voices = window.speechSynthesis.getVoices();
-      const selectedVoice = voices.find(voice => voice.name === voiceSelect.value);
-      const femaleVoice = selectedVoice || voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
-        || voices.find(voice => /en-US/i.test(voice.lang) && /female|samantha|ava|victoria|karen|zira|jenny|aria|libby|hazel/i.test(voice.name))
-        || voices.find(voice => /en-US/i.test(voice.lang));
-      const utterance = new SpeechSynthesisUtterance(text);
-      if (femaleVoice) utterance.voice = femaleVoice;
-      utterance.lang = 'en-US';
-      utterance.rate = 0.92;
-      utterance.pitch = 1.05;
-      utterance.volume = 0.95;
-      window.speechSynthesis.speak(utterance);
+    // Real AI narration (OpenAI TTS, generated server-side and cached) rather
+    // than the browser's built-in speechSynthesis voices, which sound
+    // robotic and vary by OS/browser.
+    const narrationAudio = new Audio();
+    let narrationRequestToken = 0;
+    const stopNarration = () => {
+      narrationRequestToken += 1; // invalidate any in-flight request's callback
+      narrationAudio.pause();
+      window.speechSynthesis?.cancel();
+      narrationAudio.currentTime = 0;
+      inner.querySelector('#apiReadPage').textContent = 'Read this page';
+      inner.querySelector('#apiReadStory').textContent = 'Read story';
+      inner.querySelector('#apiReadPage')?.removeAttribute('disabled');
+      inner.querySelector('#apiReadStory')?.removeAttribute('disabled');
     };
-    const populateVoiceChoices = () => {
-      const selected = voiceSelect.value;
-      const voices = window.speechSynthesis?.getVoices?.() || [];
-      voiceSelect.innerHTML = '<option value="">Natural voice</option>' + voices.filter(voice => /^en(-|_)/i.test(voice.lang)).map(voice => `<option value="${esc(voice.name)}">${esc(voice.name)}</option>`).join('');
-      if ([...voiceSelect.options].some(option => option.value === selected)) voiceSelect.value = selected;
+    const speak = async pageIndex => {
+      stopNarration();
+      if (typeof pageIndex === 'string') {
+        if (!window.speechSynthesis) return notify('Word pronunciation is unavailable in this browser.');
+        const utterance = new SpeechSynthesisUtterance(pageIndex); utterance.lang = 'en-US'; utterance.rate = 0.85; window.speechSynthesis.speak(utterance); return;
+      }
+      const thisRequest = narrationRequestToken;
+      const readPageBtn = inner.querySelector('#apiReadPage');
+      const readStoryBtn = inner.querySelector('#apiReadStory');
+      const activeBtn = pageIndex === undefined ? readStoryBtn : readPageBtn;
+      const originalLabel = activeBtn.textContent;
+      readPageBtn.setAttribute('disabled', 'true');
+      readStoryBtn.setAttribute('disabled', 'true');
+      activeBtn.textContent = 'Loading voice…';
+      try {
+        const result = await api(`/api/stories/${story.id}/narration`, {
+          method: 'POST',
+          body: JSON.stringify({ ...(pageIndex === undefined ? {} : { pageIndex }), voice: voiceSelect.value }),
+        });
+        if (thisRequest !== narrationRequestToken) return; // superseded by Stop or another read request
+        narrationAudio.src = result.url;
+        await narrationAudio.play();
+      } catch (error) {
+        if (thisRequest === narrationRequestToken) notify(error.message || 'Could not read this aloud right now.');
+      } finally {
+        if (thisRequest === narrationRequestToken) {
+          activeBtn.textContent = originalLabel;
+          readPageBtn.removeAttribute('disabled');
+          readStoryBtn.removeAttribute('disabled');
+        }
+      }
     };
-    populateVoiceChoices();
-    window.speechSynthesis?.addEventListener('voiceschanged', populateVoiceChoices);
+    narrationAudio.addEventListener('ended', () => {
+      inner.querySelector('#apiReadPage')?.removeAttribute('disabled');
+      inner.querySelector('#apiReadStory')?.removeAttribute('disabled');
+    });
     const renderWordGarden = () => {
       inner.querySelector('#apiStoryWords').innerHTML = (story?.content?.words || []).map(w => `<div class="word-card ${learnedWords.has(w.word.toLowerCase()) ? 'learned' : ''}"><div><strong>${esc(w.word)}</strong><div style="margin-top:3px;color:#597076;font:13px/1.4 Arial,sans-serif">${esc(w.meaning)}</div></div><button type="button" class="apiLearnWord" data-word="${esc(w.word.toLowerCase())}">${learnedWords.has(w.word.toLowerCase()) ? 'Learned' : 'I learned this word'}</button></div>`).join('') || '<p class="book-modal-empty">No words saved yet. Click a story word or refresh the garden.</p>';
       inner.querySelectorAll('.apiLearnWord').forEach(button => {
@@ -865,6 +1002,7 @@
     function bindStoryWords() {
       pagesEl.querySelectorAll('.apiStoryWord').forEach(button => {
         button.onclick = async () => {
+          speak(button.dataset.word);
           button.disabled = true;
           try {
             const result = await api(`/api/stories/${story.id}/vocabulary`, { method: 'POST', body: JSON.stringify({ word: button.dataset.word }) });
@@ -879,18 +1017,19 @@
       });
     }
     const renderPage = () => {
-      pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count" aria-live="polite">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" ${idx === pages.length - 1 ? 'disabled' : ''}>Next</button></div></article>`;
+      pagesEl.innerHTML = `<article class="storybook-page"><div class="storybook-page-text" style="font-size:${textSize}px">${storyWordMarkup(pages[idx] || '')}</div><div class="storybook-page-footer"><button id="prevPage" class="en-outline" ${idx === 0 ? 'disabled' : ''}>Back</button><div class="storybook-page-count" aria-live="polite">Page ${idx + 1} of ${pages.length}</div><button id="nextPage" class="en-button" >${idx === pages.length - 1 ? 'Finish reading' : 'Next'}</button></div></article>`;
+      localStorage.setItem(resumeKey, String(idx));
       saveShelfPreference({ bookmarkedPage: idx }).then(() => { bookmarkStatus.textContent = `Saved at page ${idx + 1}`; }).catch(() => {});
-      inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { idx -= 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
-      inner.querySelector('#nextPage').onclick = () => { if (idx < pages.length - 1) { idx += 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
+      inner.querySelector('#prevPage').onclick = () => { if (idx > 0) { stopNarration(); idx -= 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
+      inner.querySelector('#nextPage').onclick = () => { if (idx === pages.length - 1) { inner.querySelector('#apiCompleteStory').click(); inner.querySelector('.book-modal-actions').scrollIntoView({ behavior: 'smooth' }); return; } if (idx < pages.length - 1) { stopNarration(); idx += 1; localStorage.setItem(resumeKey, String(idx)); renderPage(); } };
       bindStoryWords();
     };
     renderPage();
-    inner.querySelector('#apiReadPage').onclick = () => speak(pages[idx] || '');
-    inner.querySelector('#apiReadStory').onclick = () => speak(pages.join(' '));
-    inner.querySelector('#apiStopReading').onclick = () => window.speechSynthesis?.cancel();
-    inner.querySelector('#apiTextSmaller').onclick = () => { textSize = Math.max(18, textSize - 2); renderPage(); };
-    inner.querySelector('#apiTextLarger').onclick = () => { textSize = Math.min(34, textSize + 2); renderPage(); };
+    inner.querySelector('#apiReadPage').onclick = () => speak(idx);
+    inner.querySelector('#apiReadStory').onclick = () => speak(undefined);
+    inner.querySelector('#apiStopReading').onclick = () => stopNarration();
+    inner.querySelector('#apiTextSmaller').onclick = () => { textSize = Math.max(18, textSize - 2); localStorage.setItem('storySproutTextSize', String(textSize)); renderPage(); };
+    inner.querySelector('#apiTextLarger').onclick = () => { textSize = Math.min(34, textSize + 2); localStorage.setItem('storySproutTextSize', String(textSize)); renderPage(); };
     renderWordGarden();
     inner.querySelector('#apiRefreshWords').onclick = async () => {
       try {
@@ -929,17 +1068,6 @@
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length ? '<button type="submit" class="en-button" style="margin-top:14px">Check answers</button>' : '<p class="book-modal-empty">No questions provided.</p>');
     if (questions.length) {
       assessment.innerHTML += `<p class="book-modal-meta" style="margin-top:14px">${objectiveQuestions ? 'Choose the best answer from the story. Your score is calculated automatically.' : 'This older story uses written responses and still needs parent review.'}</p>`;
-      if (objectiveQuestions) {
-        assessment.querySelectorAll('.assessment-option input').forEach(input => {
-          input.addEventListener('change', () => {
-            const question = questions[Number(input.dataset.questionIndex)];
-            const option = input.closest('.assessment-option');
-            assessment.querySelectorAll(`input[name="assessment-${input.dataset.questionIndex}"]`).forEach(choice => choice.closest('.assessment-option')?.classList.remove('is-correct', 'is-incorrect'));
-            option.classList.add(input.value === question.answer ? 'is-correct' : 'is-incorrect');
-            option.setAttribute('data-feedback', input.value === question.answer ? 'Correct' : 'Try another answer');
-          });
-        });
-      }
       assessment.querySelectorAll('.apiSpeakQuestion').forEach(button => {
         button.onclick = () => {
           const question = questions[Number(button.dataset.questionIndex)];
@@ -949,8 +1077,18 @@
       });
     }
     }
-    inner.querySelector('#closeApiStory').onclick = () => { window.speechSynthesis?.cancel(); modal.remove(); };
-    modal.onclick = (event) => { if (event.target === modal) { window.speechSynthesis?.cancel(); modal.remove(); } };
+    const closeReader = () => { stopNarration(); modal.remove(); if (returnFocus?.isConnected) returnFocus.focus(); };
+    inner.querySelector('#closeApiStory').onclick = closeReader;
+    modal.onclick = event => { if (event.target === modal) closeReader(); };
+    modal.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeReader(); }
+      if (event.key !== 'Tab') return;
+      const focusable = [...inner.querySelectorAll('button, input, textarea, select, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
+    inner.querySelector('#closeApiStory').focus();
     const revisionForm = inner.querySelector('#apiStoryRevision');
     if (revisionForm) revisionForm.onsubmit = async (event) => {
       event.preventDefault();
@@ -997,15 +1135,26 @@
     };
     if (assessment) assessment.onsubmit = async (event) => {
       event.preventDefault();
+      const submit = assessment.querySelector('button[type="submit"]');
+      if (submit.disabled) return;
+      submit.disabled = true;
+      let saved = false;
       try {
         const responses = questions.map((question, index) => objectiveQuestions
           ? assessment.querySelector(`input[name="assessment-${index}"]:checked`)?.value || ''
           : assessment.querySelector(`[data-question-index="${index}"]`)?.value || '');
         const result = await api(`/api/stories/${story.id}/assessment`, { method: 'POST', body: JSON.stringify({ responses }) });
+        saved = true;
         const resultPanel = inner.querySelector('#apiAssessmentResult');
         resultPanel.innerHTML = objectiveQuestions
           ? `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">${result.correct} of ${questions.length} correct on this story's questions. ${result.mastered ? 'This story check provides positive evidence for the selected skill.' : 'Keep practicing this skill and try again.'}</span><div class="assessment-result-actions"><button type="button" class="en-button" id="apiRetryAssessment">Try again</button><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`
           : `<strong class="assessment-score">${result.score}<span>/100</span></strong><span class="assessment-score-detail">Practice score saved. Parent review is still required for this older story format.</span><div class="assessment-result-actions"><button type="button" class="en-outline" id="apiCloseAssessment">Close</button></div>`;
+        if (objectiveQuestions) {
+          const feedback = document.createElement('div');
+          feedback.className = 'story-check-feedback';
+          feedback.innerHTML = questions.map((question, index) => `<p><strong>${index + 1}. ${responses[index] === question.answer ? 'Correct.' : 'Let’s revisit this.'}</strong> ${esc(question.prompt)}<br>Answer: ${esc(question.answer)}${question.evidence ? `<br>Story evidence: <q>${esc(question.evidence)}</q>` : ''}</p>`).join('') + '<p>This is feedback on this story only, not a measure of overall reading ability. Next: find a sentence that supports one answer together.</p>';
+          resultPanel.appendChild(feedback);
+        }
         if (!objectiveQuestions) inner.querySelector('#apiAdultReview')?.classList.remove('hidden');
         assessment.querySelector('button[type="submit"]').disabled = true;
         inner.querySelector('#apiRetryAssessment')?.addEventListener('click', () => {
@@ -1018,6 +1167,7 @@
         await refresh();
         notify('Reading response saved.');
       } catch (error) {
+        if (!saved) submit.disabled = false;
         notify(error.message);
       }
     };
@@ -1034,102 +1184,64 @@
         notify(error.message);
       }
     };
+    const revealStoryQuestions = () => {
+      inner.classList.remove('reading-focused');
+      const explore = inner.querySelector('#apiExploreStory');
+      if (explore) { explore.setAttribute('aria-expanded', 'true'); explore.textContent = 'Focus on reading'; }
+      assessment.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      assessment.querySelector('input, textarea')?.focus({ preventScroll: true });
+    };
     inner.querySelector('#apiCompleteStory').onclick = async () => {
+      if (story.completed_at) { revealStoryQuestions(); return; }
+      const button = inner.querySelector('#apiCompleteStory');
+      if (button.disabled) return;
+      button.disabled = true;
+      button.textContent = 'Saving…';
       try {
-        await api(`/api/stories/${story.id}/complete`, { method: 'PATCH' });
-        inner.querySelector('#apiCompleteStory').disabled = true;
-        inner.querySelector('#apiCompleteStory').textContent = 'Story complete';
-        inner.querySelector('#apiUpgradeCta').innerHTML = '<div class="story-finished-state">Story finished. Nice reading work.</div>';
+        const result = await api(`/api/stories/${story.id}/complete`, { method: 'PATCH' });
+        story.completed_at = result.story?.completed_at || new Date().toISOString();
+        button.textContent = 'Review story questions';
+        inner.querySelector('#apiUpgradeCta').innerHTML = `<div class="story-finished-state"><h3>You finished a story together.</h3><p>Talk about it: what changed from the beginning to the end?</p><button type="button" class="en-button" id="apiGoToCheck">Try the story questions</button><button type="button" class="en-outline" id="apiReadAgain">Read again</button><p>Next time: revisit a favorite page and explain one new word.</p></div>`;
+        inner.querySelector('#apiGoToCheck').onclick = revealStoryQuestions;
+        inner.querySelector('#apiReadAgain').onclick = () => { stopNarration(); idx = 0; localStorage.setItem(resumeKey, '0'); renderPage(); pagesEl.scrollIntoView({ behavior: 'smooth' }); };
+        inner.querySelector('#apiUpgradeCta').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         await refresh();
         notify('Story marked completed.');
       } catch (error) {
+        button.textContent = story.completed_at ? 'Review story questions' : 'Mark completed';
         notify(error.message);
+      } finally {
+        button.disabled = false;
       }
     };
+    window.StorySproutReading.mountReader({ inner, modal, story, api, esc, isChildSession, narrationAudio, stopNarration, openStory: openServerStory,
+      onNextChapter: async () => {
+        if (isChildSession) return;
+        const learnerId = story.learner_id || story.learnerId;
+        inner.querySelector('#closeApiStory').click();
+        show('home');
+        $('#apiLearner').value = learnerId;
+        const meta = story.content?.meta || {};
+        $('#apiGradeLevel').value = meta.gradeLevel || '2';
+        await loadCurriculumOptions($('#apiGradeLevel').value);
+        if (meta.curriculumStandard) $('#apiGoal').value = meta.curriculumStandard;
+        $('#apiTheme').value = [...$('#apiTheme').options].some(option => option.value === story.theme) ? story.theme : 'Custom';
+        $('#apiCustomTheme').value = meta.customTheme || story.theme || '';
+        updateStoryVisual();
+        $('#apiStoryLength').value = 'quick';
+        $('#apiPrompt').value = `Continue the same characters on a new adventure after ${story.title}`.slice(0, 300);
+        continuationStoryId = story.id;
+        $('#apiSeriesNotice')?.remove();
+        const notice = document.createElement('p'); notice.id = 'apiSeriesNotice'; notice.className = 'series-notice';
+        notice.textContent = `Next chapter of ${story.title}. The same series cover will be reused when available. `;
+        const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Start a separate story'; cancel.className = 'en-outline';
+        cancel.onclick = () => { continuationStoryId = null; notice.remove(); $('#apiPrompt').value = ''; };
+        notice.appendChild(cancel); $('#apiPrompt').before(notice); $('#apiPrompt').focus();
+      }
+    });
   }
 
-  async function refresh() {
-    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData, deletedStoryData] = await Promise.all([
-      api('/api/me'),
-      api('/api/learners'),
-      api('/api/stories'),
-      api('/api/subscription'),
-      api('/api/business/scorecard').catch(() => ({ scorecard: null })),
-      api('/api/subscription/offer'),
-      api('/api/reminders/preferences'),
-      api('/api/progress'),
-      api('/api/story-shelf').catch(() => ({ favorites: [], topRated: [] })),
-      api('/api/stories/deleted').catch(() => ({ stories: [] })),
-    ]);
-
-    me = meData.account;
-    learners = learnerData.learners || [];
-    stories = storyData.stories || [];
-    renderStoryShelf(shelfData);
-    renderDeletedStories(deletedStoryData.stories || []);
-    const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
-    const score = scoreData.scorecard;
-    const progressNav = $('#apiProgressNav');
-    const canUseProgressTools = isChildSession || me.isSiteOwner === true || me.role === 'teacher';
-    if (progressNav) progressNav.classList.toggle('hidden', !canUseProgressTools);
-    if (!canUseProgressTools && !$('#apiProgressView').classList.contains('hidden')) show('home');
-    const progressNotice = $('#apiProgressNotice');
-    if (progressNotice) {
-      progressNotice.innerHTML = me.isSiteOwner === true
-        ? '<strong>Site owner reporting</strong><p style="margin:6px 0 0;color:#597076">This page contains business signals and operational metrics for the site owner. Learner progress remains on Home.</p>'
-        : me.role === 'teacher'
-          ? '<strong>Teacher reporting</strong><p style="margin:6px 0 0;color:#597076">Use the school tools below to import a roster and export classroom progress. Learner progress remains on Home.</p>'
-          : '<strong>Parent progress tools</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
-    }
-
-    const selectedLearnerId = $('#apiLearner')?.value;
-    const learnerOptions = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
-    if ($('#apiLearner')) $('#apiLearner').innerHTML = learnerOptions;
-    if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').innerHTML = learnerOptions;
-    if (learners.length) {
-      const activeLearnerId = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
-      if ($('#apiLearner')) $('#apiLearner').value = activeLearnerId;
-      if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').value = activeLearnerId;
-    }
-    const visibleProgressLearners = isChildSession
-      ? (progressData.learners || []).filter(item => item.id === (account.learner?.id || learners[0]?.id))
-      : (progressData.learners || []);
-    window.__storySproutProgressLearners = visibleProgressLearners;
-    renderLastActivity(visibleProgressLearners, $('#apiLearner')?.value);
-    renderWeeklyReturnActions(visibleProgressLearners, $('#apiLearner')?.value);
-    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div>${l.child_username ? `<div class="student-meta">Child login: ${esc(l.child_username)}</div>` : ''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="apiChildLogin en-outline" data-id="${l.id}">${l.child_username ? 'Reset child login' : 'Set child login'}</button><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
-    const masteredAssessments = visibleProgressLearners.reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
-    $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>skills with positive story-check evidence</span></div>`;
-    const completedStories = stories.filter(story => story.completed_at).length;
-    const answeredStories = stories.filter(story => story.content?.questions?.length && story.completed_at).length;
-    const progressPercent = stories.length ? Math.min(100, Math.round((completedStories / stories.length) * 100)) : 0;
-    $('#apiProgressBars').innerHTML = `<div class="progress-line"><div><strong>Reading practice</strong><span>${completedStories} of ${stories.length} stories completed</span></div><div class="progress-track"><span style="width:${progressPercent}%"></span></div></div><div class="progress-line"><div><strong>Story checks</strong><span>${answeredStories} completed checks</span></div><div class="progress-track"><span style="width:${stories.length ? Math.min(100, Math.round((answeredStories / stories.length) * 100)) : 0}%"></span></div></div>`;
-    const achievements = [completedStories >= 1 ? 'First story finished' : 'Your first story is waiting', stories.length >= 3 ? 'Three stories created' : 'Create three stories', masteredAssessments >= 1 ? 'Reading skill demonstrated' : 'Practice a reading skill'];
-    $('#apiAchievements').innerHTML = achievements.map((achievement, index) => `<span class="achievement ${((index === 0 && completedStories >= 1) || (index === 1 && stories.length >= 3) || (index === 2 && masteredAssessments >= 1)) ? 'earned' : ''}">${esc(achievement)}</span>`).join('');
-    const weekStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const weekCompleted = stories.filter(story => story.completed_at && new Date(story.completed_at).getTime() >= weekStart).length;
-    $('#apiHabit').innerHTML = `<strong>${weekCompleted}/1</strong><span>stories completed this week</span><small>${weekCompleted ? 'Nice reading rhythm. Keep it going.' : 'A small weekly goal: finish one story together.'}</small>`;
-    $('#apiLearnerReport').innerHTML = visibleProgressLearners.map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
-    $('#apiDownloadProgress').onclick = () => {
-      const snapshot = { generatedAt: new Date().toISOString(), note: 'Story-specific reading practice snapshot; not a formal reading assessment.', learners: visibleProgressLearners, stories: stories.map(story => ({ id: story.id, learner: story.learner_name, title: story.title, goal: story.learning_goal, completedAt: story.completed_at, createdAt: story.created_at })) };
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
-      link.download = 'story-sprout-progress-snapshot.json';
-      link.click();
-      URL.revokeObjectURL(link.href);
-      notify('Progress snapshot downloaded privately.');
-    };
-    $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
-    $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
-    const cancelButton = $('#apiStartCancel');
-    const cancelPanel = $('#apiCancelPanel');
-    const canCancel = ['active', 'demo'].includes(subscription.status) && subscription.plan !== 'explorer';
-    if (cancelButton) cancelButton.classList.toggle('hidden', !canCancel);
-    if (cancelPanel && !canCancel) cancelPanel.classList.add('hidden');
-    renderOnboarding(subscription);
-
-
-  renderLastActivity = function (progressLearners, learnerId) {
+  function renderLastActivity(progressLearners, learnerId) {
     const container = $('#apiLastActivity');
     if (!container) return;
     const item = progressLearners.find(learner => learner.id === learnerId);
@@ -1142,16 +1254,89 @@
     const assessment = activity.assessment;
     const vocabulary = (activity.vocabulary || []).slice(0, 3).map(word => typeof word === 'string' ? word : word.word).filter(Boolean);
     const status = assessment ? `${assessment.score}/100 story check (${assessment.answered} of ${assessment.questionCount} questions answered)` : activity.completedAt ? 'Story completed' : 'Story in progress';
-    const nextAction = assessment ? 'Review story' : activity.completedAt ? 'Review story' : 'Continue story';
+    const unfinished = stories.find(saved => saved.learner_id === learnerId && !saved.completed_at);
+    const nextStoryId = unfinished?.id || activity.storyId;
+    const nextAction = unfinished ? 'Continue reading' : 'Read together again';
+    const nextTip = assessment ? 'Next time, find a sentence that supports an answer. Notice whether your child explains it independently or with help.' : 'After reading, ask: what happened first, and what changed at the end?';
     container.classList.remove('hidden');
-    container.innerHTML = `<div class="last-activity-eyebrow">WELCOME BACK</div><div class="last-activity-heading"><div><h2>${esc(item.first_name)}'s latest reading activity</h2><p class="last-activity-date">${esc(formatStoryDate(activity.completedAt || activity.createdAt))}</p></div><span class="last-activity-mark">✦</span></div><div class="last-activity-story"><strong>${esc(activity.title)}</strong><span>${esc(activity.learningGoal || 'Reading practice')}</span>${activity.objective ? `<p>${esc(activity.objective)}</p>` : ''}<div class="last-activity-details"><span>${esc(status)}</span>${vocabulary.length ? `<span>Words: ${esc(vocabulary.join(', '))}</span>` : ''}</div></div><button type="button" class="en-button last-activity-open" data-story-id="${esc(activity.storyId)}">${nextAction}</button>`;
+    container.innerHTML = `<div class="last-activity-eyebrow">WELCOME BACK</div><div class="last-activity-heading"><div><h2>${esc(item.first_name)}'s latest reading activity</h2><p class="last-activity-date">${esc(formatStoryDate(activity.completedAt || activity.createdAt))}</p></div><span class="last-activity-mark">✦</span></div><div class="last-activity-story"><strong>${esc(activity.title)}</strong><span>${esc(activity.learningGoal || 'Reading practice')}</span>${activity.objective ? `<p>${esc(activity.objective)}</p>` : ''}<div class="last-activity-details"><span>${esc(status)}</span>${vocabulary.length ? `<span>Words: ${esc(vocabulary.join(', '))}</span>` : ''}</div></div><button type="button" class="en-button last-activity-open" data-story-id="${esc(activity.storyId)}">${nextAction}</button><p>${esc(nextTip)}</p><p class="book-modal-meta">Story checks describe this practice session, not overall reading mastery.</p>`;
     container.querySelector('.last-activity-open').onclick = () => {
-      const story = stories.find(savedStory => savedStory.id === activity.storyId);
+      const story = stories.find(savedStory => savedStory.id === nextStoryId);
       if (story) openServerStory(story);
     };
   }
 
-  renderWeeklyReturnActions = function (progressLearners, learnerId) {
+  function renderJourneyDashboard(progressLearners, learnerId) {
+    const container = $('#apiJourneyDashboard');
+    if (!container) return;
+    const learner = progressLearners.find(item => item.id === learnerId) || learners.find(item => item.id === learnerId);
+    const activity = learner?.last_activity;
+    const latestStory = activity ? stories.find(savedStory => savedStory.id === activity.storyId) : null;
+    const isTeacher = me?.role === 'teacher';
+    if (!learner) {
+      container.innerHTML = `
+        <div class="weekly-summary-heading">READING JOURNEY</div>
+        <h3 class="weekly-summary-title">Choose a learner to see the journey.</h3>
+        <p>Add a learner and create a story together. Then this card will show the latest reading step, the last story, and what to do next.</p>
+      `;
+      return;
+    }
+    if (!activity) {
+      container.innerHTML = `
+        <div class="weekly-summary-heading">READING JOURNEY</div>
+        <h3 class="weekly-summary-title">${esc(learner.first_name)} is ready to begin.</h3>
+        <p>Create the first story together, then come back here to see reading time, story checks, and the next suggested step.</p>
+        <div class="weekly-return-actions" style="margin-top:14px">
+          <button type="button" class="weekly-return-action" id="apiJourneyCreateStory">
+            <span class="weekly-return-number">1</span>
+            <span><strong>Create a story together</strong><small>Pick a level, one interest, and a reading goal.</small></span>
+            <span class="weekly-return-arrow">→</span>
+          </button>
+        </div>
+      `;
+      container.querySelector('#apiJourneyCreateStory').onclick = () => show('home');
+      return;
+    }
+    const assessment = activity.assessment;
+    const nextStep = assessment
+      ? 'Revisit a tricky question, then talk through the sentence that answers it.'
+      : activity.completedAt
+        ? 'Read the same story again or choose a new one at a slightly easier level.'
+        : 'Finish the story, then answer the questions together.';
+    const ctaLabel = activity.completedAt ? 'Read again' : 'Continue reading';
+    const ctaStory = latestStory || stories.find(savedStory => savedStory.id === activity.storyId);
+    const teacherNote = isTeacher
+      ? '<p style="margin-top:12px;color:#597076">Teacher workflow: use Learners to manage a roster and Progress to export classroom evidence.</p>'
+      : '';
+    container.innerHTML = `
+      <div class="weekly-summary-heading">READING JOURNEY</div>
+      <h3 class="weekly-summary-title">${esc(learner.first_name)}'s latest step</h3>
+      <div class="weekly-summary-panel" style="margin-top:12px">
+        <div class="weekly-summary-panel-title">Latest story</div>
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <div>
+            <strong style="color:#20454c;font-size:16px">${esc(activity.title)}</strong>
+            <div style="margin-top:4px;color:#597076;font-size:13px">${esc(activity.learningGoal || 'Reading practice')}</div>
+            ${activity.objective ? `<div style="margin-top:4px;color:#597076;font-size:13px">${esc(activity.objective)}</div>` : ''}
+            <div style="margin-top:8px;color:#b15c3b;font-weight:700;font-size:12px">${assessment ? `${assessment.score}/100 story check` : activity.completedAt ? 'Story completed' : 'In progress'}</div>
+          </div>
+          ${ctaStory ? `<button type="button" class="en-outline" id="apiJourneyOpenStory" style="min-width:140px">${ctaLabel}</button>` : ''}
+        </div>
+      </div>
+      <div class="en-stat-grid" style="margin-top:14px">
+        <div class="en-stat"><strong>${learner.stories_completed || 0}</strong><span>stories completed</span></div>
+        <div class="en-stat"><strong>${learner.assessments_completed || 0}</strong><span>story checks</span></div>
+        <div class="en-stat"><strong>${Number(learner.average_assessment_score || 0)}%</strong><span>average check score</span></div>
+      </div>
+      <p style="margin-top:12px;color:#597076;line-height:1.5">${esc(nextStep)}</p>
+      ${teacherNote}
+    `;
+    if (ctaStory) {
+      container.querySelector('#apiJourneyOpenStory').onclick = () => openServerStory(ctaStory);
+    }
+  }
+
+  function renderWeeklyReturnActions(progressLearners, learnerId) {
     const homeContainer = $('#apiWeeklyReturnActions');
     const pageContainer = $('#apiWeeklyPageContent');
     if (!homeContainer && !pageContainer) return;
@@ -1253,7 +1438,7 @@
           </div>
 
           <div class="weekly-summary-panel">
-            <div class="weekly-summary-panel-title">💡 Vocabulary learned</div>
+            <div class="weekly-summary-panel-title">💡 Vocabulary encountered</div>
             <div style="color:#597076;line-height:1.5">
               <div class="weekly-vocab-chips">
                 ${recentVocabulary.length ? recentVocabulary.map(word => `<span class="weekly-vocab-chip">${esc(word)}</span>`).join('') : '<span>No saved vocabulary is available yet.</span>'}
@@ -1295,6 +1480,135 @@
       attachHandlers(pageContainer);
     }
   }
+
+  async function refresh() {
+    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData, deletedStoryData] = await Promise.all([
+      api('/api/me'),
+      api('/api/learners'),
+      api('/api/stories'),
+      api('/api/subscription'),
+      api('/api/business/scorecard').catch(() => ({ scorecard: null })),
+      api('/api/subscription/offer'),
+      api('/api/reminders/preferences'),
+      api('/api/progress'),
+      api('/api/story-shelf').catch(() => ({ favorites: [], topRated: [] })),
+      api('/api/stories/deleted').catch(() => ({ stories: [] })),
+    ]);
+
+    me = meData.account;
+    learners = learnerData.learners || [];
+    stories = storyData.stories || [];
+    renderStoryShelf(shelfData);
+    renderDeletedStories(deletedStoryData.stories || []);
+    const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
+    const score = scoreData.scorecard;
+    const progressNav = $('#apiProgressNav');
+    const canUseProgressTools = isChildSession || me.isSiteOwner === true || me.role === 'teacher';
+    if (progressNav) progressNav.classList.toggle('hidden', !canUseProgressTools);
+    if (!canUseProgressTools && !$('#apiProgressView').classList.contains('hidden')) show('home');
+    const progressNotice = $('#apiProgressNotice');
+    if (progressNotice) {
+      progressNotice.innerHTML = me.isSiteOwner === true
+        ? '<strong>Site owner reporting</strong><p style="margin:6px 0 0;color:#597076">This page contains business signals and operational metrics for the site owner. Learner progress remains on Home.</p>'
+        : me.role === 'teacher'
+          ? '<strong>Teacher reporting</strong><p style="margin:6px 0 0;color:#597076">Use the school tools below to import a roster and export classroom progress. Learner progress remains on Home.</p>'
+          : '<strong>Parent progress tools</strong><p style="margin:6px 0 0;color:#597076">Your learner progress is available on Home. Site-owner and teacher reporting tools are not enabled for this account.</p>';
+    }
+
+    const selectedLearnerId = $('#apiLearner')?.value;
+    const learnerOptions = learners.length ? learners.map(l => `<option value="${l.id}">${esc(l.first_name)} | ages ${esc(l.age_band)}</option>`).join('') : '<option value="">Add a learner first</option>';
+    if ($('#apiLearner')) $('#apiLearner').innerHTML = learnerOptions;
+    if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').innerHTML = learnerOptions;
+    if (learners.length) {
+      const activeLearnerId = learners.some(learner => learner.id === selectedLearnerId) ? selectedLearnerId : learners[0].id;
+      if ($('#apiLearner')) $('#apiLearner').value = activeLearnerId;
+      if ($('#apiWeeklyPageLearner')) $('#apiWeeklyPageLearner').value = activeLearnerId;
+    }
+    const visibleProgressLearners = isChildSession
+      ? (progressData.learners || []).filter(item => item.id === (account.learner?.id || learners[0]?.id))
+      : (progressData.learners || []);
+    window.__storySproutProgressLearners = visibleProgressLearners;
+    window.StorySproutReading.renderProgress({ learnerId: $('#apiLearner')?.value, api, esc, openStory: openServerStory, isChildSession });
+    renderJourneyDashboard(visibleProgressLearners, $('#apiLearner')?.value);
+    renderLastActivity(visibleProgressLearners, $('#apiLearner')?.value);
+    renderWeeklyReturnActions(visibleProgressLearners, $('#apiLearner')?.value);
+    $('#apiLearnerList').innerHTML = learners.length ? learners.map(l => `<div class="student-row"><div class="student-left"><span class="student-avatar">${esc(l.first_name[0] || '?')}</span><div><div class="student-name">${esc(l.first_name)}</div><div class="student-meta">Ages ${esc(l.age_band)} | ${esc(l.interests || 'Ready for stories')}</div>${l.child_username ? `<div class="student-meta">Child login: ${esc(l.child_username)}</div>` : ''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="apiChildLogin en-outline" data-id="${l.id}">${l.child_username ? 'Reset child login' : 'Set child login'}</button><button class="apiEdit en-outline" data-id="${l.id}">Edit</button><button class="apiRemove" data-id="${l.id}">Remove</button></div></div>`).join('') : '<p>Add a learner to begin.</p>';
+    const masteredAssessments = visibleProgressLearners.reduce((total, learner) => total + Number(learner.mastered_assessments || 0), 0);
+    $('#apiStats').innerHTML = `<div class="en-stat"><strong>${learners.length}</strong><span>learners</span></div><div class="en-stat"><strong>${stories.length}</strong><span>stories saved</span></div><div class="en-stat"><strong>${stories.filter(s => s.completed_at).length}</strong><span>completed</span></div><div class="en-stat"><strong>${masteredAssessments}</strong><span>checks with positive story-specific evidence</span></div>`;
+    const completedStories = stories.filter(story => story.completed_at).length;
+    const answeredStories = visibleProgressLearners.reduce((total, learner) => total + Number(learner.assessments_completed || 0), 0);
+    const progressPercent = stories.length ? Math.min(100, Math.round((completedStories / stories.length) * 100)) : 0;
+    $('#apiProgressBars').innerHTML = `<div class="progress-line"><div><strong>Reading practice</strong><span>${completedStories} of ${stories.length} stories completed</span></div><div class="progress-track"><span style="width:${progressPercent}%"></span></div></div><div class="progress-line"><div><strong>Story checks</strong><span>${answeredStories} completed checks</span></div><div class="progress-track"><span style="width:${stories.length ? Math.min(100, Math.round((answeredStories / stories.length) * 100)) : 0}%"></span></div></div>`;
+    // Reader level: a warm, encouraging milestone label rather than a bare
+    // score, matching the "conversation-first, not a race" tone used
+    // elsewhere on the site.
+    const readerLevels = [
+      { min: 0, label: '🌱 Sprouting Reader' },
+      { min: 1, label: '📖 Growing Reader' },
+      { min: 3, label: '🌟 Star Reader' },
+      { min: 5, label: '🚀 Adventure Reader' },
+      { min: 10, label: '🏆 Champion Reader' },
+    ];
+    const currentLevel = [...readerLevels].reverse().find(level => completedStories >= level.min) || readerLevels[0];
+    const nextLevel = readerLevels.find(level => level.min > completedStories);
+    const levelEl = $('#apiReaderLevel');
+    if (levelEl) {
+      const remaining = nextLevel ? nextLevel.min - completedStories : 0;
+      levelEl.innerHTML = `<div class="reader-level-badge">${esc(currentLevel.label)}</div><span class="reader-level-next">${nextLevel ? `${remaining} more finished ${remaining === 1 ? 'story' : 'stories'} to reach ${esc(nextLevel.label)}` : 'You have completed many reading sessions. Keep exploring!'}</span>`;
+    }
+
+    const favoritesCount = stories.filter(story => story.is_favorite).length;
+    const badgeDefs = [
+      { icon: '🌱', label: 'First Sprout', earned: stories.length >= 1 },
+      { icon: '📖', label: 'Bookworm', earned: stories.length >= 3 },
+      { icon: '✅', label: 'Story Finisher', earned: completedStories >= 1 },
+      { icon: '🧠', label: 'Quick Thinker', earned: masteredAssessments >= 1 },
+      { icon: '❤️', label: 'Story Collector', earned: favoritesCount >= 1 },
+      { icon: '🏆', label: 'Reading Champion', earned: completedStories >= 5 },
+    ];
+    $('#apiAchievements').innerHTML = badgeDefs.map(badge => `<span class="achievement ${badge.earned ? 'earned' : ''}"><span class="achievement-icon">${badge.icon}</span>${esc(badge.label)}</span>`).join('');
+    const weekStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const weekCompleted = stories.filter(story => story.completed_at && new Date(story.completed_at).getTime() >= weekStart).length;
+    $('#apiHabit').innerHTML = `<strong>${weekCompleted}/1</strong><span>${weekCompleted ? '🔥 ' : ''}stories completed this week</span><small>${weekCompleted ? 'Nice reading rhythm. Keep it going.' : 'A small weekly goal: finish one story together.'}</small>`;
+    $('#apiLearnerReport').innerHTML = visibleProgressLearners.map(item => `<div class="learner-report"><strong>${esc(item.first_name)}</strong><span>${item.stories_completed} completed • ${item.assessments_completed} checks • ${item.average_assessment_score || 0}% average</span><div class="progress-track"><span style="width:${Math.min(100, Number(item.average_assessment_score || 0))}%"></span></div></div>`).join('');
+    $('#apiDownloadProgress').onclick = async () => {
+      const button = $('#apiDownloadProgress');
+      const previousLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Preparing PDF...';
+      try {
+        const response = await fetch('/api/progress-summary.pdf', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(sessionStorage.getItem('storySproutParentConfirmation') ? { 'X-Parent-Confirmation': sessionStorage.getItem('storySproutParentConfirmation') } : {}),
+          },
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Unable to create the progress PDF.');
+        }
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'story-sprout-progress-report.pdf';
+        link.click();
+        URL.revokeObjectURL(link.href);
+        notify('Progress PDF downloaded privately.');
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = previousLabel;
+      }
+    };
+    $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
+    $('#apiBillingStatus').textContent = `${subscription.plan} plan: ${subscription.status}.`;
+    const cancelButton = $('#apiStartCancel');
+    const cancelPanel = $('#apiCancelPanel');
+    const canCancel = ['active', 'demo'].includes(subscription.status) && subscription.plan !== 'explorer';
+    if (cancelButton) cancelButton.classList.toggle('hidden', !canCancel);
+    if (cancelPanel && !canCancel) cancelPanel.classList.add('hidden');
+    renderOnboarding(subscription);
 
   $('#apiStartCancel').onclick = () => { $('#apiCancelPanel').classList.remove('hidden'); $('#apiCancelError').textContent = ''; $('#apiCancelReason').focus(); };
   $('#apiBillingPrivacy').onclick = () => document.querySelector('.privacy-trigger')?.click();
@@ -1345,6 +1659,7 @@
           editingLearnerId = learner.id;
           $('#apiFirstName').value = learner.first_name || '';
           $('#apiAgeBand').value = learner.age_band || '6-8';
+          $('#apiReadingLevel').value = learner.reading_level || '2';
           $('#apiInterests').value = learner.interests || '';
           $('#apiAvoid').value = learner.topics_to_avoid || '';
           document.querySelectorAll('#apiAvoidOptions input').forEach(input => { input.checked = (learner.topics_to_avoid_options || []).includes(input.value); });
@@ -1423,8 +1738,10 @@
   $('#apiLearnerForm').onsubmit = async (event) => {
     event.preventDefault();
     try {
+      const firstLearner = !editingLearnerId && learners.length === 0;
       const payload = {
         firstName: $('#apiFirstName').value,
+        readingLevel: $('#apiReadingLevel').value,
         ageBand: $('#apiAgeBand').value,
         interests: $('#apiInterests').value,
         topicsToAvoid: $('#apiAvoid').value,
@@ -1440,7 +1757,8 @@
       $('#apiLearnerFormTitle').textContent = 'Add a learner';
       $('#apiCancelLearnerEdit').classList.add('hidden');
       await refresh();
-      notify('Learner profile saved securely.');
+      if (firstLearner) { $('#apiGradeLevel').value = payload.readingLevel; await loadCurriculumOptions(payload.readingLevel); show('home'); $('#apiStoryLength').value = 'quick'; $('#apiPrompt').value = `A friendly adventure about ${payload.interests.trim() || 'finding something surprising'}`; $('#apiPrompt').focus(); }
+      notify(firstLearner ? 'Learner ready. Choose a reading level and create your first short story.' : 'Learner profile saved securely.');
     } catch (error) {
       notify(error.message);
     }
@@ -1453,6 +1771,7 @@
     $('#apiCancelLearnerEdit').classList.add('hidden');
   };
 
+  let continuationStoryId = null;
   let generationTimer = null;
   const generationButton = $('#apiCreate');
   const generationStatus = $('#apiGenerationStatus');
@@ -1482,21 +1801,21 @@
     generationButton.classList.add('is-generating');
     generationButton.querySelector('.story-generation-icon').textContent = '✦';
     generationButton.querySelector('strong').textContent = 'Creating your story...';
-    setGenerationProgress(12, 'Setting the reading goal...');
+    const generationStarted = Date.now();
+    generationProgress.classList.remove('hidden');
+    generationProgress.removeAttribute('aria-valuenow');
+    generationProgress.querySelector('span').style.width = '100%';
+    generationStatus.textContent = 'Creating your story, questions, and illustration. This may take a minute.';
     generationTimer = window.setInterval(() => {
-      const current = Number(generationProgress.getAttribute('aria-valuenow') || 12);
-      if (current < 86) {
-        const next = current + (current < 45 ? 11 : 5);
-        const messages = ['Shaping the adventure...', 'Writing pages for this reader...', 'Adding questions and useful words...'];
-        setGenerationProgress(next, messages[Math.min(2, Math.floor(next / 35))]);
-      }
-    }, 900);
+      const seconds = Math.floor((Date.now() - generationStarted) / 1000);
+      generationStatus.textContent = `Still creating your story (${seconds}s). Your choices are kept here if the request fails.`;
+    }, 1000);
     try {
       const learner = learners.find(item => item.id === learnerId);
       const generationPath = isChildSession ? '/api/child-mode/stories/generate' : '/api/stories/generate';
       const generationBody = isChildSession
         ? { prompt, domain, theme, customTheme, storyLength }
-        : { learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength };
+        : { learnerId, prompt, gradeLevel, domain, standardCode: selectedStandard, theme, customTheme, storyLength, ...(continuationStoryId ? { continuationStoryId } : {}) };
       const response = await api(generationPath, { method: 'POST', body: JSON.stringify(generationBody) });
       if (!response.story) throw new Error('Story could not be generated.');
       window.clearInterval(generationTimer);
@@ -1508,16 +1827,19 @@
       generationButton.classList.add('is-complete');
       generationButton.querySelector('strong').textContent = 'Story ready';
       generationButton.querySelector('.story-generation-icon').textContent = '✓';
+      continuationStoryId = null;
+      $('#apiSeriesNotice')?.remove();
       $('#apiPrompt').value = '';
       await refresh();
-      notify(`Story generated for ${learner?.first_name || 'learner'}.`);
+      notify(`Story ready for ${learner?.first_name || 'learner'}.`);
+      await openServerStory(response.story);
     } catch (error) {
       window.clearInterval(generationTimer);
       generationTimer = null;
       generationButton.disabled = false;
       generationButton.classList.remove('is-generating');
       generationButton.querySelector('strong').textContent = 'Generate my story';
-      generationStatus.textContent = 'Generation could not finish. Check the details and try again.';
+      generationStatus.textContent = `${error.message} Your choices are saved on this screen. Try again when ready.`;
       generationProgress.classList.add('hidden');
       notify(error.message);
     }
