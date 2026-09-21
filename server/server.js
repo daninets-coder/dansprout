@@ -904,7 +904,7 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
         },
         quantity: 1,
       }];
-    if (plan === 'family' && learnerCount > 3) return res.status(400).json({ error: 'Family is capped at three learners. Remove extra learners or choose Classroom.' });
+    if (plan === 'family' && learnerCount > 5) return res.status(400).json({ error: 'Family is capped at five learners. For larger groups, choose a custom plan or contact us.' });
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
