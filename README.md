@@ -1,6 +1,6 @@
-# Story Sprout Web
+# ReadBloom Web
 
-Story Sprout is a personalized storybook and reading-support web app for
+ReadBloom is a personalized storybook and reading-support web app for
 families, teachers, and children. It turns a child's interests and learning
 goals into short illustrated story experiences, then helps adults notice
 reading habits and begin useful conversations.
@@ -140,7 +140,7 @@ site data, using private browsing, or switching browsers may remove it.
 	 APP_BASE_URL=http://localhost:3000
 	 EMAIL_PROVIDER=resend
 	 RESEND_API_KEY=
-	 EMAIL_FROM=Story Sprout <admin@dansprout.com>
+	 EMAIL_FROM=ReadBloom <admin@dansprout.com>
 	 SUPPORT_EMAIL=admin@dansprout.com
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
@@ -274,3 +274,4 @@ Stripe cancellation behavior, and one-time email-link testing.
 | `POST /api/stories/:storyId/safety-report` | Report unsafe, incorrect, or privacy-sensitive story content |
 | `GET /api/ops/metrics` | Owner-only operational, AI usage, and webhook metrics |
 	api-app.js             Authenticated PostgreSQL-backed workspace
+

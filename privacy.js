@@ -20,17 +20,17 @@
   modal.innerHTML = `<section class="privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
     <button class="privacy-close" type="button" aria-label="Close privacy and data settings">&times;</button>
     <h2 id="privacyTitle">Privacy & data</h2>
-    <p>Story Sprout keeps learner profiles and reading activity private to the parent account that created them. We do not sell learner data or store payment card numbers.</p>
+    <p>StoryAura Land keeps learner profiles and reading activity private to the parent account that created them. We do not sell learner data or store payment card numbers.</p>
     <h3>Parent consent</h3>
     <p>An adult parent, guardian, or teacher must approve learner profiles during account registration. Only an adult should enter a child's information.</p>
     <h3>What we store</h3>
-    <p>We store the account email and name, learner profile details, saved stories, progress, and subscription status needed to provide the service. Payment details belong to the payment provider and are never sent to Story Sprout.</p>
+    <p>We store the account email and name, learner profile details, saved stories, progress, and subscription status needed to provide the service. Payment details belong to the payment provider and are never sent to StoryAura Land.</p>
     <h3>Retention and deletion</h3>
     <p>We retain account and learner data while the account is active or as needed to provide the service, meet legal obligations, resolve disputes, and maintain security records. Account deletion removes the account, learner profiles, stories, progress, and subscription records from the application database after the adult confirms the request through a one-time email link, subject to limited legally required records and provider retention.</p>
     <h3>Data export</h3>
     <p>Adults can request an export of account, learner, story, consent, and reminder data from the authenticated account. Keep exported data secure because it may contain learner information.</p>
     <h3>Vendors and disclosures</h3>
-    <p>Stripe handles payment details and subscription billing. OpenAI processes enabled AI story requests. Railway hosts the application. PostgreSQL stores application data. Story Sprout does not store payment card numbers.</p>
+    <p>Stripe handles payment details and subscription billing. OpenAI processes enabled AI story requests. Railway hosts the application. PostgreSQL stores application data. StoryAura Land does not store payment card numbers.</p>
     <h3>After cancellation</h3>
     <p>Cancellation stops future renewal but does not delete learner data. Your learner profiles, stories, and progress remain saved. An adult can delete the account at any time; deletion removes the account, learners, stories, and subscription records from the application database.</p>
     <p><button type="button" class="privacy-action secondary" data-privacy-action="billing">Manage subscription and billing</button></p>
@@ -85,7 +85,7 @@
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'story-sprout-account-export.json';
+      link.download = 'storyaura-land-account-export.json';
       link.click();
       URL.revokeObjectURL(link.href);
       status('Your account export is ready.');
@@ -107,3 +107,4 @@
     } catch (error) { status(error.message); }
   };
 })();
+

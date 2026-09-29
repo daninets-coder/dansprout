@@ -166,7 +166,7 @@
     <style>.last-activity-card{border-left:4px solid var(--pine);background:linear-gradient(135deg,#fffdf8,#f4f8ee);color:#20454c;padding:16px 17px;margin-bottom:18px}.last-activity-eyebrow{color:#b15c3b;font:700 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}.last-activity-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.last-activity-heading h2{font-size:19px;margin:8px 0 0}.last-activity-date{margin:5px 0 0;color:#718080;font:12px Arial,sans-serif}.last-activity-mark{color:#c88455;font-size:22px}.last-activity-story{display:grid;gap:5px;margin:14px 0;padding:12px;border:1px solid #e4dfd0;background:#fffefb}.last-activity-story strong{font-size:16px;color:#294f55}.last-activity-story>span{color:#b15c3b;font:700 12px Arial,sans-serif}.last-activity-story p{margin:3px 0;color:#597076;font:13px/1.4 Arial,sans-serif}.last-activity-details{display:grid;gap:5px;margin-top:5px;color:#597076;font:12px/1.35 Arial,sans-serif}.last-activity-open{width:100%}.privacy-card{padding:18px}.privacy-card .trial-mascot{max-height:105px;object-fit:contain;margin:4px auto 0}.privacy-card .privacy-spark{margin-top:14px!important;padding-top:12px!important}.avoid-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.avoid-options label{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e5d5bf;border-radius:5px;background:#fffdf9;color:#597076;font:12px Arial,sans-serif}.avoid-options input{accent-color:#2f6c50}@media(max-width:800px){.avoid-options{grid-template-columns:1fr)}.en-mark,.auth-mark{background-color:#db6f47;background-image:radial-gradient(circle at 5px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 12px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 18px 5px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(circle at 24px 8px,#fff7ea 0 2px,transparent 2.5px),radial-gradient(ellipse at 5px 15px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 12px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 18px 12px,#fff7ea 0 3px,transparent 3.5px),radial-gradient(ellipse at 24px 15px,#fff7ea 0 3px,transparent 3.5px)}.en-mark:after,.auth-mark:after{content:'';position:absolute;width:7px;height:10px;border:2px solid #db6f47;border-left-color:#fff7ea;border-bottom-color:#fff7ea;border-radius:100% 0;left:10px;top:13px;transform:rotate(35deg);background:#fff7ea}</style>
     <style>.next-actions-card{padding:14px 15px;border:1px solid #e5d5bf;background:#fffdf9}.next-actions-card h3{margin:7px 0 4px;color:#294f55;font-size:18px}.next-actions-card p{margin:0 0 12px;color:#597076;font:13px/1.4 Arial,sans-serif}.next-actions-card button{width:100%}.onboarding-progress{display:grid;gap:4px;margin-bottom:14px;color:#597076;font:13px/1.4 Arial,sans-serif}.onboarding-progress strong{color:#294f55;font-size:16px}.en-stat.is-done{background:#edf7ea}.weekly-return-hero{margin:20px 0;border:2px solid #ccd8c7;background:linear-gradient(135deg,#ffffff 0%,#f5f9f2 100%);box-shadow:0 6px 18px rgba(36,76,83,0.06);border-radius:12px;padding:22px}.weekly-return-eyebrow{color:#b15c3b;font:800 12px/1.2 Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase}.weekly-return-header-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}.weekly-return-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.weekly-return-action{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;text-align:left;padding:16px;border:1.5px solid #d5dfd1;border-radius:10px;background:#fff;color:#244c53;cursor:pointer;transition:all .18s ease;box-shadow:0 2px 6px rgba(0,0,0,0.03)}.weekly-return-action:hover{border-color:#3c7a56;background:#f2f7ed;transform:translateY(-2px);box-shadow:0 6px 14px rgba(47,108,80,0.12)}.weekly-return-number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#dff0df;color:#1e5a39;font:800 15px Arial,sans-serif;flex-shrink:0}.weekly-return-action strong{font:800 15px Arial,sans-serif;color:#20454c;display:block}.weekly-return-action small{margin-top:4px;color:#597076;font:13px/1.4 Arial,sans-serif;display:block}.weekly-return-arrow{color:#c45f3f;font:800 18px Arial,sans-serif}.weekly-return-summary{margin-top:22px;border:1.5px solid #d4ddd1;border-radius:14px;background:#f5f8f3;padding:20px 22px;display:grid;gap:16px}.weekly-vocab-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.weekly-vocab-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;background:#eef6ec;color:#235d3d;font:700 13px Arial,sans-serif;border:1px solid #cce0c9}.weekly-story-item{padding:12px 14px;margin-bottom:10px;border-radius:9px;background:#fff;border:1px solid #e3ebe1;display:grid;gap:4px}.weekly-story-item:last-child{margin-bottom:0}@media(max-width:800px){.weekly-return-actions{grid-template-columns:1fr}}</style>
     <header class="en-header">
-      <button class="en-brand" id="apiHome"><span class="en-mark"></span>Story Sprout</button>
+      <button class="en-brand" id="apiHome"><span class="en-mark"></span>StoryAura Land</button>
       <nav class="en-nav">
         <button data-api-view="home" class="active">Home</button>
         <button data-api-view="weekly">Last week review</button>
@@ -186,7 +186,7 @@
         <div class="home-hero">
           <div class="en-eyebrow">PRIVATE READING STUDIO</div>
           <h1 class="en-title">Create stories kids want to finish.</h1>
-          <p class="en-lede">Story Sprout helps parents and children make personalized stories, read them together, and get a clear next step after each session.</p>
+          <p class="en-lede">StoryAura Land helps parents and children make personalized stories, read them together, and get a clear next step after each session.</p>
           <div class="hero-pills">
             <span>Private family stories</span>
             <span>Story-specific evidence</span>
@@ -283,7 +283,7 @@
 
         <section class="en-card" style="margin-top:20px">
           <div class="en-eyebrow">FOR FAMILIES</div>
-          <h2>How Story Sprout supports reading</h2>
+          <h2>How StoryAura Land supports reading</h2>
           <p class="en-lede" style="font-size:15px;margin-top:8px">We turn reading practice into a story a child can understand, talk about, and return to.</p>
           <div class="en-stat-grid" style="margin-top:18px">
             <div class="en-stat"><strong>1</strong><span><b>Start with the right goal.</b><br>Choose a grade and a U.S. reading benchmark so the story has a clear learning purpose.</span></div>
@@ -305,7 +305,7 @@
               <div><strong>Grades 3-5</strong><br>Reading evidence, theme, point of view, vocabulary, writing about reading, and comparing ideas.</div>
               <div><strong>Grades 6-8</strong><br>Text structure, author craft, perspective, argument, evidence-based writing, and critical interpretation.</div>
               <div><strong>Common abbreviations</strong><br><b>RF</b> = Reading Foundational Skills; <b>RL</b> = Reading Literature; <b>RI</b> = Reading Informational Text; <b>L</b> = Language; <b>W</b> = Writing.</div>
-              <div><strong>How to read a code</strong><br>In <b>RL.3.1</b>, <b>RL</b> names the reading-literature area, the first number is the grade, and the last number identifies the benchmark. Story Sprout also uses short internal labels such as <b>3-CMP-1</b>; the plain-English objective beside the code is the clearest description of the practice.</div>
+              <div><strong>How to read a code</strong><br>In <b>RL.3.1</b>, <b>RL</b> names the reading-literature area, the first number is the grade, and the last number identifies the benchmark. StoryAura Land also uses short internal labels such as <b>3-CMP-1</b>; the plain-English objective beside the code is the clearest description of the practice.</div>
             </div>
           </details>
         </section>
@@ -338,7 +338,7 @@
 
       <section id="apiGuideView" class="hidden">
         <div class="en-eyebrow">PARENT GUIDE</div>
-        <h1 class="en-title">How Story Sprout works.</h1>
+        <h1 class="en-title">How StoryAura Land works.</h1>
         <p class="en-lede">Parents guide the learning. Children bring the imagination. Use this quick guide to create a story, read it together, and see what the child understood.</p>
         <div class="en-grid" style="margin-top:30px">
           <section class="en-card">
@@ -410,8 +410,8 @@
           <form id="apiLearnerForm" class="en-card">
             <h2 id="apiLearnerFormTitle">Add a learner</h2>
             <label class="en-label" for="apiFirstName">Nickname or first name</label><input id="apiFirstName" class="en-input" maxlength="32" required>
-            <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160" placeholder="One interest, such as dinosaurs" aria-label="Learner interests"></div></div>
-            <label class="en-label" for="apiReadingLevel">Reading level</label><select id="apiReadingLevel" class="en-select"><option value="PreK">Pre-K: listening and simple words</option><option value="K">Kindergarten: early reading</option>${[1,2,3,4,5,6,7,8].map(grade => `<option value="${grade}">Grade ${grade}</option>`).join('')}</select><details class="story-advanced"><summary>Optional sensitivities and topics to avoid</summary><label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">Story Sprout also uses safety filters, age-appropriate guidance, and parent review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
+            <div class="en-form-grid"><div><label class="en-label">Age range</label><select id="apiAgeBand" class="en-select"><option value="3-5">Ages 3-5</option><option value="6-8">Ages 6-8</option><option value="9-11">Ages 9-11</option></select></div><div><label class="en-label">Interests</label><input id="apiInterests" class="en-input" maxlength="160" placeholder="One interest, such as dinosaurs" aria-label="Learner interests"><small class="book-modal-meta" style="display:block;margin-top:6px;text-transform:none;letter-spacing:0;line-height:1.45">You can add school subjects, favorite topics, hobbies, or anything that might help us shape the story.</small></div></div>
+            <label class="en-label" for="apiReadingLevel">Reading level</label><select id="apiReadingLevel" class="en-select"><option value="PreK">Pre-K: listening and simple words</option><option value="K">Kindergarten: early reading</option>${[1,2,3,4,5,6,7,8].map(grade => `<option value="${grade}">Grade ${grade}</option>`).join('')}</select><details class="story-advanced"><summary>Optional sensitivities and topics to avoid</summary><label class="en-label">Topics to avoid</label><p class="book-modal-meta" style="margin:0 0 8px;text-transform:none;letter-spacing:0">Optional. Add phobias, sensitivities, or topics connected to your child's personal experiences.</p><input id="apiAvoid" class="en-input" maxlength="160" placeholder="For example: dogs, hospitals, or stories about parents leaving"><p class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45">StoryAura Land also uses safety filters, age-appropriate guidance, and parent review reminders. Read more in <strong>Privacy & data</strong> in the header.</p>
             </details><button class="en-button" style="width:100%;margin-top:18px">Save learner</button><button id="apiCancelLearnerEdit" class="en-outline hidden" type="button" style="width:100%;margin-top:8px">Cancel editing</button>
           </form>
         </div>
@@ -420,7 +420,7 @@
       <section id="apiBillingView" class="hidden">
         <div class="en-eyebrow">PLANS AND BILLING</div>
         <h1 class="en-title">Choose the plan that fits your family.</h1>
-        <p class="en-lede">Choose a plan for the people who will use it every week. Story Sprout gives families private story creation, reading evidence, and a simple next step after each session.</p>
+        <p class="en-lede">Choose a plan for the people who will use it every week. StoryAura Land gives families private story creation, reading evidence, and a simple next step after each session.</p>
         <p style="margin:12px 0 20px;color:#597076;font:13px/1.45 Arial,sans-serif">Canceling stops future renewal but does not delete learner profiles, stories, or reading progress. Billing questions, duplicate charges, accidental renewals, and refunds can go through Support. <button type="button" class="en-outline" id="apiBillingPrivacy" style="margin-left:6px;padding:6px 9px">Manage Privacy & data</button></p>
         <div class="plan-grid">
           <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><p>One learner with limited monthly story creation.</p><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
@@ -1939,3 +1939,5 @@
 
   refresh().catch(error => notify(error.message));
 })();
+
+
