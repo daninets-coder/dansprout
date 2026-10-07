@@ -10,3 +10,7 @@ server.log
 server-output.log
 server.err
 server-error.log
+
+# Marketing video/social assets are not served by the app (nested paths are not public); keep them out of the image
+video/reel
+video/social
