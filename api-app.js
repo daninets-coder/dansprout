@@ -425,7 +425,7 @@
         <p class="en-lede">${pricingSoon ? 'Paid plans are coming soon. Explorer is free to use today, and we will announce Individual and Family plans before anything is charged.' : 'Choose a plan for the people who will use it every week. StoryAura Land gives families private story creation, reading evidence, and a simple next step after each session.'}</p>
         <p style="margin:12px 0 20px;color:#597076;font:13px/1.45 Arial,sans-serif">Canceling stops future renewal but does not delete learner profiles, stories, or reading progress. Billing questions, duplicate charges, accidental renewals, and refunds can go through Support. <button type="button" class="en-outline" id="apiBillingPrivacy" style="margin-left:6px;padding:6px 9px">Manage Privacy & data</button></p>
         <div class="plan-grid">
-          <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><p>One learner with limited monthly story creation.</p><button class="en-outline apiPlan" data-plan="explorer">Choose Explorer demo</button></article>
+          <article class="plan"><h3>Explorer</h3><div class="plan-price">Free</div><p>Free for 2 weeks: 1 learner and up to 5 stories. Your saved stories stay readable.</p><button class="en-outline apiPlan" data-plan="explorer">Use Explorer (free)</button></article>
           <article class="plan"><h3>Individual</h3>${pricingSoon ? '<div class="plan-price">Coming soon</div><p>One learner with generous story creation and reading tools.</p><button class="en-outline" disabled style="opacity:.6;cursor:not-allowed">Coming soon</button>' : '<div class="plan-price">$8.99 <small>/ month</small></div><p>One learner with generous story creation and reading tools. Or $75 / year (save about 17%).</p><button class="en-outline apiPlan" data-plan="individual">Choose Individual demo</button><button class="en-outline apiCheckout" data-plan="individual" data-interval="month" style="margin-top:8px">Start monthly checkout</button><button class="en-outline apiCheckout" data-plan="individual" data-interval="year" style="margin-top:8px">Start yearly checkout ($75)</button>'}</article>
           <article class="plan selected"><h3>Family</h3>${pricingSoon ? '<div class="plan-price">Coming soon</div><p>Up to 5 learners, with a shared library and progress tracking.</p><button class="en-button" disabled style="opacity:.55;cursor:not-allowed">Coming soon</button>' : '<div class="plan-price"><span id="apiFamilyPrice">$14.99</span> <small>/ month</small></div><p>Up to 5 learners. The monthly price stays capped at this amount.</p><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button>'}</article>
           <article class="plan"><h3>Classroom</h3><div class="plan-price">Contact us</div><p>Best for schools and teacher-led pilots. We’ll set up a classroom plan that fits your rollout.</p>${pricingSoon ? '' : '<button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button>'}<button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Contact us</button></article>
@@ -1611,7 +1611,14 @@
       }
     };
     $('#apiPlanBadge').textContent = `PLAN: ${(subscription.plan || 'explorer').toUpperCase()}`;
-    $('#apiBillingStatus').textContent = `Current plan: ${String(subscription.plan || 'explorer').replace(/^[a-z]/, match => match.toUpperCase())}. Status: ${subscription.status}.`;
+    const entitlement = subscriptionData.entitlement;
+    $('#apiBillingStatus').textContent = entitlement && !entitlement.paid
+      ? (entitlement.freeActive
+        ? `Free Explorer: ${entitlement.daysLeft} day${entitlement.daysLeft === 1 ? '' : 's'} left, ${entitlement.storiesUsed} of ${entitlement.storiesLimit} stories used, ${entitlement.learners} of ${entitlement.learnersLimit} learner. Your saved stories always stay available to read.`
+        : 'Your 2-week free Explorer period has ended. Your saved stories stay available to read.' + (pricingSoon ? ' Paid plans are coming soon.' : ''))
+      : (subscription.plan || 'explorer') === 'explorer'
+        ? 'Current plan: Explorer (free). No payment needed.'
+        : `Current plan: ${String(subscription.plan).replace(/^[a-z]/, match => match.toUpperCase())}. Status: ${subscription.status}.`;
     const cancelButton = $('#apiStartCancel');
     const cancelPanel = $('#apiCancelPanel');
     const canCancel = ['active', 'demo'].includes(subscription.status) && subscription.plan !== 'explorer';
@@ -1888,7 +1895,7 @@
       try {
         await api('/api/subscription/demo', { method: 'POST', body: JSON.stringify({ plan: button.dataset.plan }) });
         await refresh();
-        notify('Demo subscription saved.');
+        notify(button.dataset.plan === 'explorer' ? 'You are on the free Explorer plan.' : 'Demo subscription saved.');
       } catch (error) {
         notify(error.message);
       }
@@ -1898,8 +1905,16 @@
   document.querySelectorAll('.apiCheckout').forEach(button => {
     button.onclick = async () => {
       if (button.dataset.plan === 'classroom') {
-        window.location.href = 'mailto:admin@dansprout.com?subject=Story%20Sprout%20classroom%20pricing';
-        notify('Classroom pricing is custom. Please contact us by email.');
+        if (typeof window.openSupportForm === 'function') {
+          window.openSupportForm({
+            title: 'Classroom plan inquiry',
+            intro: 'Tell us a little about your school or group and we will reply by email with classroom options.',
+            category: 'other',
+            message: 'Classroom plan inquiry' + String.fromCharCode(10).repeat(2) + ['School or organization:', 'Number of educators:', 'Number of learners:'].join(String.fromCharCode(10)) + String.fromCharCode(10),
+          });
+        } else {
+          window.location.href = 'mailto:admin@dansprout.com?subject=StoryAura%20Land%20classroom%20pricing';
+        }
         return;
       }
       try {

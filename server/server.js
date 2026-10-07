@@ -19,6 +19,7 @@ import { createPublicFiles } from './modules/public-files.js';
 import { createAuthentication } from './modules/authentication.js';
 import { createLearnerAccess } from './modules/learner-access.js';
 import { registerBillingWebhook } from './modules/billing.js';
+import { computeEntitlement, publicEntitlement, storyLimitMessage, learnerLimitMessage, PlanLimitError } from './modules/plan-rules.js';
 import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
@@ -38,6 +39,8 @@ const pricingComingSoon = pricingComingSoonSetting
   : process.env.NODE_ENV === 'production';
 const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+// Accounts that are never limited by plan rules: the site owner plus any PLAN_EXEMPT_EMAILS (comma-separated).
+const planExemptEmails = new Set([ownerEmail, ...String(process.env.PLAN_EXEMPT_EMAILS || '').split(',')].map(value => value.trim().toLowerCase()).filter(Boolean));
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
@@ -452,6 +455,7 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story creation is not available until the adult enables AI story generation.' });
     await assertAiBudget(req.auth.sub);
+    await assertCanCreateStory(req.auth.sub, { child: true });
     const gradeLevel = learner.reading_level || (learner.age_band === '3-5' ? 'PreK' : learner.age_band === '9-11' ? '4' : '2');
     const curriculumRes = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code LIMIT 1', [gradeLevel, parsed.data.domain]);
     const curriculumRow = curriculumRes.rows[0] || null;
@@ -462,7 +466,7 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
     await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     return res.status(201).json({ story });
   } catch (error) {
-    return res.status(503).json({ error: error.message || 'Story creation failed.' });
+    return res.status(error.status || 503).json({ error: error.message || 'Story creation failed.', ...(error.code ? { code: error.code } : {}) });
   }
 });
 app.patch('/api/child-mode/stories/:storyId/revise', requireAuth, requireChildSession, async (req, res, next) => {
@@ -474,6 +478,7 @@ app.patch('/api/child-mode/stories/:storyId/revise', requireAuth, requireChildSe
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'Story updates are not available until the adult enables AI story generation.' });
     await assertAiBudget(req.auth.sub);
+    await assertCanRevise(req.auth.sub, { child: true });
     const story = storyRes.rows[0];
     const gradeLevel = story.content?.meta?.gradeLevel || 'K';
     const domain = story.content?.meta?.domain || 'comprehension';
@@ -483,6 +488,7 @@ app.patch('/api/child-mode/stories/:storyId/revise', requireAuth, requireChildSe
     const updated = await pool.query('UPDATE stories SET title = $1, prompt = $2, content = $3, created_by = $4 WHERE id = $5 AND learner_id = $6 RETURNING id, title, prompt, content, theme, learning_goal, completed_at, created_at, created_by', [revised.title, parsed.data.revisionPrompt, content, 'openai_revision', story.id, req.auth.learnerId]);
     return res.json({ story: updated.rows[0] });
   } catch (error) {
+    if (error.code === 'plan_limit') return res.status(403).json({ error: error.message, code: error.code });
     return res.status(503).json({ error: `Story update failed: ${error.message}` });
   }
 });
@@ -577,7 +583,7 @@ app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows }
 app.use('/api/learners/:learnerId', requireAuth, requireChildLearnerScope);
 app.use('/api/stories/:storyId', requireAuth, requireChildStoryScope);
 app.get('/api/learners', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.reading_level, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.child_username, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params); return res.json({ learners: rows }); } catch (error) { return next(error); } });
-app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, reading_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.body.readingLevel]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
+app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { try { const ent = await getEntitlement(req.auth.sub); if (!ent.canAddLearners(1)) return res.status(403).json({ error: learnerLimitMessage(ent, { comingSoon: pricingComingSoon }), code: 'plan_limit' }); } catch (planError) { return next(planError); } const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, reading_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.body.readingLevel]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
 app.patch('/api/learners/:learnerId', requireAuth, requireParentConfirmation, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, reading_level = $8, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub, req.body.readingLevel]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
 app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
@@ -816,7 +822,7 @@ app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, ne
     return next(error);
   }
 });
-app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' } }); } catch (error) { return next(error); } });
+app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); const entitlement = publicEntitlement(await getEntitlement(req.auth.sub)); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' }, entitlement }); } catch (error) { return next(error); } });
 app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { if (pricingComingSoon && req.body.plan !== 'explorer') return res.status(403).json({ error: 'Paid plans are coming soon.' }); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancel', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); return res.status(410).json({ error: 'Cancellation now requires email confirmation. Request a confirmation email first.' }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancellation-request', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT id, email, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); const subscriptionRes = await pool.query('SELECT plan, status FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [req.auth.sub, 'active', 'demo']); if (!subscriptionRes.rowCount || subscriptionRes.rows[0].plan === 'explorer') return res.json({ message: 'There is no paid subscription to cancel.' }); if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Cancellation email is not configured.' }); const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query('UPDATE subscription_cancellation_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [req.auth.sub]); await pool.query('INSERT INTO subscription_cancellation_tokens (id, account_id, token_hash, reason, expires_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), req.auth.sub, tokenHash, parsed.data.reason || null]); const confirmUrl = `${appBaseUrl}/?cancelSubscriptionToken=${encodeURIComponent(token)}`; const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Confirm StoryAura Land subscription cancellation', text: `A request was made to cancel your StoryAura Land subscription. If this was you, confirm cancellation within 30 minutes by opening this link:\n${confirmUrl}\n\nYour learner profiles, stories, and progress will remain saved. If you did not request this, ignore this email.` }) }); if (!response.ok) return res.status(503).json({ error: 'Unable to send the cancellation confirmation email.' }); return res.json({ message: 'Check your email to confirm cancellation.' }); } catch (error) { return next(error); } });
@@ -1029,6 +1035,8 @@ app.post('/api/classroom/roster/import', requireAuth, async (req, res, next) => 
 
     const rows = parseRosterCsv(parsed.data.csv);
     if (!rows.length) return res.status(400).json({ error: 'No valid learner rows found.' });
+    const rosterEntitlement = await getEntitlement(req.auth.sub);
+    if (!rosterEntitlement.canAddLearners(Math.min(rows.length, 100))) return res.status(403).json({ error: learnerLimitMessage(rosterEntitlement, { comingSoon: pricingComingSoon }), code: 'plan_limit' });
 
     const client = await pool.connect();
     try {
@@ -1283,6 +1291,7 @@ async function ensureGrowthSchema() {
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS pricing_variant TEXT');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS family_price_cents INTEGER NOT NULL DEFAULT 1500');
   await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS trial_days INTEGER NOT NULL DEFAULT 7');
+  await pool.query('ALTER TABLE accounts ADD COLUMN IF NOT EXISTS free_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS growth_events (
@@ -1523,6 +1532,39 @@ async function logSafetyEvent(accountId, eventType, metadata = null) {
   } catch (error) {
     console.warn('AI safety event log failed:', error.message);
   }
+}
+
+async function getEntitlement(accountId) {
+  const [accountRes, subRes, countRes] = await Promise.all([
+    pool.query('SELECT email, free_started_at FROM accounts WHERE id = $1', [accountId]),
+    pool.query('SELECT plan, status FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [accountId]),
+    pool.query(`SELECT
+        (SELECT COUNT(*)::int FROM learners WHERE account_id = $1) AS learners,
+        (SELECT COUNT(*)::int FROM stories s JOIN learners l ON l.id = s.learner_id
+          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL
+            AND s.created_at >= (SELECT free_started_at FROM accounts WHERE id = $1)) AS stories`, [accountId]),
+  ]);
+  const account = accountRes.rows[0];
+  const sub = subRes.rows[0];
+  return computeEntitlement({
+    plan: sub?.plan || 'explorer',
+    status: sub?.status || 'active',
+    freeStartedAt: account?.free_started_at,
+    learners: countRes.rows[0]?.learners || 0,
+    storiesUsed: countRes.rows[0]?.stories || 0,
+    exempt: planExemptEmails.has(String(account?.email || '').toLowerCase()),
+    isProduction: process.env.NODE_ENV === 'production',
+  });
+}
+
+async function assertCanCreateStory(accountId, { child = false } = {}) {
+  const ent = await getEntitlement(accountId);
+  if (!ent.canCreateStory) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: pricingComingSoon }));
+}
+
+async function assertCanRevise(accountId, { child = false } = {}) {
+  const ent = await getEntitlement(accountId);
+  if (!ent.canRevise) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: pricingComingSoon }));
 }
 
 async function assertAiBudget(accountId) {
@@ -1850,6 +1892,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       return res.status(403).json({ error: 'OpenAI is required for story generation. Please enable AI opt-in and add the OpenAI key.' });
     }
     await assertAiBudget(req.auth.sub);
+    await assertCanCreateStory(req.auth.sub);
 
     const curriculumRows = await pool.query('SELECT * FROM curriculum_tracks WHERE grade_level = $1 AND standard_code = $2 ORDER BY standard_code', [data.gradeLevel, data.standardCode]);
     const curriculumRow = curriculumRows.rows[0] || null;
@@ -1939,7 +1982,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       },
     });
   } catch (error) {
-    return res.status(503).json({ error: error.message || 'OpenAI story generation failed.' });
+    return res.status(error.status || 503).json({ error: error.message || 'OpenAI story generation failed.', ...(error.code ? { code: error.code } : {}) });
   }
 });
 
@@ -1953,6 +1996,7 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'OpenAI is required for story revisions. Please enable AI opt-in and add the OpenAI key.' });
     await assertAiBudget(req.auth.sub);
+    await assertCanRevise(req.auth.sub);
     const story = storyRes.rows[0];
     const gradeLevel = story.content?.meta?.gradeLevel || 'K';
     const domain = story.content?.meta?.domain || 'comprehension';
@@ -1963,6 +2007,7 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
     await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, story.id, 'openai', 'gpt-4o-mini', revised.usage?.prompt_tokens || null, revised.usage?.completion_tokens || null, estimateOpenAICost(revised.usage)]);
     return res.json({ story: updated.rows[0] });
   } catch (error) {
+    if (error.code === 'plan_limit') return res.status(403).json({ error: error.message, code: error.code });
     return res.status(503).json({ error: `Story revision failed: ${error.message}` });
   }
 });
