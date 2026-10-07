@@ -19,7 +19,9 @@ import { createPublicFiles } from './modules/public-files.js';
 import { createAuthentication } from './modules/authentication.js';
 import { createLearnerAccess } from './modules/learner-access.js';
 import { registerBillingWebhook } from './modules/billing.js';
-import { computeEntitlement, publicEntitlement, storyLimitMessage, learnerLimitMessage, PlanLimitError } from './modules/plan-rules.js';
+import { computeEntitlement, publicEntitlement, storyLimitMessage, learnerLimitMessage, rulesFromSettings, PlanLimitError } from './modules/plan-rules.js';
+import { createSettingsStore } from './modules/settings.js';
+import { createAdminRouter } from './modules/admin.js';
 import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
@@ -33,14 +35,23 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 // Paid plans are hidden and blocked while this is true. Defaults to ON in production and OFF elsewhere;
 // set PRICING_COMING_SOON=false to launch pricing, or =true to preview the coming-soon state locally.
-const pricingComingSoonSetting = String(process.env.PRICING_COMING_SOON ?? '').trim().toLowerCase();
-const pricingComingSoon = pricingComingSoonSetting
-  ? ['true', '1', 'yes'].includes(pricingComingSoonSetting)
+const pricingEnvSetting = String(process.env.PRICING_COMING_SOON ?? '').trim().toLowerCase();
+const pricingComingSoonDefault = pricingEnvSetting
+  ? ['true', '1', 'yes'].includes(pricingEnvSetting)
   : process.env.NODE_ENV === 'production';
+// Database setting (admin page) wins over the environment: 'on' / 'off' / 'default'.
+function isPricingComingSoon() {
+  const setting = settingsStore.get('pricing_coming_soon');
+  if (setting === 'on') return true;
+  if (setting === 'off') return false;
+  return pricingComingSoonDefault;
+}
 const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
 // Accounts that are never limited by plan rules: the site owner plus any PLAN_EXEMPT_EMAILS (comma-separated).
-const planExemptEmails = new Set([ownerEmail, ...String(process.env.PLAN_EXEMPT_EMAILS || '').split(',')].map(value => value.trim().toLowerCase()).filter(Boolean));
+const envExemptEmails = String(process.env.PLAN_EXEMPT_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+const settingsStore = createSettingsStore(pool, { fallbacks: { ai_monthly_limit: Math.max(1, Number(process.env.AI_MONTHLY_INVOCATION_LIMIT || 100)) } });
+const isPlanExempt = email => { const value = String(email || '').trim().toLowerCase(); return Boolean(value) && (value === ownerEmail || envExemptEmails.includes(value) || settingsStore.get('plan_exempt_emails').includes(value)); };
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
@@ -196,7 +207,7 @@ app.use(cors({
 }));
 registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent });
 app.get('/pricing-config.js', (req, res) => {
-  res.type('application/javascript').set('Cache-Control', 'no-store').send(`window.PRICING_COMING_SOON=${pricingComingSoon};`);
+  res.type('application/javascript').set('Cache-Control', 'no-store').send(`window.PRICING_COMING_SOON=${isPricingComingSoon()};`);
 });
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }));
@@ -583,7 +594,7 @@ app.get('/api/me', requireAuth, async (req, res, next) => { try { const { rows }
 app.use('/api/learners/:learnerId', requireAuth, requireChildLearnerScope);
 app.use('/api/stories/:storyId', requireAuth, requireChildStoryScope);
 app.get('/api/learners', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT l.id, l.first_name, l.age_band, l.reading_level, l.interests, l.topics_to_avoid, l.topics_to_avoid_options, l.child_username, l.created_at, COALESCE(json_agg(g.goal) FILTER (WHERE g.goal IS NOT NULL), '[]') AS goals FROM learners l LEFT JOIN learner_goals g ON g.learner_id = l.id WHERE l.account_id = $1${scope} GROUP BY l.id ORDER BY l.created_at`, params); return res.json({ learners: rows }); } catch (error) { return next(error); } });
-app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { try { const ent = await getEntitlement(req.auth.sub); if (!ent.canAddLearners(1)) return res.status(403).json({ error: learnerLimitMessage(ent, { comingSoon: pricingComingSoon }), code: 'plan_limit' }); } catch (planError) { return next(planError); } const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, reading_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.body.readingLevel]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
+app.post('/api/learners', requireAuth, validate(learnerSchema, 'body'), async (req, res, next) => { try { const ent = await getEntitlement(req.auth.sub); if (!ent.canAddLearners(1)) return res.status(403).json({ error: learnerLimitMessage(ent, { comingSoon: isPricingComingSoon() }), code: 'plan_limit' }); } catch (planError) { return next(planError); } const client = await pool.connect(); try { await client.query('BEGIN'); const learnerId = randomUUID(); await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, reading_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [learnerId, req.auth.sub, req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.body.readingLevel]); for (const goal of req.body.goals) await client.query('INSERT INTO learner_goals (learner_id, goal) VALUES ($1, $2)', [learnerId, goal]); await client.query('COMMIT'); await trackGrowthEvent(req.auth.sub, 'learner_created', { learnerId, ageBand: req.body.ageBand }); return res.status(201).json({ learner: { id: learnerId, ...req.body } }); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
 app.patch('/api/learners/:learnerId', requireAuth, requireParentConfirmation, validate(learnerSchema, 'body'), async (req, res, next) => { try { const result = await pool.query('UPDATE learners SET first_name = $1, age_band = $2, interests = $3, topics_to_avoid = $4, topics_to_avoid_options = $5, reading_level = $8, updated_at = NOW() WHERE id = $6 AND account_id = $7 RETURNING id, first_name, age_band, interests, topics_to_avoid, topics_to_avoid_options, updated_at', [req.body.firstName, req.body.ageBand, req.body.interests, req.body.topicsToAvoid, req.body.topicsToAvoidOptions, req.params.learnerId, req.auth.sub, req.body.readingLevel]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.json({ learner: result.rows[0] }); } catch (error) { return next(error); } });
 app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConfirmation, async (req, res, next) => {
   try {
@@ -823,7 +834,7 @@ app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, ne
   }
 });
 app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); const entitlement = publicEntitlement(await getEntitlement(req.auth.sub)); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' }, entitlement }); } catch (error) { return next(error); } });
-app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { if (pricingComingSoon && req.body.plan !== 'explorer') return res.status(403).json({ error: 'Paid plans are coming soon.' }); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
+app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { if (isPricingComingSoon() && req.body.plan !== 'explorer') return res.status(403).json({ error: 'Paid plans are coming soon.' }); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancel', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); return res.status(410).json({ error: 'Cancellation now requires email confirmation. Request a confirmation email first.' }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancellation-request', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT id, email, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); const subscriptionRes = await pool.query('SELECT plan, status FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [req.auth.sub, 'active', 'demo']); if (!subscriptionRes.rowCount || subscriptionRes.rows[0].plan === 'explorer') return res.json({ message: 'There is no paid subscription to cancel.' }); if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Cancellation email is not configured.' }); const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query('UPDATE subscription_cancellation_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [req.auth.sub]); await pool.query('INSERT INTO subscription_cancellation_tokens (id, account_id, token_hash, reason, expires_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), req.auth.sub, tokenHash, parsed.data.reason || null]); const confirmUrl = `${appBaseUrl}/?cancelSubscriptionToken=${encodeURIComponent(token)}`; const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Confirm StoryAura Land subscription cancellation', text: `A request was made to cancel your StoryAura Land subscription. If this was you, confirm cancellation within 30 minutes by opening this link:\n${confirmUrl}\n\nYour learner profiles, stories, and progress will remain saved. If you did not request this, ignore this email.` }) }); if (!response.ok) return res.status(503).json({ error: 'Unable to send the cancellation confirmation email.' }); return res.json({ message: 'Check your email to confirm cancellation.' }); } catch (error) { return next(error); } });
 app.post('/api/auth/confirm-subscription-cancellation', async (req, res, next) => { try { const parsed = z.object({ token: z.string().min(32).max(200) }).safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'The cancellation confirmation link is invalid.' }); const tokenHash = createHash('sha256').update(parsed.data.token).digest('hex'); const tokenRes = await pool.query('SELECT id, account_id FROM subscription_cancellation_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()', [tokenHash]); if (!tokenRes.rowCount) return res.status(400).json({ error: 'This cancellation link is invalid or expired.' }); const subscriptionRes = await pool.query('SELECT id, plan, provider_subscription_id FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [tokenRes.rows[0].account_id, 'active', 'demo']); const subscription = subscriptionRes.rows[0]; if (!subscription) return res.status(404).json({ error: 'No active subscription was found.' }); let effectiveAt = null; if (stripe && subscription.provider_subscription_id) { const remote = await stripe.subscriptions.update(subscription.provider_subscription_id, { cancel_at_period_end: true }); effectiveAt = remote.current_period_end ? new Date(remote.current_period_end * 1000).toISOString() : null; } await pool.query('UPDATE subscription_cancellation_tokens SET used_at = NOW() WHERE id = $1', [tokenRes.rows[0].id]); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE id = $2', ['canceled', subscription.id]); return res.json({ effectiveAt, message: effectiveAt ? `Your ${subscription.plan} plan will remain available until ${new Date(effectiveAt).toLocaleDateString()}. No future renewal will be charged.` : `Your ${subscription.plan} plan was canceled. Your learner data remains saved.` }); } catch (error) { return next(error); } });
@@ -880,7 +891,7 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
     const configuredOffer = priceConfig[variant];
     const cents = configuredOffer.cents;
     const trialDays = configuredOffer.trialDays;
-    if (pricingComingSoon) return res.json({ offer: null, pricingComingSoon: true });
+    if (isPricingComingSoon()) return res.json({ offer: null, pricingComingSoon: true });
     return res.json({ offer: { variant, familyPriceCents: cents, familyPriceDollars: (cents / 100).toFixed(2), trialDays } });
   } catch (error) {
     return next(error);
@@ -889,7 +900,7 @@ app.get('/api/subscription/offer', requireAuth, async (req, res, next) => {
 
 app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
   try {
-    if (pricingComingSoon) return res.status(403).json({ error: 'Paid plans are coming soon.' });
+    if (isPricingComingSoon()) return res.status(403).json({ error: 'Paid plans are coming soon.' });
     if (!stripe) return res.status(501).json({ error: 'Stripe is not configured yet.' });
     const bodySchema = z.object({ plan: z.enum(['individual', 'family', 'classroom']), interval: z.enum(['month', 'year']).default('month') });
     const parsed = bodySchema.safeParse(req.body);
@@ -1036,7 +1047,7 @@ app.post('/api/classroom/roster/import', requireAuth, async (req, res, next) => 
     const rows = parseRosterCsv(parsed.data.csv);
     if (!rows.length) return res.status(400).json({ error: 'No valid learner rows found.' });
     const rosterEntitlement = await getEntitlement(req.auth.sub);
-    if (!rosterEntitlement.canAddLearners(Math.min(rows.length, 100))) return res.status(403).json({ error: learnerLimitMessage(rosterEntitlement, { comingSoon: pricingComingSoon }), code: 'plan_limit' });
+    if (!rosterEntitlement.canAddLearners(Math.min(rows.length, 100))) return res.status(403).json({ error: learnerLimitMessage(rosterEntitlement, { comingSoon: isPricingComingSoon() }), code: 'plan_limit' });
 
     const client = await pool.connect();
     try {
@@ -1552,23 +1563,24 @@ async function getEntitlement(accountId) {
     freeStartedAt: account?.free_started_at,
     learners: countRes.rows[0]?.learners || 0,
     storiesUsed: countRes.rows[0]?.stories || 0,
-    exempt: planExemptEmails.has(String(account?.email || '').toLowerCase()),
+    exempt: isPlanExempt(account?.email),
     isProduction: process.env.NODE_ENV === 'production',
+    rules: rulesFromSettings(settingsStore.get),
   });
 }
 
 async function assertCanCreateStory(accountId, { child = false } = {}) {
   const ent = await getEntitlement(accountId);
-  if (!ent.canCreateStory) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: pricingComingSoon }));
+  if (!ent.canCreateStory) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: isPricingComingSoon() }));
 }
 
 async function assertCanRevise(accountId, { child = false } = {}) {
   const ent = await getEntitlement(accountId);
-  if (!ent.canRevise) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: pricingComingSoon }));
+  if (!ent.canRevise) throw new PlanLimitError(storyLimitMessage(ent, { child, comingSoon: isPricingComingSoon() }));
 }
 
 async function assertAiBudget(accountId) {
-  const limit = Math.max(1, Number(process.env.AI_MONTHLY_INVOCATION_LIMIT || 100));
+  const limit = settingsStore.get('ai_monthly_limit');
   const result = await pool.query("SELECT COUNT(*)::int AS count FROM ai_invocations WHERE account_id = $1 AND created_at >= DATE_TRUNC('month', NOW())", [accountId]);
   if (Number(result.rows[0]?.count || 0) >= limit) {
     await logSafetyEvent(accountId, 'ai_budget_blocked', { limit });
@@ -2012,6 +2024,23 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
   }
 });
 
+// Owner-only admin: the page is a data-free shell (every number comes from /api/admin, which 404s for anyone but OWNER_EMAIL).
+app.get('/admin', (req, res) => {
+  res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
+  res.sendFile(path.join(rootDir, 'admin.html'));
+});
+app.use('/api/admin', createAdminRouter({
+  pool, bcrypt, settingsStore, ownerEmail, requireAuth, requireAdultAccount, isPricingComingSoon,
+  systemInfo: () => ({
+    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version,
+    uptimeSeconds: Math.round(process.uptime()),
+    commit: String(process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || null,
+    stripeMode: /^sk_live_/.test(process.env.STRIPE_SECRET_KEY || '') ? 'live' : /^sk_test_/.test(process.env.STRIPE_SECRET_KEY || '') ? 'test' : 'not set',
+    openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    emailConfigured: emailProvider === 'resend' && Boolean(resendApiKey) && Boolean(emailFrom),
+  }),
+}));
 app.use(createPublicFiles(rootDir));
 
 app.use((error, req, res, next) => {
@@ -2022,7 +2051,9 @@ app.use((error, req, res, next) => {
 ensureBaseSchema()
   .then(() => runMigrations())
   .then(() => ensureGrowthSchema())
+  .then(() => settingsStore.load())
   .then(() => {
+    settingsStore.startRefresh();
     app.listen(port, () => {
       structuredLog('info', 'server_started', { port, environment: process.env.NODE_ENV || 'development' });
     });

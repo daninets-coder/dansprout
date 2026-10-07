@@ -1615,7 +1615,7 @@
     $('#apiBillingStatus').textContent = entitlement && !entitlement.paid
       ? (entitlement.freeActive
         ? `Free Explorer: ${entitlement.daysLeft} day${entitlement.daysLeft === 1 ? '' : 's'} left, ${entitlement.storiesUsed} of ${entitlement.storiesLimit} stories used, ${entitlement.learners} of ${entitlement.learnersLimit} learner. Your saved stories always stay available to read.`
-        : 'Your 2-week free Explorer period has ended. Your saved stories stay available to read.' + (pricingSoon ? ' Paid plans are coming soon.' : ''))
+        : `Your ${entitlement.freePeriodDays || 14}-day free Explorer period has ended. Your saved stories stay available to read.` + (pricingSoon ? ' Paid plans are coming soon.' : ''))
       : (subscription.plan || 'explorer') === 'explorer'
         ? 'Current plan: Explorer (free). No payment needed.'
         : `Current plan: ${String(subscription.plan).replace(/^[a-z]/, match => match.toUpperCase())}. Status: ${subscription.status}.`;

@@ -6,6 +6,10 @@ Plain-English rules for what customers can and can't do. The code that enforces 
 
 _Last updated: 2026-10-07. Status: **in force on dansprout.com**, paid plans **not yet on sale**._
 
+> **The numbers in this file are the built-in defaults.** The live values are stored in the database table
+> `app_settings` and can be changed from the owner-only admin page (`/admin`, Rules tab) or with SQL,
+> without a deploy. See section 7. The admin page's **Rules** tab always shows what is live right now.
+
 ---
 
 ## 1. The short version
@@ -82,8 +86,9 @@ in production.
   out the moment the rules arrived.
 - Existing accounts with more than 1 learner, or more than 5 stories, **keep all of them.** The rules only stop
   _adding_ new learners and _creating_ new stories beyond the allowance.
-- **Never limited:** the site owner (`OWNER_EMAIL`) and any email listed in `PLAN_EXEMPT_EMAILS`
-  (comma-separated). Set these in Railway.
+- **Never limited:** the site owner (`OWNER_EMAIL`), any email in `PLAN_EXEMPT_EMAILS` (Railway variable),
+  and any email on the **Never-limited accounts** list in the admin page (Rules tab, or the Customers tab's
+  "Never limit" button).
 
 ---
 
@@ -105,14 +110,42 @@ in production.
 
 ## 7. How the settings work
 
-| Setting (Railway variable) | What it does |
-|---|---|
-| `PRICING_COMING_SOON` | Blank in production = on (paid plans hidden and blocked). `false` launches pricing. |
-| `OWNER_EMAIL` | This account is never limited. |
-| `PLAN_EXEMPT_EMAILS` | Extra accounts that are never limited (comma-separated emails). |
-| `AI_MONTHLY_INVOCATION_LIMIT` | Monthly AI cap per account (default 100). |
+Settings live in the database table **`app_settings`** (one row per setting: `key`, `value` as JSON). Every key
+has a safe built-in default, so an empty table is fine. The site re-reads the table about every 30 seconds.
 
-The free numbers (14 days, 5 stories, 1 learner) are set in `server/modules/plan-rules.js`.
+| Setting key | Default | What it does |
+|---|---|---|
+| `free_period_days` | 14 | Days a new account can create stories for free |
+| `free_story_limit` | 5 | New stories allowed during the free period |
+| `free_learner_limit` | 1 | Learners on a free account |
+| `learner_limit_individual` / `_family` / `_classroom` | 1 / 5 / 30 | Learners per paid plan |
+| `pricing_coming_soon` | `default` | `default` = on in production, off elsewhere; `on` = hide prices and block checkout; `off` = paid plans are sold |
+| `plan_exempt_emails` | none | Emails that are never limited (the owner always is) |
+| `ai_monthly_limit` | 100 | AI actions per account per month (cost safeguard) |
+
+Change them either way:
+
+- **Admin page:** `https://dansprout.com/admin`, Rules tab. Saving asks for your password and is written to the audit log.
+- **SQL (no password prompt, no audit log, so prefer the page):**
+  ```sql
+  INSERT INTO app_settings (key, value) VALUES ('free_story_limit', '8')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+  DELETE FROM app_settings WHERE key = 'free_story_limit';   -- back to the default
+  ```
+
+Railway variables that still matter: `OWNER_EMAIL` (who the admin page belongs to; never limited),
+`PLAN_EXEMPT_EMAILS`, `PRICING_COMING_SOON` and `AI_MONTHLY_INVOCATION_LIMIT` (used only as the starting default
+when no database value is saved).
+
+### The admin page (`/admin`)
+
+- **Only the owner** (the account whose email is `OWNER_EMAIL`, signed in and email-verified) can use it. Everyone
+  else, signed in or not, gets a "not found" response. Every change needs the owner's password again.
+- **Overview:** customers, free-period status, learners, stories, reading time, story checks, AI usage and cost,
+  daily trends, the sign-up-to-paying journey, what people use, payment and server health.
+- **Customers:** search, sort, export CSV, give an account 7 more free days, never-limit an account. Shows counts only,
+  never children's names or story text.
+- **Rules**, **Audit log** (every change, who and when), **System** (version, database size, Stripe mode, email/AI setup).
 
 ---
 
