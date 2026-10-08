@@ -71,6 +71,18 @@
           </div>
         </div>
 
+        <section class="landing-section landing-video" id="watch">
+          <div class="eyebrow">SEE IT IN ACTION</div>
+          <h2>See ${brandName} in 75 seconds.</h2>
+          <p class="landing-section-lede">A quick look at how a story goes from your child&#39;s ideas to a page they can read, hear, and understand.</p>
+          <div class="landing-video-frame">
+            <video controls playsinline preload="none" poster="images/brand/reel-poster.jpg" aria-label="Short video showing how ${brandName} turns a child&#39;s interests into a story">
+              <source src="video/StoryAura_Land_Reel.mp4" type="video/mp4">
+              Your browser cannot play this video. You can still read a sample story above.
+            </video>
+          </div>
+        </section>
+
         <section class="landing-section landing-workflow" id="how-it-works">
           <div class="eyebrow">HOW IT WORKS</div>
           <h2>From a quiet evening to a star on the fridge.</h2>
