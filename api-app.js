@@ -1719,7 +1719,8 @@
     const retentionPct = Math.round((score?.current?.retention4wRate || 0) * 100);
     const scorecard = $('#apiBusinessScore')?.closest('.en-card');
     if (scorecard) scorecard.classList.toggle('hidden', me.isSiteOwner !== true || !score);
-    if (score) $('#apiBusinessScore').innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${score.current.pilotCustomers}</strong><span>pilot customers (target ${score.targets.pilotCustomers})</span></div><div class="en-stat"><strong>${retentionPct}%</strong><span>4-week retention (target ${Math.round(score.targets.retention4wRate * 100)}%)</span></div><div class="en-stat"><strong>${score.current.teacherAccounts}</strong><span>teacher accounts (target ${score.targets.schoolPilots})</span></div></div><p style="margin-top:8px;color:#4c4c4c">Reading streak: ${(score.myAccount?.currentReadingStreak || 0)} day(s).</p>`;
+    const scoreBox = $('#apiBusinessScore'); // this box was removed from the page in an earlier redesign; do not crash if it is missing
+    if (score && scoreBox) scoreBox.innerHTML = `<div class="en-stat-grid"><div class="en-stat"><strong>${score.current.pilotCustomers}</strong><span>pilot customers (target ${score.targets.pilotCustomers})</span></div><div class="en-stat"><strong>${retentionPct}%</strong><span>4-week retention (target ${Math.round(score.targets.retention4wRate * 100)}%)</span></div><div class="en-stat"><strong>${score.current.teacherAccounts}</strong><span>teacher accounts (target ${score.targets.schoolPilots})</span></div></div><p style="margin-top:8px;color:#4c4c4c">Reading streak: ${(score.myAccount?.currentReadingStreak || 0)} day(s).</p>`;
 
     if (!pricingSoon) {
       const familyPrice = Number(offerData.offer?.familyPriceCents || 800) / 100;
