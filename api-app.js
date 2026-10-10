@@ -1891,10 +1891,17 @@
       const { stories } = await api('/api/library/stories');
       const pick = $('#apiLibraryPick');
       if (!stories.length) { $('#apiLibrary').remove(); return; }
-      pick.innerHTML = stories.map(s => `<option value="${s.id}">${String(s.title).replace(/</g, '&lt;')} (grade ${s.grade_level})</option>`).join('');
+      const paint = () => {
+        const grade = $('#apiGradeLevel').value;
+        const matching = stories.filter(s => s.grade_level === grade);
+        pick.innerHTML = matching.length ? matching.map(s => `<option value="${s.id}">${String(s.title).replace(/</g, '&lt;')}</option>`).join('') : '<option value="">No ready-made stories for this grade yet</option>';
+        $('#apiLibraryStart').disabled = !matching.length;
+      };
+      $('#apiGradeLevel').addEventListener('change', paint);
+      paint();
       $('#apiLibraryStart').onclick = async () => {
         const learnerId = $('#apiLearner').value;
-        if (!learnerId) return notify('Choose a learner first.');
+        if (!learnerId || !pick.value) return notify('Choose a learner and a story first.');
         const button = $('#apiLibraryStart');
         button.disabled = true;
         try {
