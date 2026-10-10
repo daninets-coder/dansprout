@@ -107,7 +107,7 @@ Anyone who can run SQL on the database can reset it, so keep Railway and GitHub 
 ## 7. Secret address for the admin page
 
 ```sql
--- admin page moves from /admin to dansprout.com/k7Qp-93xLmZt-aura  (12 to 64 letters, numbers, - or _)
+-- admin page moves from /admin to dansprout.com/k7Qp-93xLmZt-aura  (6 to 64 letters, numbers, - or _)
 INSERT INTO app_settings (key, value) VALUES ('admin_page_path', '"k7Qp-93xLmZt-aura"')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 
