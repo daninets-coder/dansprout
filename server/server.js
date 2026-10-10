@@ -29,6 +29,7 @@ import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
 import { renderTemplate } from './modules/library-slots.js';
+import { passwordProblem, MIN_PASSWORD_LENGTH, createLoginGuard } from './modules/password-policy.js';
 
 const app = express();
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -214,7 +215,8 @@ pool.on('error', (err) => {
 });
 
 app.use(helmet({
-  contentSecurityPolicy: false,
+  // Not a full script policy (the pages use inline scripts); these directives block framing, plugins and form hijacking without breaking anything.
+  contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: helmet.contentSecurityPolicy.dangerouslyDisableDefaultSrc, frameAncestors: ["'self'"], objectSrc: ["'none'"], baseUri: ["'self'"], formAction: ["'self'"] } },
   hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
 }));
 app.use(cors({
@@ -276,7 +278,7 @@ app.post('/api/support', supportLimiter, async (req, res, next) => {
 
 const registerSchema = z.object({
   email: z.string().email().max(120).transform(value => value.trim().toLowerCase()),
-  password: z.string().min(6).max(128),
+  password: z.string().min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`).max(128).superRefine((value, ctx) => { const problem = passwordProblem(value); if (problem) ctx.addIssue({ code: 'custom', message: problem }); }),
   displayName: z.string().trim().min(2).max(60),
   role: z.enum(['parent', 'teacher']).default('parent'),
   guardianConsent: z.literal(true),
@@ -286,7 +288,7 @@ const registerSchema = z.object({
 }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
-const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(6).max(128), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
+const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`).max(128).superRefine((value, ctx) => { const problem = passwordProblem(value); if (problem) ctx.addIssue({ code: 'custom', message: problem }); }), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const passwordResetCodeSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()), code: z.string().regex(/^\d{6}$/), password: z.string().min(6).max(128) });
 const learnerSchema = z.object({ readingLevel: z.enum(['PreK','K','1','2','3','4','5','6','7','8']).default('2'), firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'individual', 'family', 'classroom']) });
@@ -367,7 +369,9 @@ app.post('/api/auth/register', registrationLimiter, validate(registerSchema, 'bo
     client.release();
   }
 });
-app.post('/api/auth/login', loginLimiter, validate(loginSchema, 'body'), async (req, res, next) => { try { const { rows } = await pool.query('SELECT id, email, password_hash, display_name, "role", email_verified_at FROM accounts WHERE email = $1', [req.body.email.trim().toLowerCase()]); const account = rows[0]; if (!account || !(await bcrypt.compare(req.body.password, account.password_hash))) return res.status(401).json({ error: 'Email or password is incorrect.' }); if (!account.email_verified_at) return res.status(403).json({ error: 'Please verify your email before signing in.', code: 'EMAIL_NOT_VERIFIED' }); await trackGrowthEvent(account.id, 'account_login'); return res.json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.display_name, role: account.role } }); } catch (error) { return next(error); } });
+const loginGuard = createLoginGuard();
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12); // compared against when the email is unknown, so timing does not reveal which emails exist
+app.post('/api/auth/login', loginLimiter, validate(loginSchema, 'body'), async (req, res, next) => { try { const loginEmail = req.body.email.trim().toLowerCase(); if (loginGuard.locked(loginEmail)) return res.status(429).json({ error: 'Too many sign-in attempts. Please try again in 15 minutes, or reset your password.' }); const { rows } = await pool.query('SELECT id, email, password_hash, display_name, "role", email_verified_at FROM accounts WHERE email = $1', [loginEmail]); const account = rows[0]; const passwordMatches = await bcrypt.compare(req.body.password, account ? account.password_hash : DUMMY_HASH); if (!account || !passwordMatches) { loginGuard.fail(loginEmail); return res.status(401).json({ error: 'Email or password is incorrect.' }); } loginGuard.clear(loginEmail); if (!account.email_verified_at) return res.status(403).json({ error: 'Please verify your email before signing in.', code: 'EMAIL_NOT_VERIFIED' }); await trackGrowthEvent(account.id, 'account_login'); return res.json({ token: tokenFor(account), account: { id: account.id, email: account.email, displayName: account.display_name, role: account.role } }); } catch (error) { return next(error); } });
 app.post('/api/auth/child-login', loginLimiter, async (req, res, next) => {
   try {
     const parsed = z.object({ username: z.string().trim().min(3).max(32), password: z.string().min(1).max(128) }).safeParse(req.body);
