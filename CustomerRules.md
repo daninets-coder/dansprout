@@ -128,6 +128,10 @@ Every number in this file is a **setting**. A setting's value comes from the fir
 | `paid_story_limit_monthly` | 0 | New stories a paying account can create per calendar month. **0 = no plan limit** |
 | `pricing_coming_soon` | `default` | `default` = on in production, off elsewhere; `on` = hide prices and block checkout; `off` = paid plans are sold |
 | `plan_exempt_emails` | none | Emails that are never limited (the owner always is) |
+| `illustrations_enabled` | `on` | `off` = new stories are made without a picture (cost/emergency switch) |
+| `image_model` | `gpt-image-1` | OpenAI picture model. `gpt-image-1` shuts down 2026-12-01; `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` are the replacements |
+| `image_quality` | `low` | `low`, `medium` or `high` (low is cheapest) |
+| `image_cost_usd` | 0 | Price per picture for the cost report; 0 = use the built-in price list |
 | `ai_monthly_limit` | 100 | AI actions per account per month (cost safeguard, applies to everyone) |
 | `story_requests_per_15min` | 30 | Story requests the whole site accepts per 15 minutes (abuse protection) |
 | `roster_import_max` | 100 | Most learners one classroom CSV import can add |

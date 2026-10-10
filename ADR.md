@@ -104,6 +104,17 @@ Plain-English customer rules live in `CustomerRules.md`. This file explains the 
   - `config/settings.json` is not public (it is outside the file allowlist), and it ships in the Docker image.
   - The monthly paid limit counts stories created this calendar month (UTC), excluding sibling copies.
 
+## ADR-011: Generated pictures and audio live on a persistent volume (STORAGE_DIR)
+
+- **Status:** Accepted (2026-10-10)
+- **Context:** On Railway only the database had a disk. Pictures and narration audio were written to the web app's own filesystem, which is wiped on every deploy. On 2026-10-10 all 12 saved illustration URLs pointed at files that no longer existed and the audio folder was empty, so customers saw broken pictures and narration was regenerated (and paid for) again.
+- **Decision:** A Railway volume (`dansprout-volume`, 5 GB) is mounted at `/app/storage` and the environment variable `STORAGE_DIR=/app/storage` points the app at it. Illustrations (`/story-illustrations`), narration (`/story-audio`) and the planned story library (`/library/<story-id>/...`) are written under it and served by the public-file router, which still only serves the allowed folders and file types. Locally `STORAGE_DIR` is unset and the project folder is used as before.
+- **Alternatives considered:** a cloud storage bucket (more setup, and it can come later behind the same URLs); storing pictures in the database (the database volume is 500 MB).
+- **Consequences:**
+  - Pictures and audio now survive deploys. Pictures made before this fix are gone and cannot be recovered; those stories show no picture.
+  - The volume costs about $0.25 per GB per month and is the one place to watch as the library grows (a picture is roughly 1.7 MB).
+  - Picture cost is now recorded: the cost insert used to run before the story existed, the database rejected it, and the error was swallowed, so picture spend was never counted. It is recorded without a story id.
+
 ---
 
 ## Not decided yet

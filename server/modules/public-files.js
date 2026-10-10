@@ -9,7 +9,9 @@ const publicFiles = new Set([
   '/story-sprout-ad.mp4'
 ]);
 
-export function createPublicFiles(rootDir) {
+// storageDir: where generated files (illustrations, narration audio, the story library) live. On Railway it is a
+// persistent volume (STORAGE_DIR); locally it defaults to the project folder.
+export function createPublicFiles(rootDir, { storageDir = rootDir } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     let pathname;
@@ -19,10 +21,16 @@ export function createPublicFiles(rootDir) {
     const image = /^\/(?:images|imagesAI|story-illustrations)\/.+\.(?:png|jpe?g|webp|gif|svg|ico)$/i.test(pathname);
     const audio = /^\/story-audio\/[^/]+\.mp3$/i.test(pathname);
     const video = /^\/video\/[^/]+\.mp4$/i.test(pathname);
-    if (pathname !== '/' && !publicFiles.has(pathname) && !image && !audio && !video) return res.sendStatus(404);
+    // one folder per library story: /library/<story-id>/<file>.(png|mp3)
+    const library = /^\/library\/[a-z0-9_-]+\/[a-z0-9_.-]+\.(?:png|jpe?g|webp|mp3)$/i.test(pathname);
+    if (pathname !== '/' && !publicFiles.has(pathname) && !image && !audio && !video && !library) return res.sendStatus(404);
     if (pathname === '/' || /\.(?:html|js|css)$/.test(pathname)) res.setHeader('Cache-Control', 'no-store, max-age=0');
     next();
   });
+  if (storageDir !== rootDir) {
+    const storageFiles = express.static(storageDir, { dotfiles: 'deny', index: false, redirect: false });
+    router.use((req, res, next) => (/^\/(?:story-illustrations|story-audio|library)\//.test(req.path) ? storageFiles(req, res, next) : next()));
+  }
   router.use(express.static(rootDir, { dotfiles: 'deny', index: 'index.html', redirect: false }));
   router.use((req, res) => res.sendStatus(404));
   return router;

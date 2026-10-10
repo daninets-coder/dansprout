@@ -270,7 +270,8 @@ async function viewOverview(root) {
   root.append(h('div', { class: 'grid two' },
     barList('Story themes (top 10)', o.themes), barList('Reading focus', (o.domains || []).map(d => ({ label: d.label.replace(/_/g, ' '), n: d.n }))),
     barList('Learner age bands', o.ageBands), barList('Learner reading levels', o.readingLevels),
-    barList('Where stories came from', o.sources), barList('Product events (' + o.days + ' days)', (o.growth || []).map(g => ({ label: g.label.replace(/_/g, ' '), n: g.n })))));
+    barList('Where stories came from', o.sources),
+    barList('AI spend by model this month (USD, estimated)', (o.models || []).map(m => ({ label: m.label + (m.unpriced ? ' (' + m.unpriced + ' unpriced)' : ''), n: Number(m.cost).toFixed(4) })), { empty: 'No AI calls this month' }), barList('Product events (' + o.days + ' days)', (o.growth || []).map(g => ({ label: g.label.replace(/_/g, ' '), n: g.n })))));
 
   root.append(h('div', { class: 'section' }, 'Health & safety'));
   const sevIcon = { error: '✖ Error', warn: '▲ Warning', info: '● Info' };
@@ -325,12 +326,14 @@ async function viewRules(root) {
   const groups = {}; d.settings.forEach(s => (groups[s.group] ||= []).push(s));
   const inputs = {};
   const changedMark = (row, el, s) => () => { row.classList.toggle('changed', JSON.stringify(read(el, s)) !== JSON.stringify(s.value)); };
-  const read = (el, s) => s.type === 'int' ? Number(el.value) : s.type === 'emails' ? el.value.split(/[\s,;]+/).map(v => v.trim().toLowerCase()).filter(Boolean) : el.value;
+  const read = (el, s) => s.type === 'int' || s.type === 'decimal' ? Number(el.value) : s.type === 'text' ? el.value.trim().toLowerCase() : s.type === 'emails' ? el.value.split(/[\s,;]+/).map(v => v.trim().toLowerCase()).filter(Boolean) : el.value;
   for (const [group, list] of Object.entries(groups)) {
     const card = h('div', { class: 'card', style: 'margin-bottom:12px' }, h('h2', null, group));
     for (const s of list) {
       let el;
       if (s.type === 'int') el = h('input', { type: 'number', min: s.min, max: s.max, step: 1, value: s.value });
+      else if (s.type === 'decimal') el = h('input', { type: 'number', min: s.min, max: s.max, step: 0.001, value: s.value });
+      else if (s.type === 'text') el = h('input', { type: 'text', value: s.value, maxlength: 60, spellcheck: 'false' });
       else if (s.type === 'choice') el = h('select', null, ...s.choices.map(c => h('option', { value: c, selected: c === s.value }, c)));
       else el = h('textarea', { spellcheck: 'false' }, s.value.join('\n'));
       inputs[s.key] = { el, s };

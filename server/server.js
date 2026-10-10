@@ -22,6 +22,7 @@ import { registerBillingWebhook } from './modules/billing.js';
 import { computeEntitlement, publicEntitlement, storyLimitMessage, learnerLimitMessage, rulesFromSettings, PlanLimitError } from './modules/plan-rules.js';
 import { createSettingsStore } from './modules/settings.js';
 import { createAdminRouter } from './modules/admin.js';
+import { estimateImageCost, estimateSpeechCost } from './modules/ai-costs.js';
 import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
@@ -87,12 +88,14 @@ const errorLogPath = path.join(logDir, 'error.log');
 // by unguessable UUID filename (same trust model as the theme banner images
 // already served this way), not authenticated; a story ID does not reveal
 // anything else about the account it belongs to.
-const illustrationsDir = path.join(rootDir, 'story-illustrations');
+// Generated files live in STORAGE_DIR (a persistent Railway volume in production). Without it they would be lost on every deploy.
+const storageDir = path.resolve(process.env.STORAGE_DIR || rootDir);
+const illustrationsDir = path.join(storageDir, 'story-illustrations');
 try { mkdirSync(illustrationsDir, { recursive: true }); } catch (dirError) { console.error('Failed to create illustrations directory:', dirError.message); }
 
 // Same trust/serving model as illustrations: unguessable UUID-based filenames,
 // served automatically by express.static(rootDir).
-const audioDir = path.join(rootDir, 'story-audio');
+const audioDir = path.join(storageDir, 'story-audio');
 try { mkdirSync(audioDir, { recursive: true }); } catch (dirError) { console.error('Failed to create audio directory:', dirError.message); }
 const narrationVoices = { warm: 'nova', calm: 'onyx', playful: 'fable' };
 const errorLogMaxBytes = Number(process.env.ERROR_LOG_MAX_BYTES || 5 * 1024 * 1024); // 5 MB per file
@@ -824,7 +827,7 @@ app.post('/api/stories/:storyId/narration', requireAuth, requireChildStoryScope,
       }
       await writeFile(filePath, Buffer.from(await response.arrayBuffer()));
       try {
-        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, req.params.storyId, 'openai', 'gpt-4o-mini-tts', text.length, null, null]);
+        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), req.auth.sub, req.params.storyId, 'openai', 'gpt-4o-mini-tts', text.length, null, estimateSpeechCost(text)]);
       } catch { /* cost logging is best-effort */ }
     }
     return res.json({ url: `/story-audio/${cacheKey}` });
@@ -1660,6 +1663,9 @@ function estimateOpenAICost(usage) {
 async function generateStoryIllustration({ storyId, title, theme, customTheme, firstPageText, accountId }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
+  if (settingsStore.get('illustrations_enabled') === 'off') return null;
+  const imageModel = settingsStore.get('image_model');
+  const imageQuality = settingsStore.get('image_quality');
   try {
     const setting = customTheme || theme || 'a gentle storybook setting';
     const scenePrompt = `Warm, gentle children's picture-book illustration. Setting: ${setting}. Scene inspired by this moment: ${cleanText(firstPageText || title || '').slice(0, 260)}. Soft colors, whimsical and friendly art style, no text or words anywhere in the image, no realistic human faces, safe and gentle for young children.`;
@@ -1669,7 +1675,7 @@ async function generateStoryIllustration({ storyId, title, theme, customTheme, f
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'gpt-image-1', prompt: scenePrompt, size: '1024x1024', quality: 'low', n: 1 }),
+      body: JSON.stringify({ model: imageModel, prompt: scenePrompt, size: '1024x1024', quality: imageQuality, n: 1 }),
     });
     if (!response.ok) {
       structuredLog('error', 'illustration_generation_failed', { storyId, status: response.status });
@@ -1684,8 +1690,8 @@ async function generateStoryIllustration({ storyId, title, theme, customTheme, f
 
     if (accountId) {
       try {
-        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), accountId, storyId, 'openai', 'gpt-image-1', payload.usage?.input_tokens || null, payload.usage?.output_tokens || null, null]);
-      } catch { /* cost logging is best-effort and must not fail the request */ }
+        await pool.query('INSERT INTO ai_invocations (id, account_id, story_id, provider, model, input_tokens, output_tokens, estimated_cost_usd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [randomUUID(), accountId, null, 'openai', imageModel, payload.usage?.input_tokens || null, payload.usage?.output_tokens || null, estimateImageCost({ model: imageModel, quality: imageQuality, overrideUsd: settingsStore.get('image_cost_usd'), outputTokens: payload.usage?.output_tokens })]);
+      } catch (costError) { structuredLog('warn', 'illustration_cost_log_failed', { storyId, message: costError.message }); /* cost logging is best-effort and must not fail the request */ }
     }
 
     return `/story-illustrations/${fileName}`;
@@ -2058,7 +2064,7 @@ app.use('/api/admin', createAdminRouter({
     emailConfigured: emailProvider === 'resend' && Boolean(resendApiKey) && Boolean(emailFrom),
   }),
 }));
-app.use(createPublicFiles(rootDir));
+app.use(createPublicFiles(rootDir, { storageDir }));
 
 app.use((error, req, res, next) => {
   void recordOpsEvent('http_error', 'error', error?.message || 'Server error', { method: req.method, path: req.path }, req.requestId);

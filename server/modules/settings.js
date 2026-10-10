@@ -23,6 +23,10 @@ export const SETTING_DEFS = {
   pricing_coming_soon: { type: 'choice', choices: ['default', 'on', 'off'], fallback: 'default', group: 'Pricing', label: 'Paid plans "Coming soon"', help: 'default = on in production and off elsewhere. on = hide prices and block checkout. off = paid plans are sold.' },
   plan_exempt_emails: { type: 'emails', fallback: [], group: 'Access', label: 'Never-limited accounts', help: 'Emails (one per line) that are never limited by plan rules. The owner email is always exempt.' },
   paid_story_limit_monthly: { type: 'int', min: 0, max: 100000, fallback: 0, group: 'Paid plans', label: 'Paid plans: stories per month', help: 'New stories a paying account can create per calendar month. 0 means no plan limit (the AI cap below still applies).' },
+  illustrations_enabled: { type: 'choice', choices: ['on', 'off'], fallback: 'on', group: 'Pictures', label: 'Story pictures', help: 'off = new stories are made without a picture (a cost and emergency switch).' },
+  image_model: { type: 'text', pattern: /^[a-z0-9][a-z0-9._-]{2,59}$/, patternHelp: 'a model name such as gpt-image-1', fallback: 'gpt-image-1', group: 'Pictures', label: 'Picture model', help: 'OpenAI image model used for story pictures. gpt-image-1 is scheduled to shut down on 2026-12-01, so switch before then.' },
+  image_quality: { type: 'choice', choices: ['low', 'medium', 'high'], fallback: 'low', group: 'Pictures', label: 'Picture quality', help: 'low is the cheapest (about 1.1 cents a picture on gpt-image-1); high costs about 15 times more.' },
+  image_cost_usd: { type: 'decimal', min: 0, max: 5, fallback: 0, group: 'Pictures', label: 'Picture price override (USD)', help: 'Price per picture used for the cost report. 0 = use the built-in price list (only known for gpt-image-1). Set this when you switch to a new model.' },
   ai_monthly_limit: { type: 'int', min: 1, max: 100000, fallback: 100, group: 'Limits & safeguards', label: 'AI actions per account per month', help: 'Cost safeguard that applies to every account, including paying and exempt ones.' },
   story_requests_per_15min: { type: 'int', min: 1, max: 1000, fallback: 30, group: 'Limits & safeguards', label: 'Story requests per 15 minutes (whole site)', help: 'Abuse protection: how many story-generation requests the site accepts in any 15-minute window.' },
   roster_import_max: { type: 'int', min: 1, max: 1000, fallback: 100, group: 'Limits & safeguards', label: 'Classroom CSV import: max learners', help: 'Largest number of learners one CSV roster import can add.' },
@@ -35,6 +39,16 @@ export function validateSetting(key, raw) {
     const n = typeof raw === 'string' ? Number(raw.trim()) : raw;
     if (!Number.isInteger(n) || n < def.min || n > def.max) return { ok: false, error: `${def.label} must be a whole number from ${def.min} to ${def.max}.` };
     return { ok: true, value: n };
+  }
+  if (def.type === 'text') {
+    const v = String(raw ?? '').trim().toLowerCase();
+    if (!def.pattern.test(v)) return { ok: false, error: `${def.label} must be ${def.patternHelp}.` };
+    return { ok: true, value: v };
+  }
+  if (def.type === 'decimal') {
+    const n = typeof raw === 'string' ? Number(raw.trim()) : raw;
+    if (!Number.isFinite(n) || n < def.min || n > def.max) return { ok: false, error: `${def.label} must be a number from ${def.min} to ${def.max}.` };
+    return { ok: true, value: Math.round(n * 1e6) / 1e6 };
   }
   if (def.type === 'choice') {
     const v = String(raw ?? '').trim().toLowerCase();

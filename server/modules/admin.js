@@ -159,7 +159,7 @@ export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, req
             (SELECT COALESCE(AVG(rating), 0) FROM story_preferences WHERE rating IS NOT NULL)::float AS avg_rating,
             (SELECT COUNT(*) FROM accounts a WHERE NOT EXISTS (SELECT 1 FROM learners l WHERE l.account_id = a.id))::int AS accounts_without_learner,
             (SELECT COUNT(*) FROM accounts WHERE ai_external_opt_in = FALSE)::int AS ai_not_enabled`).then(rows => rows[0])),
-        safe('models', () => q(`SELECT COALESCE(model, 'unknown') AS label, COUNT(*)::int AS n FROM ai_invocations WHERE created_at >= date_trunc('month', NOW()) GROUP BY 1 ORDER BY n DESC`)),
+        safe('models', () => q(`SELECT COALESCE(model, 'unknown') AS label, COUNT(*)::int AS n, COALESCE(SUM(estimated_cost_usd), 0)::float AS cost, COUNT(*) FILTER (WHERE estimated_cost_usd IS NULL)::int AS unpriced FROM ai_invocations WHERE created_at >= date_trunc('month', NOW()) GROUP BY 1 ORDER BY n DESC`)),
       ]);
 
       const exemptTotal = await safe('exempt', async () => {
