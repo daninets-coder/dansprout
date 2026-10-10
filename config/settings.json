@@ -13,7 +13,7 @@
   "plan_exempt_emails": [],
 
   "illustrations_enabled": "on",
-  "image_model": "gpt-image-1",
+  "image_model": "gpt-image-2.5-flare",
   "image_quality": "low",
   "image_cost_usd": 0,
 
