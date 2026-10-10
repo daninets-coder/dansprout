@@ -2102,9 +2102,15 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
 });
 
 // Owner-only admin: the page is a data-free shell (every number comes from /api/admin, which 404s for anyone but OWNER_EMAIL).
-app.get('/admin', (req, res) => {
+// The page lives at /admin, or at a secret address when the setting admin_page_path is filled in (then /admin is a normal 404).
+const sendAdminPage = (req, res) => {
   res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
   res.sendFile(path.join(rootDir, 'admin.html'));
+};
+app.get('/admin', (req, res, next) => (settingsStore.get('admin_page_path') ? next() : sendAdminPage(req, res)));
+app.get('/:adminSlug', (req, res, next) => {
+  const secret = settingsStore.get('admin_page_path');
+  return secret && req.params.adminSlug === secret ? sendAdminPage(req, res) : next();
 });
 app.use('/api/admin', createAdminRouter({ jwtSecret,
   pool, bcrypt, settingsStore, ownerEmail, requireAuth, requireAdultAccount, isPricingComingSoon,

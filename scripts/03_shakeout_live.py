@@ -26,7 +26,7 @@ def check(name, path, want_status, must_contain=None, must_not_contain=None):
 check("Server alive", "/api/healthz", 200)
 check("Database connected", "/api/readyz", 200)
 headers = check("Home page loads", "/", 200, must_contain="StoryAura")
-check("Admin page loads (login still required)", "/admin", 200)
+check("Admin page: at /admin, or hidden (404) once a secret address is set", "/admin", [200, 404])
 check("Admin data is hidden when not logged in", "/api/admin/overview", [401, 404])
 check("Private files are not public: .env", "/.env", 404)
 check("Private files are not public: server code", "/server/server.js", 404)
