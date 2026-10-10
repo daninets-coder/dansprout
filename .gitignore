@@ -9,3 +9,6 @@ server.err
 
 /test-results/
 /playwright-report/
+
+# generated story library files (stored on the production volume, not in git)
+/library/

@@ -23,6 +23,8 @@ import { computeEntitlement, publicEntitlement, storyLimitMessage, learnerLimitM
 import { createSettingsStore } from './modules/settings.js';
 import { createAdminRouter } from './modules/admin.js';
 import { estimateImageCost, estimateSpeechCost } from './modules/ai-costs.js';
+import { illustrationPrompt } from './modules/image-styles.js';
+import { narrationRequest, NARRATION_VERSION } from './modules/narration-voices.js';
 import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
@@ -97,7 +99,6 @@ try { mkdirSync(illustrationsDir, { recursive: true }); } catch (dirError) { con
 // served automatically by express.static(rootDir).
 const audioDir = path.join(storageDir, 'story-audio');
 try { mkdirSync(audioDir, { recursive: true }); } catch (dirError) { console.error('Failed to create audio directory:', dirError.message); }
-const narrationVoices = { warm: 'nova', calm: 'onyx', playful: 'fable' };
 const errorLogMaxBytes = Number(process.env.ERROR_LOG_MAX_BYTES || 5 * 1024 * 1024); // 5 MB per file
 const errorLogMaxBackups = Math.max(1, Number(process.env.ERROR_LOG_MAX_BACKUPS || 5));
 
@@ -813,13 +814,13 @@ app.post('/api/stories/:storyId/narration', requireAuth, requireChildStoryScope,
     if (!apiKey) return res.status(403).json({ error: 'Read-aloud is not configured for this deployment.' });
     await assertAiBudget(req.auth.sub);
 
-    const cacheKey = `${req.params.storyId}-${pageIndex === undefined ? 'full' : pageIndex}-${parsed.data.voice}.mp3`;
+    const cacheKey = `${req.params.storyId}-${pageIndex === undefined ? 'full' : pageIndex}-${parsed.data.voice}-${NARRATION_VERSION}.mp3`;
     const filePath = path.join(audioDir, cacheKey);
     if (!existsSync(filePath)) {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: narrationVoices[parsed.data.voice], input: text, response_format: 'mp3' }),
+        body: JSON.stringify(narrationRequest({ style: parsed.data.voice, text, warmVoice: settingsStore.get('narration_voice') })),
       });
       if (!response.ok) {
         structuredLog('error', 'narration_generation_failed', { storyId: req.params.storyId, status: response.status });
@@ -1668,7 +1669,7 @@ async function generateStoryIllustration({ storyId, title, theme, customTheme, f
   const imageQuality = settingsStore.get('image_quality');
   try {
     const setting = customTheme || theme || 'a gentle storybook setting';
-    const scenePrompt = `Warm, gentle children's picture-book illustration. Setting: ${setting}. Scene inspired by this moment: ${cleanText(firstPageText || title || '').slice(0, 260)}. Soft colors, whimsical and friendly art style, no text or words anywhere in the image, no realistic human faces, safe and gentle for young children.`;
+    const scenePrompt = illustrationPrompt({ style: settingsStore.get('image_style'), setting, scene: `inspired by this moment: ${cleanText(firstPageText || title || '').slice(0, 260)}.` });
     if (failsLocalSafetyCheck(scenePrompt)) return null;
     if (await failsOpenAIModeration(scenePrompt, apiKey)) return null;
 

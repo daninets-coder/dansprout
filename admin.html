@@ -205,8 +205,8 @@ function barList(title, items, { colors, empty = 'No data yet', total } = {}) {
 }
 
 /* ---------- views ---------- */
-const state = { tab: 'overview', days: 30, custPage: 1, custQ: '', custSort: 'newest' };
-const TABS = [['overview', 'Overview'], ['customers', 'Customers'], ['rules', 'Rules'], ['audit', 'Audit log'], ['system', 'System']];
+const state = { tab: 'overview', days: 30, custPage: 1, custQ: '', custSort: 'newest', libStatus: 'draft', libPage: 1 };
+const TABS = [['overview', 'Overview'], ['customers', 'Customers'], ['library', 'Library'], ['rules', 'Rules'], ['audit', 'Audit log'], ['system', 'System']];
 
 function renderTabs() {
   const nav = $('#tabs'); nav.replaceChildren(...TABS.map(([id, label]) => h('button', { role: 'tab', 'aria-selected': String(state.tab === id), onclick: () => { state.tab = id; render(); } }, label)));
@@ -373,7 +373,104 @@ async function viewSystem(root) {
   root.append(h('h1', null, 'System'), h('p', { class: 'sub' }, 'Facts about the running site.'), h('div', { class: 'card tablewrap' }, h('table', null, h('tbody', null, rows.map(([k, v]) => h('tr', null, h('th', null, k), h('td', null, v ?? 'n/a')))))));
 }
 
-const VIEWS = { overview: viewOverview, customers: viewCustomers, rules: viewRules, audit: viewAudit, system: viewSystem };
+
+async function viewLibrary(root) {
+  const [sum, list] = await Promise.all([getJSON('/library/summary'), getJSON(`/library?status=${state.libStatus}&page=${state.libPage}`)]);
+  const run = sum.lastRun;
+  root.append(h('h1', null, 'Story library'), h('p', { class: 'sub' }, 'Pre-made stories for families. Nothing here is shown to a family until you approve it. Read, listen, then approve or reject.'));
+  root.append(h('div', { class: 'grid kpis' },
+    tile('Waiting for your review', fmt(sum.draft), 'drafts'),
+    tile('Approved', fmt(sum.approved), 'may be shown to families'),
+    tile('Rejected', fmt(sum.rejected), 'never shown'),
+    tile('Cost so far', money(sum.totalCost), 'writing, pictures and voice'),
+    tile('Last build', run ? `${fmt(run.created)} made` : 'none yet', run ? `${fmt(run.failed)} failed · $${Number(run.cost_usd).toFixed(2)} of $${Number(run.budget_usd).toFixed(0)} budget` : '')));
+
+  const filter = h('select', { 'aria-label': 'Show' }, ...[['draft', 'Waiting for review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['all', 'All']].map(([v, t]) => h('option', { value: v, selected: state.libStatus === v }, t)));
+  filter.addEventListener('change', () => { state.libStatus = filter.value; state.libPage = 1; render(); });
+  const checks = new Set();
+  const detail = h('div', { style: 'margin-top:14px' });
+  const bulk = async decision => {
+    if (!checks.size) return toast('Tick at least one story first.');
+    const verb = decision === 'approve' ? 'Approve' : decision === 'reject' ? 'Reject' : 'Move back to waiting';
+    const out = await withPassword(`${verb} ${checks.size} ${checks.size === 1 ? 'story' : 'stories'}?`, pw => api('/library/review', { method: 'POST', body: JSON.stringify({ ids: [...checks], decision, currentPassword: pw }) }));
+    if (out) { toast(`${out.updated} updated.`); render(); }
+  };
+  const all = h('input', { type: 'checkbox', 'aria-label': 'Select all on this page' });
+  all.addEventListener('change', () => document.querySelectorAll('.libpick').forEach(box => { box.checked = all.checked; box.dispatchEvent(new Event('change')); }));
+  root.append(h('div', { class: 'toolbar', style: 'margin-top:16px' }, filter,
+    h('button', { class: 'btn primary', type: 'button', onclick: () => bulk('approve') }, 'Approve ticked'),
+    h('button', { class: 'btn danger', type: 'button', onclick: () => bulk('reject') }, 'Reject ticked'),
+    h('button', { class: 'btn', type: 'button', onclick: () => bulk('draft') }, 'Move ticked back to waiting'),
+    h('span', { class: 'spacer' }), h('span', { class: 'hint' }, `${fmt(list.total)} stories`)));
+  const pill = s => h('span', { class: 'pill ' + (s === 'approved' ? 'paid' : s === 'rejected' ? 'ended' : 'free') }, s === 'draft' ? 'waiting' : s);
+  root.append(h('div', { class: 'card tablewrap' }, list.stories.length ? h('table', null,
+    h('thead', null, h('tr', null, h('th', null, all), h('th', null, 'Story'), h('th', null, 'Grade'), h('th', null, 'Reading focus'), h('th', null, 'World'), h('th', null, 'Status'), h('th', null, 'Picture'), h('th', { class: 'num' }, 'Voice clips'), h('th', { class: 'num' }, 'Tries'), h('th', { class: 'num' }, 'Cost'))),
+    h('tbody', null, list.stories.map(s => {
+      const box = h('input', { type: 'checkbox', class: 'libpick', 'aria-label': 'Select ' + s.title });
+      box.addEventListener('change', () => { if (box.checked) checks.add(s.id); else checks.delete(s.id); });
+      return h('tr', null, h('td', null, box),
+        h('td', null, h('button', { class: 'btn', type: 'button', style: 'text-align:left', onclick: () => openStory(s.id) }, s.title), h('div', { class: 'hint' }, s.slug)),
+        h('td', null, s.grade_level), h('td', null, s.domain.replace(/_/g, ' ')), h('td', null, s.theme), h('td', null, pill(s.status)),
+        h('td', null, s.has_cover ? 'yes' : 'no'), h('td', { class: 'num' }, fmt(s.audio_pages)), h('td', { class: 'num' }, s.attempts || ''), h('td', { class: 'num' }, '$' + Number(s.cost_usd).toFixed(3)));
+    }))) : h('p', { class: 'hint' }, 'No stories here yet.')));
+  const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
+  if (pages > 1) root.append(h('div', { class: 'toolbar', style: 'margin-top:12px' },
+    h('button', { class: 'btn', type: 'button', disabled: state.libPage <= 1, onclick: () => { state.libPage--; render(); } }, 'Previous'),
+    h('span', { class: 'hint' }, `Page ${list.page} of ${pages}`),
+    h('button', { class: 'btn', type: 'button', disabled: state.libPage >= pages, onclick: () => { state.libPage++; render(); } }, 'Next')));
+  root.append(detail);
+
+  async function openStory(id) {
+    detail.replaceChildren(h('p', { class: 'hint' }, 'Loading…'));
+    const { story } = await getJSON('/library/' + id);
+    const c = story.content, a = story.assets || {};
+    const names = { child: c.defaultNames?.child || 'Sam', friend: c.defaultNames?.friend || 'Quinn' };
+    const fill = text => String(text).replace(/\{child\}/g, names.child).replace(/\{friend\}/g, names.friend);
+    const childIn = h('input', { value: names.child, maxlength: 30, 'aria-label': 'Child name for the preview' });
+    const friendIn = h('input', { value: names.friend, maxlength: 30, 'aria-label': 'Friend name for the preview' });
+    const version = h('select', { 'aria-label': 'Version' }, h('option', { value: 'solo' }, 'One child'), h('option', { value: 'duo' }, 'Two children'));
+    const pagesBox = h('div');
+    const paint = () => {
+      names.child = childIn.value.trim() || 'Sam'; names.friend = friendIn.value.trim() || 'Quinn';
+      pagesBox.replaceChildren(...c[version.value].pages.map((p, i) => h('div', { style: 'margin:10px 0' },
+        h('div', { style: 'font:400 17px/1.55 Georgia,serif' }, h('b', null, `Page ${i + 1}. `), fill(p)),
+        version.value === 'solo' && a.pages && a.pages[i] ? h('audio', { controls: true, preload: 'none', src: a.pages[i], style: 'height:34px;margin-top:4px' }) : null)));
+    };
+    [childIn, friendIn, version].forEach(el => el.addEventListener('input', paint));
+    paint();
+    const note = h('input', { placeholder: 'Optional note (why you rejected it)', maxlength: 500, style: 'min-width:260px' });
+    const decide = async decision => {
+      const out = await withPassword(`${decision === 'approve' ? 'Approve' : decision === 'reject' ? 'Reject' : 'Move back to waiting'}: ${story.title}?`, pw => api('/library/review', { method: 'POST', body: JSON.stringify({ ids: [story.id], decision, note: note.value, currentPassword: pw }) }));
+      if (out) { toast('Saved.'); render(); }
+    };
+    detail.replaceChildren(h('div', { class: 'card' },
+      h('div', { style: 'display:flex;gap:18px;flex-wrap:wrap' },
+        a.cover ? h('img', { src: a.cover, alt: 'Cover picture', style: 'width:300px;max-width:100%;border-radius:12px;border:1px solid var(--border)' }) : h('div', { class: 'hint' }, 'No picture'),
+        h('div', { style: 'flex:1;min-width:280px' },
+          h('h2', null, story.title), h('div', { class: 'hint' }, `${story.slug} · grade ${story.grade_level} · ${story.domain.replace(/_/g, ' ')} · ${story.theme} · companion: ${c.companion}`),
+          h('div', { class: 'hint' }, story.curriculum_objective ? 'Skill: ' + story.curriculum_objective : ''),
+          h('div', { class: 'toolbar', style: 'margin-top:10px' }, h('label', { class: 'hint' }, 'Preview as'), childIn, h('label', { class: 'hint' }, 'and'), friendIn, version),
+          h('div', { class: 'hint' }, 'The voice recording uses the default names (' + (c.defaultNames?.child || 'Sam') + '). Names in the text change per family.'))),
+      pagesBox,
+      h('h2', { style: 'margin-top:16px' }, 'Questions'),
+      c.questions.map((q, i) => h('div', { style: 'margin:8px 0' }, h('div', null, h('b', null, `${i + 1}. ${q.prompt}`)),
+        h('div', { class: 'hint' }, q.options.map(o => (o === q.answer ? '✔ ' : '• ') + o).join('   ')),
+        a.questions && a.questions[i] ? h('audio', { controls: true, preload: 'none', src: a.questions[i], style: 'height:34px' }) : null)),
+      h('h2', { style: 'margin-top:16px' }, 'Word garden'),
+      c.words.map(w => h('div', { style: 'margin:6px 0' }, h('b', null, w.word), ' · ' + w.meaning + ' ', h('i', { class: 'hint' }, w.example),
+        a.words && a.words[w.word] ? h('audio', { controls: true, preload: 'none', src: a.words[w.word], style: 'height:30px;display:block' }) : null)),
+      h('h2', { style: 'margin-top:16px' }, 'Automatic checks'),
+      h('div', { class: 'hint' }, `Topic check: ${story.checks.topicCheck || 'n/a'} · moderation flagged: ${story.checks.moderation?.flagged ? 'YES' : 'no'} · written by ${story.checks.writer} in ${story.checks.attempts} ${Number(story.checks.attempts) === 1 ? 'try' : 'tries'} · picture ${story.checks.imageModel} (${story.checks.imageStyle}) · voice ${story.checks.voice} · cost $${Number(story.cost_usd).toFixed(4)}`),
+      story.review_note ? h('div', { class: 'hint' }, 'Review note: ' + story.review_note) : null,
+      h('div', { class: 'toolbar', style: 'margin-top:14px' }, note,
+        h('button', { class: 'btn primary', type: 'button', onclick: () => decide('approve') }, 'Approve'),
+        h('button', { class: 'btn danger', type: 'button', onclick: () => decide('reject') }, 'Reject'),
+        h('button', { class: 'btn', type: 'button', onclick: () => decide('draft') }, 'Back to waiting'))));
+    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+const VIEWS = { overview: viewOverview, customers: viewCustomers, library: viewLibrary, rules: viewRules, audit: viewAudit, system: viewSystem };
 async function render() {
   renderTabs();
   const root = $('#view'); root.replaceChildren(h('p', { class: 'hint' }, 'Loading…'));

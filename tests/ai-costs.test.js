@@ -31,3 +31,20 @@ test('picture settings validate: model name pattern, quality choice, on/off, dec
   assert.equal(validateSetting('image_cost_usd', -1).ok, false);
   for (const [key, def] of Object.entries(SETTING_DEFS)) assert.equal(validateSetting(key, def.fallback).ok, true, key);
 });
+
+import { narrationRequest, NARRATION_VERSION } from '../server/modules/narration-voices.js';
+
+test('narration requests carry a voice and a reading direction', () => {
+  const warm = narrationRequest({ style: 'warm', text: 'Hello there.', warmVoice: 'marin' });
+  assert.equal(warm.model, 'gpt-4o-mini-tts');
+  assert.equal(warm.voice, 'marin');
+  assert.match(warm.instructions, /never sound robotic/i);
+  assert.equal(narrationRequest({ style: 'warm', text: 'x', warmVoice: 'cedar' }).voice, 'cedar'); // the setting changes the warm voice
+  assert.equal(narrationRequest({ style: 'calm', text: 'x' }).voice, 'cedar');
+  assert.equal(narrationRequest({ style: 'playful', text: 'x' }).voice, 'coral');
+  assert.equal(narrationRequest({ style: 'nonsense', text: 'x', warmVoice: 'marin' }).voice, 'marin'); // unknown style falls back to warm
+  assert.equal(narrationRequest({ style: 'warm', text: 'Hi.' }).input, 'Hi.');
+  assert.ok(NARRATION_VERSION);
+  assert.equal(validateSetting('narration_voice', 'Marin').value, 'marin');
+  assert.equal(validateSetting('narration_voice', 'bad voice!').ok, false);
+});

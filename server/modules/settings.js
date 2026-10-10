@@ -13,6 +13,8 @@
 
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
+import { IMAGE_STYLES, IMAGE_STYLE_KEYS } from './image-styles.js';
+
 export const SETTING_DEFS = {
   free_period_days: { type: 'int', min: 1, max: 365, fallback: 14, group: 'Free Explorer', label: 'Free period (days)', help: 'How many days a new account can create stories for free.' },
   free_story_limit: { type: 'int', min: 0, max: 1000, fallback: 5, group: 'Free Explorer', label: 'Free stories', help: 'New stories a free account can create during the free period.' },
@@ -24,6 +26,8 @@ export const SETTING_DEFS = {
   plan_exempt_emails: { type: 'emails', fallback: [], group: 'Access', label: 'Never-limited accounts', help: 'Emails (one per line) that are never limited by plan rules. The owner email is always exempt.' },
   paid_story_limit_monthly: { type: 'int', min: 0, max: 100000, fallback: 0, group: 'Paid plans', label: 'Paid plans: stories per month', help: 'New stories a paying account can create per calendar month. 0 means no plan limit (the AI cap below still applies).' },
   illustrations_enabled: { type: 'choice', choices: ['on', 'off'], fallback: 'on', group: 'Pictures', label: 'Story pictures', help: 'off = new stories are made without a picture (a cost and emergency switch).' },
+  image_style: { type: 'choice', choices: IMAGE_STYLE_KEYS, fallback: 'bright_cartoon', group: 'Pictures', label: 'Picture style', help: Object.entries(IMAGE_STYLES).map(([key, s]) => `${key} = ${s.label}`).join('; ') + '.' },
+  narration_voice: { type: 'text', pattern: /^[a-z]{3,20}$/, patternHelp: 'a voice name such as marin, cedar, coral, nova or shimmer', fallback: 'marin', group: 'Voice', label: 'Read-aloud voice', help: 'Voice for the Warm narrator and for the story library. Try marin, cedar, coral, nova or shimmer. Changing it applies to audio made from now on.' },
   image_model: { type: 'text', pattern: /^[a-z0-9][a-z0-9._-]{2,59}$/, patternHelp: 'a model name such as gpt-image-1', fallback: 'gpt-image-1', group: 'Pictures', label: 'Picture model', help: 'OpenAI image model used for story pictures. gpt-image-1 is scheduled to shut down on 2026-12-01, so switch before then.' },
   image_quality: { type: 'choice', choices: ['low', 'medium', 'high'], fallback: 'low', group: 'Pictures', label: 'Picture quality', help: 'low is the cheapest (about 1.1 cents a picture on gpt-image-1); high costs about 15 times more.' },
   image_cost_usd: { type: 'decimal', min: 0, max: 5, fallback: 0, group: 'Pictures', label: 'Picture price override (USD)', help: 'Price per picture used for the cost report. 0 = use the built-in price list (only known for gpt-image-1). Set this when you switch to a new model.' },

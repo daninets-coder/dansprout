@@ -1,0 +1,123 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>StoryAura Land poster</title>
+<style>
+@page{size:18in 24in;margin:0}
+:root{--ink:#17393f;--coral:#df7046;--sun:#f4c96d;--cream:#fff7ea;--deep:#17394a;--muted:#4f6a70}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1728px;height:2304px;overflow:hidden}
+body{position:relative;background:var(--cream);font-family:Georgia,serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+svg.bg{position:absolute;left:0;top:0}
+.logo{position:absolute;left:96px;top:64px;display:flex;align-items:center;gap:24px;color:#fff7ea;font:700 70px Georgia;z-index:4;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+.mk{position:relative;width:98px;height:98px;border-radius:24px;background:var(--coral);box-shadow:0 0 0 7px rgba(255,247,234,.18),0 14px 34px rgba(223,112,70,.55)}
+.mk:after{content:'';position:absolute;width:34px;height:55px;border:8px solid #fff;border-radius:100% 0;left:29px;top:20px;transform:rotate(35deg)}
+.mk:before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:var(--sun);right:14px;top:14px;box-shadow:0 0 14px var(--sun)}
+.ages{position:absolute;right:96px;top:92px;z-index:4;color:#fff7ea;font:700 32px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.92}
+h1{position:absolute;left:96px;top:196px;width:1536px;z-index:4;color:#fff7ea;font:700 176px/0.98 Georgia;text-shadow:0 8px 40px rgba(0,0,0,.35)}
+h1 em{font-style:normal;color:var(--sun)}
+.lede{position:absolute;left:96px;top:556px;width:1480px;z-index:4;color:#fff7ea;font:400 50px/1.3 Georgia;text-shadow:0 4px 24px rgba(0,0,0,.45)}
+.sectionlabel{position:absolute;left:96px;top:1022px;z-index:4;font:700 30px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--coral)}
+.sectiontitle{position:absolute;left:96px;top:1060px;z-index:4;font:700 74px Georgia;color:var(--ink)}
+.grid{position:absolute;left:96px;right:96px;top:1166px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px 30px;z-index:4}
+.card{display:flex;gap:24px;align-items:center;background:#fff;border-radius:30px;padding:22px 28px;box-shadow:0 14px 36px rgba(23,57,63,.13);border:2px solid #f0e2cf;height:176px}
+.ic{flex:0 0 96px;width:96px;height:96px;border-radius:26px;display:flex;align-items:center;justify-content:center}
+.ic svg{width:58px;height:58px}
+.card h3{font:700 36px/1.15 Georgia;margin-bottom:6px}
+.card p{font:400 28px/1.3 Arial,sans-serif;color:var(--muted)}
+.strip{position:absolute;left:96px;right:96px;top:1736px;display:flex;gap:16px;z-index:4}
+.badge{flex:1;text-align:center;background:var(--deep);color:#fff7ea;border-radius:99px;padding:18px 6px;font:700 31px Arial,sans-serif}
+.band{position:absolute;left:0;right:0;bottom:0;height:486px;background:linear-gradient(135deg,#e98258,#d65f3a);z-index:3}
+.cta{position:absolute;left:96px;top:1850px;z-index:5;color:#fff;width:1090px}
+.cta .big{font:700 100px/1.0 Georgia;white-space:nowrap}
+.cta .cam{margin-top:10px;font:400 36px/1.2 Arial,sans-serif;color:#fff3e6}
+.cta .free{margin-top:14px;font:700 38px/1.25 Georgia;color:#fff7ea;white-space:nowrap}
+.cta .url{display:inline-block;margin-top:16px;background:#fff7ea;color:#b84a26;font:700 68px Georgia;padding:10px 44px;border-radius:99px;box-shadow:0 14px 34px rgba(0,0,0,.25)}
+.qrcard{position:absolute;right:96px;top:1850px;width:430px;height:430px;z-index:6;background:#fff;border-radius:40px;padding:30px;box-shadow:0 26px 60px rgba(0,0,0,.35)}
+.qrcard svg{width:100%;height:100%;display:block}
+.fine{position:absolute;left:96px;bottom:26px;z-index:6;color:#fff3e6;font:400 23px/1.35 Arial,sans-serif;width:1080px}
+</style></head>
+<body>
+<svg class="bg" width="1728" height="1000" viewBox="0 0 1728 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14344a"/><stop offset=".45" stop-color="#2c5470"/><stop offset=".75" stop-color="#c98a6a"/><stop offset=".92" stop-color="#f1b878"/><stop offset="1" stop-color="#f8d9a0"/></linearGradient>
+    <radialGradient id="aura" cx="864" cy="1010" r="900" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff2c4" stop-opacity=".95"/><stop offset=".25" stop-color="#ffc98a" stop-opacity=".55"/><stop offset=".6" stop-color="#df7046" stop-opacity=".14"/><stop offset="1" stop-color="#df7046" stop-opacity="0"/></radialGradient>
+    <linearGradient id="beam" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff2c4" stop-opacity=".55"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></linearGradient>
+    <radialGradient id="pg" cx="864" cy="1000" r="300" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></radialGradient>
+    <filter id="b14" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+  <rect width="1728" height="1000" fill="url(#sky)"/>
+  <defs><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14344a" stop-opacity="0"/><stop offset=".25" stop-color="#14344a" stop-opacity=".55"/><stop offset=".7" stop-color="#14344a" stop-opacity=".5"/><stop offset="1" stop-color="#14344a" stop-opacity="0"/></linearGradient></defs>
+  <g id="stars"></g>
+  <g transform="translate(0,-250)">
+    <rect y="0" width="1728" height="1260" fill="url(#aura)"/>
+    <g fill="none" stroke="#fff2c4" stroke-width="3"><circle cx="864" cy="1010" r="420" opacity=".35"/><circle cx="864" cy="1010" r="620" opacity=".2" stroke-dasharray="5 22"/><circle cx="864" cy="1010" r="820" opacity=".12"/></g>
+    <g filter="url(#b14)"><polygon points="864,1010 560,700 700,700" fill="url(#beam)"/><polygon points="864,1010 800,700 920,700" fill="url(#beam)"/><polygon points="864,1010 1030,700 1170,700" fill="url(#beam)"/></g>
+    <path d="M0 1090 C260 1010 560 1100 900 1070 C1240 1040 1500 1110 1728 1050 L1728 1260 L0 1260Z" fill="#4a8a7a" opacity=".92"/>
+    <path d="M0 1130 C300 1070 640 1150 980 1120 C1300 1092 1520 1150 1728 1105 L1728 1260 L0 1260Z" fill="#2f6b62"/>
+    <g transform="translate(250,900)">
+      <path d="M0 330 C0 250 60 215 120 215 C180 215 240 250 240 330Z" fill="#3a9a95"/>
+      <circle cx="120" cy="140" r="82" fill="#c58a62"/>
+      <path d="M44 128 C38 60 90 36 128 48 C176 38 206 84 198 128 C186 96 160 84 120 90 C84 90 58 100 44 128Z" fill="#a8531f"/>
+      <circle cx="84" cy="52" r="20" fill="#a8531f"/><circle cx="120" cy="38" r="24" fill="#a8531f"/><circle cx="160" cy="52" r="20" fill="#a8531f"/><circle cx="52" cy="92" r="18" fill="#a8531f"/><circle cx="190" cy="92" r="18" fill="#a8531f"/>
+      <circle cx="98" cy="146" r="8" fill="#17393f"/><circle cx="152" cy="146" r="8" fill="#17393f"/><circle cx="101" cy="143" r="2.6" fill="#fff"/><circle cx="155" cy="143" r="2.6" fill="#fff"/>
+      <path d="M96 176 Q121 200 146 176" fill="#fff" stroke="#17393f" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="76" cy="168" r="10" fill="#e59a7e" opacity=".6"/><circle cx="166" cy="168" r="10" fill="#e59a7e" opacity=".6"/>
+    </g>
+    <g transform="translate(1238,900)">
+      <path d="M0 330 C0 250 60 215 120 215 C180 215 240 250 240 330Z" fill="#df7046"/>
+      <circle cx="120" cy="140" r="82" fill="#f0c19a"/>
+      <circle cx="46" cy="70" r="36" fill="#2a1c1a"/><circle cx="194" cy="70" r="36" fill="#2a1c1a"/>
+      <path d="M40 130 C34 56 80 34 120 38 C164 34 206 56 200 130 C190 92 160 80 120 82 C84 80 54 94 40 130Z" fill="#2a1c1a"/>
+      <circle cx="92" cy="146" r="8" fill="#17393f"/><circle cx="146" cy="146" r="8" fill="#17393f"/><circle cx="95" cy="143" r="2.6" fill="#fff"/><circle cx="149" cy="143" r="2.6" fill="#fff"/>
+      <path d="M98 176 Q121 198 144 176" fill="#fff" stroke="#17393f" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="78" cy="168" r="10" fill="#f09a8a" opacity=".6"/><circle cx="164" cy="168" r="10" fill="#f09a8a" opacity=".6"/>
+      <circle cx="66" cy="44" r="9" fill="#f4c96d"/><circle cx="174" cy="44" r="9" fill="#f4c96d"/>
+    </g>
+    <ellipse cx="864" cy="1138" rx="470" ry="40" fill="#0f2a30" opacity=".35" filter="url(#b14)"/>
+    <path d="M470 960 L470 1120 C640 1082 780 1090 864 1146 C948 1090 1088 1082 1258 1120 L1258 960Z" fill="#df7046"/>
+    <path d="M470 1120 C640 1082 780 1090 864 1146 C948 1090 1088 1082 1258 1120" fill="none" stroke="#a8482a" stroke-width="5"/>
+    <path d="M864 992 C776 930 640 922 492 958 L492 1098 C640 1062 776 1070 864 1124Z" fill="#fff7ea"/>
+    <path d="M864 992 C952 930 1088 922 1236 958 L1236 1098 C1088 1062 952 1070 864 1124Z" fill="#fff0d6"/>
+    <path d="M864 992 L864 1124" stroke="#d9c4a0" stroke-width="5"/>
+    <g stroke="#e0cfb2" stroke-width="9" stroke-linecap="round" fill="none"><path d="M540 1000 C620 982 710 990 800 1022"/><path d="M540 1034 C620 1016 710 1024 800 1056"/><path d="M928 1022 C1018 990 1108 982 1188 1000"/><path d="M928 1056 C1018 1024 1108 1016 1188 1034"/></g>
+    <circle cx="864" cy="1000" r="300" fill="url(#pg)" opacity=".85"/>
+    <g id="trail"></g>
+    <path d="M0 1236 C300 1204 640 1252 980 1230 C1300 1208 1520 1252 1728 1218 L1728 1262 L0 1262Z" fill="#fff7ea"/>
+  </g>
+  <rect x="0" y="520" width="1728" height="200" fill="url(#shade)"/>
+</svg>
+
+<div class="logo"><span class="mk"></span>StoryAura Land</div>
+<div class="ages">Personalized stories · ages 3–11</div>
+<h1>Every child<br>has a <em>story.</em></h1>
+<p class="lede">StoryAura Land writes a story starring <b>your child</b>, then helps them read it, understand it, and love it.</p>
+
+<div class="sectionlabel">What's inside for your family</div>
+<div class="sectiontitle">Made for kids. Built for parents.</div>
+
+<div class="grid">
+  <div class="card"><div class="ic" style="background:#fde4d6"><svg viewBox="0 0 64 64"><path d="M32 6l7 17 18 2-14 12 5 18-16-10-16 10 5-18L7 25l18-2z" fill="#df7046"/></svg></div><div><h3>A story starring your child</h3><p>Their name, interests, and reading level in every story.</p></div></div>
+  <div class="card"><div class="ic" style="background:#dbeaf3"><svg viewBox="0 0 64 64"><path d="M10 24h12l16-13v42L22 40H10z" fill="#2c5470"/><path d="M45 22q9 10 0 20M51 15q16 17 0 34" fill="none" stroke="#2c5470" stroke-width="5" stroke-linecap="round"/></svg></div><div><h3>Read it. Hear it. Learn words.</h3><p>Read-aloud narration. Tap any word to see what it means.</p></div></div>
+  <div class="card"><div class="ic" style="background:#dff0d8"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="#3a9a55"/><path d="M20 33l9 9 16-18" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h3>A quick story check</h3><p>Simple questions after each story show what they understood.</p></div></div>
+  <div class="card"><div class="ic" style="background:#fbe9b5"><svg viewBox="0 0 64 64"><rect x="6" y="16" width="12" height="38" rx="3" fill="#df7046"/><rect x="21" y="10" width="12" height="44" rx="3" fill="#2c5470"/><rect x="36" y="18" width="12" height="36" rx="3" fill="#3a9a55"/><path d="M54 33c0-5-8-6-8 0 0 4 8 9 8 9s8-5 8-9c0-6-8-5-8 0z" fill="#e5484d"/></svg></div><div><h3>A shelf of their own</h3><p>Favorite and rate stories. Pick up right where they stopped.</p></div></div>
+  <div class="card"><div class="ic" style="background:#e8def5"><svg viewBox="0 0 64 64"><circle cx="22" cy="22" r="10" fill="#6a4cb3"/><circle cx="43" cy="26" r="8" fill="#9b82d6"/><path d="M4 54c0-12 8-18 18-18s18 6 18 18zM34 54c0-8 5-13 11-13s13 5 13 13z" fill="#6a4cb3"/></svg></div><div><h3>Share with brothers &amp; sisters</h3><p>Parent-controlled. Each child gets their own copy and progress.</p></div></div>
+  <div class="card"><div class="ic" style="background:#fde4d6"><svg viewBox="0 0 64 64"><rect x="8" y="34" width="12" height="20" rx="3" fill="#df7046"/><rect x="26" y="22" width="12" height="32" rx="3" fill="#df7046"/><rect x="44" y="8" width="12" height="46" rx="3" fill="#df7046"/></svg></div><div><h3>Parents see the progress</h3><p>A private view of what they read and learned.</p></div></div>
+</div>
+
+<div class="strip"><span class="badge">No ads</span><span class="badge">No chat with strangers</span><span class="badge">No public story gallery</span><span class="badge">Parent in control</span></div>
+
+<div class="band"></div>
+<div class="cta"><div class="big">Scan to start free.</div><div class="cam">Point your phone camera at the code.</div><div class="free">Free family account with just an email. No card.</div><div class="url">dansprout.com</div></div>
+<div class="qrcard"><svg viewBox="-2 -2 33 33" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect x="-2" y="-2" width="33" height="33" fill="#fff"/><path stroke="#0d2a2f" d="M0 0.5h7m2 0h2m2 0h1m2 0h1m2 0h2m1 0h7M0 1.5h1m5 0h1m1 0h7m1 0h3m1 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m2 0h4m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m1 0h4m3 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h4m2 0h1m7 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h1m2 0h1m1 0h3m1 0h2m1 0h1m1 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 7.5h1m3 0h5M2 8.5h1m2 0h6m4 0h3m1 0h3m1 0h5M3 9.5h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h2m3 0h2M0 10.5h4m2 0h3m2 0h2m2 0h3m2 0h2m1 0h1m1 0h1m2 0h1M0 11.5h4m3 0h2m1 0h1m1 0h5m1 0h3m1 0h4M3 12.5h4m1 0h5m1 0h2m2 0h1m1 0h3m2 0h1m1 0h1M1 13.5h1m5 0h2m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m2 0h1m1 0h2M1 14.5h1m2 0h1m1 0h3m1 0h2m1 0h1m1 0h2m1 0h5m2 0h2m1 0h1M2 15.5h2m3 0h1m1 0h3m5 0h1m2 0h3m2 0h1M1 16.5h1m4 0h1m1 0h1m4 0h4m1 0h3m1 0h2m3 0h2M2 17.5h1m1 0h2m2 0h1m3 0h1m2 0h1m1 0h1m4 0h1m2 0h2m1 0h1M0 18.5h3m1 0h4m1 0h3m2 0h3m2 0h1m3 0h2m3 0h1M2 19.5h2m1 0h1m2 0h1m6 0h1m1 0h2m1 0h4m1 0h1m1 0h1M0 20.5h4m1 0h3m2 0h1m3 0h1m1 0h3m1 0h5m3 0h1M8 21.5h3m4 0h2m1 0h1m1 0h1m3 0h2m1 0h2M0 22.5h7m1 0h1m1 0h3m1 0h2m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1M0 23.5h1m5 0h1m1 0h1m1 0h1m3 0h1m1 0h5m3 0h2m1 0h2M0 24.5h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h10m2 0h2M0 25.5h1m1 0h3m1 0h1m2 0h2m1 0h2m2 0h2m1 0h2m2 0h3m1 0h1M0 26.5h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m1 0h2m1 0h1m2 0h1m2 0h1m1 0h3M0 27.5h1m5 0h1m2 0h1m2 0h1m3 0h1m3 0h3m2 0h1M0 28.5h7m2 0h1m1 0h2m4 0h1m2 0h1m2 0h2m3 0h1"/></svg></div>
+<div class="fine">Free Explorer: 14 days, 1 learner, up to 5 stories. Stories are written with AI; we recommend an adult review each story before reading it with a child. Paid plans coming soon.</div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';let seed=21;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+function sp(g,x,y,r,f,o){const p=document.createElementNS(NS,'path');const k=r*.28;p.setAttribute('d',`M${x} ${y-r} Q${x+k} ${y-k} ${x+r} ${y} Q${x+k} ${y+k} ${x} ${y+r} Q${x-k} ${y+k} ${x-r} ${y} Q${x-k} ${y-k} ${x} ${y-r}Z`);p.setAttribute('fill',f);p.setAttribute('opacity',o);g.appendChild(p)}
+const st=document.getElementById('stars');
+for(let i=0;i<150;i++){const x=rnd()*1728,y=rnd()*640;if(y>170&&y<660&&x<1640&&rnd()<.88)continue;if(y<175&&(x<470||x>980))continue;const r=rnd()<.13?6+rnd()*8:1.2+rnd()*2.6;if(r>5)sp(st,x,y,r*1.8,'#fff7ea',.9);else{const c=document.createElementNS(NS,'circle');c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',r);c.setAttribute('fill','#fff7ea');c.setAttribute('opacity',.35+rnd()*.6);st.appendChild(c)}}
+function bez(p0,p1,p2,p3,t){const u=1-t;return[u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0],u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]]}
+const tr=document.getElementById('trail'),cols=['#fff7ea','#f6d68a','#f4a96b'];
+for(let i=0;i<28;i++){const t=i/28,[x,y]=bez([864,990],[780,900],[1000,850],[1180,760],t);sp(tr,x+(rnd()-.5)*36,y+(rnd()-.5)*36,22*(1-t*.75)*(.55+rnd()*.6),cols[i%3],.95-t*.45)}
+for(let i=0;i<20;i++){const t=i/20,[x,y]=bez([864,990],[950,900],[740,850],[560,760],t);sp(tr,x+(rnd()-.5)*36,y+(rnd()-.5)*36,19*(1-t*.75)*(.55+rnd()*.6),cols[(i+1)%3],.9-t*.45)}
+</script>
+</body></html>

@@ -290,6 +290,64 @@ export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, req
     } catch (error) { return next(error); }
   });
 
+  // ------------------------------------------------------------------ story library (review before families see anything)
+  const LIBRARY_STATUSES = ['draft', 'approved', 'rejected'];
+
+  router.get('/library/summary', async (req, res, next) => {
+    try {
+      const [counts, byGrade, run] = await Promise.all([
+        pool.query("SELECT status, COUNT(*)::int AS n, COALESCE(SUM(cost_usd), 0)::float AS cost FROM library_stories GROUP BY status"),
+        pool.query("SELECT grade_level AS label, COUNT(*)::int AS n FROM library_stories GROUP BY 1 ORDER BY 1"),
+        pool.query('SELECT started_at, finished_at, requested, created, failed, skipped, cost_usd::float AS cost_usd, budget_usd::float AS budget_usd, image_model, image_style, note FROM library_build_runs ORDER BY started_at DESC LIMIT 1'),
+      ]);
+      const by = Object.fromEntries(counts.rows.map(r => [r.status, r]));
+      return res.json({
+        draft: by.draft?.n || 0, approved: by.approved?.n || 0, rejected: by.rejected?.n || 0,
+        totalCost: counts.rows.reduce((sum, r) => sum + r.cost, 0), byGrade: byGrade.rows, lastRun: run.rows[0] || null,
+      });
+    } catch (error) { return next(error); }
+  });
+
+  router.get('/library', async (req, res, next) => {
+    try {
+      const status = LIBRARY_STATUSES.includes(req.query.status) ? req.query.status : null;
+      const pageSize = 50;
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+      const [rows, count] = await Promise.all([
+        pool.query(`SELECT id, slug, title, grade_level, domain, theme, story_length, status, cost_usd::float AS cost_usd, (assets->>'cover') IS NOT NULL AS has_cover,
+                           jsonb_array_length(COALESCE(assets->'pages', '[]'::jsonb)) AS audio_pages, checks->>'attempts' AS attempts, created_at
+                    FROM library_stories WHERE ($1::text IS NULL OR status = $1) ORDER BY slug LIMIT $2 OFFSET $3`, [status, pageSize, (page - 1) * pageSize]),
+        pool.query('SELECT COUNT(*)::int AS n FROM library_stories WHERE ($1::text IS NULL OR status = $1)', [status]),
+      ]);
+      return res.json({ page, pageSize, total: count.rows[0].n, stories: rows.rows });
+    } catch (error) { return next(error); }
+  });
+
+  router.get('/library/:id', async (req, res, next) => {
+    try {
+      if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return notFound(res);
+      const { rows } = await pool.query('SELECT id, slug, title, grade_level, age_band, domain, theme, story_length, status, content, assets, checks, cost_usd::float AS cost_usd, curriculum_standard, curriculum_objective, review_note, reviewed_by, reviewed_at, created_at FROM library_stories WHERE id = $1', [req.params.id]);
+      if (!rows[0]) return notFound(res);
+      return res.json({ story: rows[0] });
+    } catch (error) { return next(error); }
+  });
+
+  // Approve, reject or return to draft, one story or many at once. Needs the owner's password.
+  router.post('/library/review', writeLimiter, express.json({ limit: '16kb' }), async (req, res, next) => {
+    try {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200) : [];
+      const decision = { approve: 'approved', reject: 'rejected', draft: 'draft' }[req.body?.decision];
+      const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+      if (!ids.length || !decision) return res.status(400).json({ error: 'Choose at least one story and a decision.' });
+      if (!(await passwordOk(req.owner, req.body?.currentPassword))) return res.status(401).json({ error: 'Password is incorrect.' });
+      const result = await pool.query(
+        `UPDATE library_stories SET status = $2, review_note = NULLIF($3, ''), reviewed_by = $4, reviewed_at = NOW() WHERE id = ANY($1::uuid[]) RETURNING id`,
+        [ids, decision, note, req.owner.email]);
+      await audit(req.owner, `library_${req.body.decision}`, `${result.rowCount} stories`, { ids: result.rows.map(r => r.id).slice(0, 50), note });
+      return res.json({ ok: true, updated: result.rowCount });
+    } catch (error) { return next(error); }
+  });
+
   // ------------------------------------------------------------------ audit log
   router.get('/audit', async (req, res, next) => {
     try {

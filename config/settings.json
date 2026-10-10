@@ -13,9 +13,11 @@
   "plan_exempt_emails": [],
 
   "illustrations_enabled": "on",
+  "image_style": "bright_cartoon",
   "image_model": "gpt-image-2.5-flare",
   "image_quality": "low",
   "image_cost_usd": 0,
+  "narration_voice": "marin",
 
   "ai_monthly_limit": 100,
   "story_requests_per_15min": 30,

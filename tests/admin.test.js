@@ -64,7 +64,7 @@ async function startAdmin({ accountEmail }) {
 test('admin API is invisible (404) to anyone but the owner, for every route and method', async t => {
   const { server, base } = await startAdmin({ accountEmail: 'someone-else@example.com' });
   t.after(() => { server.closeAllConnections(); server.close(); });
-  for (const [method, path] of [['GET', '/overview'], ['GET', '/customers'], ['GET', '/settings'], ['GET', '/audit'], ['GET', '/export/customers.csv'], ['PUT', '/settings'], ['POST', '/customers/00000000-0000-0000-0000-000000000000/free-days']]) {
+  for (const [method, path] of [['GET', '/overview'], ['GET', '/customers'], ['GET', '/settings'], ['GET', '/audit'], ['GET', '/library'], ['GET', '/library/summary'], ['POST', '/library/review'], ['GET', '/export/customers.csv'], ['PUT', '/settings'], ['POST', '/customers/00000000-0000-0000-0000-000000000000/free-days']]) {
     const r = await fetch(base + '/api/admin' + path, { method, headers: { 'Content-Type': 'application/json' }, body: method === 'GET' ? undefined : '{}' });
     assert.equal(r.status, 404, `${method} ${path}`);
     await r.arrayBuffer();
@@ -122,4 +122,14 @@ test('settings catalog sync writes one row per setting (so SQL can list them) an
   assert.equal(story.params[8], '5');   // built-in default
   assert.equal(story.params[9], '7');   // value from the config file
   assert.ok(calls.some(c => /DELETE FROM app_settings_catalog/.test(c.text)));
+});
+
+test('library review needs the owner password and a real decision', async t => {
+  const { server, base } = await startAdmin({ accountEmail: 'owner@example.com' });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const post = async body => { const r = await fetch(base + '/api/admin/library/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); await r.arrayBuffer(); return r.status; };
+  const id = '00000000-0000-0000-0000-000000000000';
+  assert.equal(await post({ ids: [id], decision: 'approve', currentPassword: 'wrong' }), 401);
+  assert.equal(await post({ ids: [id], decision: 'publish', currentPassword: 'x' }), 400);
+  assert.equal(await post({ ids: [], decision: 'approve', currentPassword: 'x' }), 400);
 });
