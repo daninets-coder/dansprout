@@ -46,6 +46,22 @@ export function gradeProfile(grade) {
 }
 
 // A balanced plan: every grade, reading focus and world gets used, and no two stories share a premise until the list runs out.
+// Ideas for stories 101 and up (the first 100 use PREMISES above, so they stay unchanged).
+const MORE_PREMISES = [
+  'a bakery where the bread rises into funny shapes', 'a tiny comet that wants a friend', 'a window box garden on a busy street', 'a night when the stars are too shy to come out',
+  'a cat-shaped cloud that follows a puppy', 'a bridge that only appears after a rainstorm', 'a coat with a pocket full of surprises', 'a cheerful tractor that is afraid of the dark barn',
+  'the day the wind wanted to play tag', 'a jar of fireflies that wants to go home', 'a puzzle with one missing piece', 'a path of stepping stones across a creek',
+  'a mailbox that gets a letter from the moon', 'a kitchen where the spoons start a band', 'a sleepy mountain and a very early sunrise', 'a robot gardener and a stubborn weed',
+  'a snow globe with a tiny town inside', 'a kite festival where one kite is too small', 'an echo that answers in a different voice', 'a mitten that went on a long trip',
+  'a toy train that finds a shortcut', 'a pond with the loudest frogs ever', 'a school of fish that learn to follow a lantern', 'a haystack maze at the farm',
+  'a paint box where the colors take turns', 'a tiny seed that hitches a ride on a breeze', 'a bear who cannot find the best berry bush', 'a night market of paper lanterns',
+  'an ice rink where a penguin learns to spin', 'a basket of kittens and a ball of yarn', 'a time capsule buried in the garden', 'a wooden boat and a very patient tide',
+  'a treasure chest full of ordinary things', 'a windmill that grinds the wrong flour', 'a ladybug who is afraid of heights', 'a sleepy dragon-shaped hill',
+  'a bakery cat who wants to learn to read', 'a quilt with a story in every square', 'a beach where the footprints tell a tale', 'a clock tower that forgot how to chime',
+  'an orchard where the apples roll downhill', 'a night owl and a morning rooster who trade places', 'a shoebox boat in a bathtub sea', 'a hill of pumpkins and one giant surprise',
+  'a lonely lamp post that gets visitors', 'a field of dandelions waiting for a wish-sized breeze', 'a cardboard castle with a squeaky drawbridge', 'a compass that points to snacks',
+  'a canoe trip down a gentle river', 'a rainbow that has lost one color',
+];
 export function buildPlan(count) {
   const plan = [];
   for (let i = 0; i < count; i += 1) {
@@ -59,7 +75,7 @@ export function buildPlan(count) {
       domain: DOMAINS[(i + round) % DOMAINS.length],
       theme: THEMES[(i * 4 + round) % THEMES.length],
       length: grade === 'PreK' || grade === 'K' ? 'quick' : (i % 2 === 0 ? 'quick' : 'standard'),
-      premise: PREMISES[i % PREMISES.length],
+      premise: i < 100 ? PREMISES[i % PREMISES.length] : MORE_PREMISES[(i - 100) % MORE_PREMISES.length],
       companion: COMPANIONS[i % COMPANIONS.length],
       defaultNames: { child: DEFAULT_CHILD_NAMES[i % DEFAULT_CHILD_NAMES.length], friend: DEFAULT_FRIEND_NAMES[(i + 2) % DEFAULT_FRIEND_NAMES.length] },
     });
