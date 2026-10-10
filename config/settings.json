@@ -1,27 +1,43 @@
 {
   "_readme": "Project defaults for StoryAura Land settings. The server reads this file at startup. A value saved in the database (admin page > Rules, or the app_settings table) always wins over this file, and changes here need a deploy. Delete a line to fall back to the built-in default. See CustomerRules.md for what each setting means.",
   "free_period_days": 14,
+  "_about_free_period_days": "How many days a new account can use the app for free.",
   "free_story_limit": 5,
+  "_about_free_story_limit": "AI-written stories a free account can create during the free period.",
   "admin_page_path": "mekotateria",
+  "_about_admin_page_path": "Secret address of the owner admin page: dansprout.com/<this word>. /admin shows \"not found\" while this is set. Empty = use /admin.",
   "free_library_story_limit": 10,
+  "_about_free_library_story_limit": "Ready-made library stories a free account can start during the free period (separate from the AI limit).",
   "free_learner_limit": 1,
-
+  "_about_free_learner_limit": "How many learners (children) a free account can have.",
   "learner_limit_individual": 1,
+  "_about_learner_limit_individual": "Learners allowed on the paid Individual plan.",
   "learner_limit_family": 5,
+  "_about_learner_limit_family": "Learners allowed on the paid Family plan.",
   "learner_limit_classroom": 30,
+  "_about_learner_limit_classroom": "Learners allowed on the paid Classroom plan.",
   "paid_story_limit_monthly": 0,
-
+  "_about_paid_story_limit_monthly": "AI stories per month on paid plans. 0 = unlimited.",
   "pricing_coming_soon": "default",
+  "_about_pricing_coming_soon": "Pricing page: \"default\" follows the server switch, \"on\" shows Coming soon, \"off\" shows real plans.",
   "plan_exempt_emails": [],
-
+  "_about_plan_exempt_emails": "Emails that are never limited, e.g. [\"friend@example.com\"]. The owner is always never-limited.",
   "illustrations_enabled": "on",
+  "_about_illustrations_enabled": "\"on\" makes a cover picture for each AI story, \"off\" turns pictures off (saves money).",
   "image_style": "bright_cartoon",
+  "_about_image_style": "Picture look: bright_cartoon, soft_pastel, flat_vector or storybook_painting.",
   "image_model": "gpt-image-2.5-flare",
+  "_about_image_model": "OpenAI model that draws the pictures.",
   "image_quality": "low",
+  "_about_image_quality": "Picture quality: low (cheapest), medium or high.",
   "image_cost_usd": 0,
+  "_about_image_cost_usd": "Price per picture in USD for the cost report. 0 = estimate automatically.",
   "narration_voice": "marin",
-
+  "_about_narration_voice": "Read-aloud voice: marin, cedar, coral, nova or shimmer. Applies to audio made from now on.",
   "ai_monthly_limit": 100,
+  "_about_ai_monthly_limit": "AI actions one account can use per month (a safety cap on cost).",
   "story_requests_per_15min": 30,
-  "roster_import_max": 100
+  "_about_story_requests_per_15min": "Story requests allowed across the whole site every 15 minutes (protects against floods).",
+  "roster_import_max": 100,
+  "_about_roster_import_max": "Maximum learners in one classroom CSV import."
 }
