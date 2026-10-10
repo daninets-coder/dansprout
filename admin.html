@@ -321,7 +321,7 @@ async function viewCustomers(root) {
 
 async function viewRules(root) {
   const d = await getJSON('/settings');
-  root.append(h('h1', null, 'Rules'), h('p', { class: 'sub' }, 'These settings live in the app_settings database table and take effect within about 30 seconds. Saving asks for your password.'));
+  root.append(h('h1', null, 'Rules'), h('p', { class: 'sub' }, 'A value saved here is stored in the database and takes effect within about 30 seconds. If nothing is saved, the value comes from config/settings.json, then the built-in default. Saving asks for your password. In SQL: SELECT * FROM settings_overview.'));
   const groups = {}; d.settings.forEach(s => (groups[s.group] ||= []).push(s));
   const inputs = {};
   const changedMark = (row, el, s) => () => { row.classList.toggle('changed', JSON.stringify(read(el, s)) !== JSON.stringify(s.value)); };
@@ -335,9 +335,9 @@ async function viewRules(root) {
       else el = h('textarea', { spellcheck: 'false' }, s.value.join('\n'));
       inputs[s.key] = { el, s };
       const row = h('div', { class: 'field' },
-        h('div', null, h('label', { for: 'f-' + s.key }, s.label), h('div', { class: 'help' }, s.help), h('div', { class: 'help' }, s.source === 'database' ? `Saved in database by ${s.updatedBy || 'unknown'}` : 'Using the built-in default')),
+        h('div', null, h('label', { for: 'f-' + s.key }, s.label), h('div', { class: 'help' }, s.help), h('div', { class: 'help' }, s.source === 'database' ? `Saved in the database by ${s.updatedBy || 'unknown'}` : s.source === 'file' ? 'Using the value from config/settings.json' : 'Using the built-in default')),
         el,
-        h('button', { class: 'btn', type: 'button', disabled: s.source !== 'database', title: 'Remove the saved value and use the default', onclick: async () => {
+        h('button', { class: 'btn', type: 'button', disabled: s.source !== 'database', title: 'Remove the saved database value and fall back to the config file or built-in default', onclick: async () => {
           const out = await withPassword(`Reset "${s.label}" to its default?`, pw => api('/settings', { method: 'PUT', body: JSON.stringify({ changes: { [s.key]: null }, currentPassword: pw }) }));
           if (out) { toast('Reset to default.'); render(); } } }, 'Use default'));
       el.id = 'f-' + s.key; el.addEventListener('input', changedMark(row, el, s)); el.addEventListener('change', changedMark(row, el, s));

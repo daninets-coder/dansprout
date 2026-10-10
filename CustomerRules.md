@@ -110,32 +110,51 @@ in production.
 
 ## 7. How the settings work
 
-Settings live in the database table **`app_settings`** (one row per setting: `key`, `value` as JSON). Every key
-has a safe built-in default, so an empty table is fine. The site re-reads the table about every 30 seconds.
+Every number in this file is a **setting**. A setting's value comes from the first of these that has one:
 
-| Setting key | Default | What it does |
+1. **The database**, table `app_settings`. Set from the admin page (`/admin`, Rules tab) or with SQL. Takes effect
+   within about 30 seconds, no deploy. This always wins.
+2. **The config file** `config/settings.json` in the project. These are the project defaults. Changing it needs a
+   deploy. Delete a line and that setting falls back to layer 3.
+3. **The built-in default** in the code (`server/modules/settings.js`). A few also honor an old environment
+   variable (`AI_MONTHLY_INVOCATION_LIMIT`, `STORY_GEN_RATE_LIMIT`) as their starting default.
+
+| Setting key | Built-in default | What it does |
 |---|---|---|
 | `free_period_days` | 14 | Days a new account can create stories for free |
 | `free_story_limit` | 5 | New stories allowed during the free period |
 | `free_learner_limit` | 1 | Learners on a free account |
 | `learner_limit_individual` / `_family` / `_classroom` | 1 / 5 / 30 | Learners per paid plan |
+| `paid_story_limit_monthly` | 0 | New stories a paying account can create per calendar month. **0 = no plan limit** |
 | `pricing_coming_soon` | `default` | `default` = on in production, off elsewhere; `on` = hide prices and block checkout; `off` = paid plans are sold |
 | `plan_exempt_emails` | none | Emails that are never limited (the owner always is) |
-| `ai_monthly_limit` | 100 | AI actions per account per month (cost safeguard) |
+| `ai_monthly_limit` | 100 | AI actions per account per month (cost safeguard, applies to everyone) |
+| `story_requests_per_15min` | 30 | Story requests the whole site accepts per 15 minutes (abuse protection) |
+| `roster_import_max` | 100 | Most learners one classroom CSV import can add |
 
-Change them either way:
+### See every setting in SQL
 
-- **Admin page:** `https://dansprout.com/admin`, Rules tab. Saving asks for your password and is written to the audit log.
-- **SQL (no password prompt, no audit log, so prefer the page):**
-  ```sql
-  INSERT INTO app_settings (key, value) VALUES ('free_story_limit', '8')
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
-  DELETE FROM app_settings WHERE key = 'free_story_limit';   -- back to the default
-  ```
+The server keeps a readable catalog up to date at startup. Use the view `settings_overview`:
+
+```sql
+-- every setting: the value in effect, where it comes from, its default, and what it does
+SELECT "group", key, effective_value, source, database_value, file_value, built_in_default, help
+FROM settings_overview;
+```
+
+`source` is `database`, `file` or `default`. To change one:
+
+```sql
+INSERT INTO app_settings (key, value) VALUES ('paid_story_limit_monthly', '30')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+DELETE FROM app_settings WHERE key = 'paid_story_limit_monthly';   -- back to the file / default
+```
+
+Prefer the admin page: it checks the value is allowed, asks for your password, and records the change in the audit
+log. A direct SQL edit is checked when the site reads it (an invalid value is ignored) but is **not** audit-logged.
 
 Railway variables that still matter: `OWNER_EMAIL` (who the admin page belongs to; never limited),
-`PLAN_EXEMPT_EMAILS`, `PRICING_COMING_SOON` and `AI_MONTHLY_INVOCATION_LIMIT` (used only as the starting default
-when no database value is saved).
+`PLAN_EXEMPT_EMAILS`, and `PRICING_COMING_SOON`, all used only when no database or file value is set.
 
 ### The admin page (`/admin`)
 

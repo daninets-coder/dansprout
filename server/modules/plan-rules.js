@@ -13,6 +13,7 @@ export const DEFAULT_RULES = {
   freeStoryLimit: FREE_STORY_LIMIT,
   freeLearnerLimit: FREE_LEARNER_LIMIT,
   planLearnerLimits: PLAN_LEARNER_LIMITS,
+  paidStoryLimitMonthly: 0, // 0 = no plan limit for paid accounts
 };
 
 // Build the rules from the settings store (database-backed, see settings.js).
@@ -22,6 +23,7 @@ export function rulesFromSettings(get) {
     freeStoryLimit: get('free_story_limit'),
     freeLearnerLimit: get('free_learner_limit'),
     planLearnerLimits: { individual: get('learner_limit_individual'), family: get('learner_limit_family'), classroom: get('learner_limit_classroom') },
+    paidStoryLimitMonthly: get('paid_story_limit_monthly'),
   };
 }
 
@@ -44,6 +46,7 @@ export function computeEntitlement({
   now = new Date(),
   learners = 0,
   storiesUsed = 0,
+  storiesThisMonth = 0,
   exempt = false,
   isProduction = true,
   rules = DEFAULT_RULES,
@@ -74,7 +77,13 @@ export function computeEntitlement({
     storiesUsed,
     freePeriodDays: rules.freePeriodDays,
     storiesLimit: rules.freeStoryLimit,
-    canCreateStory: paid || (freeActive && storiesUsed < rules.freeStoryLimit),
+    storiesThisMonth,
+    paidStoryLimitMonthly: rules.paidStoryLimitMonthly || 0,
+    canCreateStory: exempt
+      ? true
+      : paid
+        ? !rules.paidStoryLimitMonthly || storiesThisMonth < rules.paidStoryLimitMonthly
+        : freeActive && storiesUsed < rules.freeStoryLimit,
     canRevise: paid || freeActive,
     canAddLearners: count => learners + count <= learnersLimit,
   };
@@ -93,6 +102,8 @@ export function publicEntitlement(ent) {
     learnersLimit: Number.isFinite(ent.learnersLimit) ? ent.learnersLimit : null,
     storiesUsed: ent.storiesUsed,
     storiesLimit: ent.storiesLimit,
+    storiesThisMonth: ent.storiesThisMonth,
+    paidStoryLimitMonthly: ent.paidStoryLimitMonthly,
     canCreateStory: ent.canCreateStory,
   };
 }
@@ -101,6 +112,7 @@ export function storyLimitMessage(ent, { child = false, comingSoon = true } = {}
   if (child) return 'Story creation is resting for now. Ask a grown-up to open Plans & billing.';
   const next = comingSoon ? 'Paid plans are coming soon.' : 'Choose a plan in Plans & billing to keep creating stories.';
   const keep = 'Your saved stories stay available to read.';
+  if (ent.paid) return `You have created all ${ent.paidStoryLimitMonthly} stories included in your plan this month. The count starts again on the 1st. ${keep}`;
   if (!ent.freeActive) return `Your ${ent.freePeriodDays}-day free Explorer period has ended. ${next} ${keep}`;
   return `You have used all ${ent.storiesLimit} free Explorer stories. ${next} ${keep}`;
 }

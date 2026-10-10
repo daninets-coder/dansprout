@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { readFile, writeFile } from 'node:fs/promises';
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
@@ -50,7 +50,20 @@ const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
 const ownerEmail = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
 // Accounts that are never limited by plan rules: the site owner plus any PLAN_EXEMPT_EMAILS (comma-separated).
 const envExemptEmails = String(process.env.PLAN_EXEMPT_EMAILS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
-const settingsStore = createSettingsStore(pool, { fallbacks: { ai_monthly_limit: Math.max(1, Number(process.env.AI_MONTHLY_INVOCATION_LIMIT || 100)) } });
+// Project defaults from config/settings.json (optional). The database overrides it; see modules/settings.js.
+let configFileDefaults = {};
+try {
+  configFileDefaults = JSON.parse(readFileSync(path.join(rootDir, 'config', 'settings.json'), 'utf8'));
+} catch (error) {
+  if (error.code !== 'ENOENT') console.warn('config/settings.json could not be read, using built-in defaults:', error.message);
+}
+const settingsStore = createSettingsStore(pool, {
+  fileDefaults: configFileDefaults,
+  fallbacks: {
+    ai_monthly_limit: Math.max(1, Number(process.env.AI_MONTHLY_INVOCATION_LIMIT || 100)),
+    story_requests_per_15min: Math.max(1, Number(process.env.STORY_GEN_RATE_LIMIT || 30)),
+  },
+});
 const isPlanExempt = email => { const value = String(email || '').trim().toLowerCase(); return Boolean(value) && (value === ownerEmail || envExemptEmails.includes(value) || settingsStore.get('plan_exempt_emails').includes(value)); };
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
@@ -217,7 +230,7 @@ const verificationEmailLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 3,
 const supportLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many support requests. Please try again later.' } });
 const storyGenerationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: Number(process.env.STORY_GEN_RATE_LIMIT || 30),
+  limit: () => settingsStore.get('story_requests_per_15min'),
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Too many story requests. Please try again shortly.' },
@@ -1047,13 +1060,13 @@ app.post('/api/classroom/roster/import', requireAuth, async (req, res, next) => 
     const rows = parseRosterCsv(parsed.data.csv);
     if (!rows.length) return res.status(400).json({ error: 'No valid learner rows found.' });
     const rosterEntitlement = await getEntitlement(req.auth.sub);
-    if (!rosterEntitlement.canAddLearners(Math.min(rows.length, 100))) return res.status(403).json({ error: learnerLimitMessage(rosterEntitlement, { comingSoon: isPricingComingSoon() }), code: 'plan_limit' });
+    if (!rosterEntitlement.canAddLearners(Math.min(rows.length, settingsStore.get('roster_import_max')))) return res.status(403).json({ error: learnerLimitMessage(rosterEntitlement, { comingSoon: isPricingComingSoon() }), code: 'plan_limit' });
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       let importedCount = 0;
-      for (const row of rows.slice(0, 100)) {
+      for (const row of rows.slice(0, settingsStore.get('roster_import_max'))) {
         const learnerId = randomUUID();
         await client.query('INSERT INTO learners (id, account_id, first_name, age_band, interests, topics_to_avoid) VALUES ($1, $2, $3, $4, $5, $6)', [learnerId, req.auth.sub, row.firstName, row.ageBand, row.interests || '', row.topicsToAvoid || '']);
         importedCount += 1;
@@ -1553,7 +1566,10 @@ async function getEntitlement(accountId) {
         (SELECT COUNT(*)::int FROM learners WHERE account_id = $1) AS learners,
         (SELECT COUNT(*)::int FROM stories s JOIN learners l ON l.id = s.learner_id
           WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL
-            AND s.created_at >= (SELECT free_started_at FROM accounts WHERE id = $1)) AS stories`, [accountId]),
+            AND s.created_at >= (SELECT free_started_at FROM accounts WHERE id = $1)) AS stories,
+        (SELECT COUNT(*)::int FROM stories s JOIN learners l ON l.id = s.learner_id
+          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL
+            AND s.created_at >= date_trunc('month', NOW())) AS stories_month`, [accountId]),
   ]);
   const account = accountRes.rows[0];
   const sub = subRes.rows[0];
@@ -1563,6 +1579,7 @@ async function getEntitlement(accountId) {
     freeStartedAt: account?.free_started_at,
     learners: countRes.rows[0]?.learners || 0,
     storiesUsed: countRes.rows[0]?.stories || 0,
+    storiesThisMonth: countRes.rows[0]?.stories_month || 0,
     exempt: isPlanExempt(account?.email),
     isProduction: process.env.NODE_ENV === 'production',
     rules: rulesFromSettings(settingsStore.get),
@@ -2052,6 +2069,7 @@ ensureBaseSchema()
   .then(() => runMigrations())
   .then(() => ensureGrowthSchema())
   .then(() => settingsStore.load())
+  .then(() => settingsStore.syncCatalog().catch(error => console.warn('settings catalog sync failed:', error.message)))
   .then(() => {
     settingsStore.startRefresh();
     app.listen(port, () => {

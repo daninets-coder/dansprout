@@ -85,3 +85,41 @@ test('owner can read settings; changes need the password', async t => {
   assert.equal(unknown.status, 400);
   await unknown.arrayBuffer();
 });
+
+test('config file layer: database beats file, file beats built-in default, bad file values are ignored', async () => {
+  const pool = fakePool([{ key: 'free_story_limit', value: 9, updated_at: new Date(), updated_by: 'me' }]);
+  const store = createSettingsStore(pool, {
+    fileDefaults: { _readme: 'ignored', free_period_days: 21, free_story_limit: 7, free_learner_limit: 'oops', paid_story_limit_monthly: 40 },
+  });
+  await store.load();
+  assert.equal(store.get('free_story_limit'), 9);        // database wins over the file's 7
+  assert.equal(store.get('free_period_days'), 21);       // file wins over the built-in 14
+  assert.equal(store.get('free_learner_limit'), 1);      // invalid file value ignored -> built-in
+  assert.equal(store.get('paid_story_limit_monthly'), 40);
+  assert.equal(store.get('roster_import_max'), 100);     // new setting, built-in default
+  const byKey = Object.fromEntries(store.all().map(s => [s.key, s]));
+  assert.equal(byKey.free_story_limit.source, 'database');
+  assert.equal(byKey.free_period_days.source, 'file');
+  assert.equal(byKey.roster_import_max.source, 'default');
+});
+
+test('every setting has a valid built-in default and is described for the admin page', () => {
+  for (const [key, def] of Object.entries(SETTING_DEFS)) {
+    assert.ok(def.label && def.help && def.group, key);
+    const check = validateSetting(key, def.fallback);
+    assert.equal(check.ok, true, `${key} default must validate`);
+  }
+});
+
+test('settings catalog sync writes one row per setting (so SQL can list them) and removes stale rows', async () => {
+  const calls = [];
+  const pool = { query: async (text, params) => { calls.push({ text, params }); return { rows: [] }; }, connect: async () => ({ query: async () => ({ rows: [] }), release() {} }) };
+  const store = createSettingsStore(pool, { fileDefaults: { free_story_limit: 7 } });
+  await store.syncCatalog();
+  const upserts = calls.filter(c => /INSERT INTO app_settings_catalog/.test(c.text));
+  assert.equal(upserts.length, Object.keys(SETTING_DEFS).length);
+  const story = upserts.find(c => c.params[0] === 'free_story_limit');
+  assert.equal(story.params[8], '5');   // built-in default
+  assert.equal(story.params[9], '7');   // value from the config file
+  assert.ok(calls.some(c => /DELETE FROM app_settings_catalog/.test(c.text)));
+});

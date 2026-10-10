@@ -1,0 +1,19 @@
+{
+  "_readme": "Project defaults for StoryAura Land settings. The server reads this file at startup. A value saved in the database (admin page > Rules, or the app_settings table) always wins over this file, and changes here need a deploy. Delete a line to fall back to the built-in default. See CustomerRules.md for what each setting means.",
+
+  "free_period_days": 14,
+  "free_story_limit": 5,
+  "free_learner_limit": 1,
+
+  "learner_limit_individual": 1,
+  "learner_limit_family": 5,
+  "learner_limit_classroom": 30,
+  "paid_story_limit_monthly": 0,
+
+  "pricing_coming_soon": "default",
+  "plan_exempt_emails": [],
+
+  "ai_monthly_limit": 100,
+  "story_requests_per_15min": 30,
+  "roster_import_max": 100
+}

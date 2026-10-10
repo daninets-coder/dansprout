@@ -1,5 +1,8 @@
-// Config stored in the database (table app_settings) so it can be changed without a deploy:
-// from the owner-only admin page, or with plain SQL. Code supplies a safe default for every key.
+// Configuration, in three layers (first one that has a value wins):
+//   1. the database table app_settings: edited from the owner-only admin page or with plain SQL,
+//      changes apply without a deploy
+//   2. the config file config/settings.json: project defaults, changing it needs a deploy
+//   3. the built-in default in this file (or an environment variable for a few keys)
 //
 //   SELECT key, value FROM app_settings;
 //   INSERT INTO app_settings (key, value) VALUES ('free_story_limit', '8')
@@ -19,7 +22,10 @@ export const SETTING_DEFS = {
   learner_limit_classroom: { type: 'int', min: 1, max: 5000, fallback: 30, group: 'Paid plans', label: 'Classroom plan: learners', help: 'Learner profiles on the Classroom plan.' },
   pricing_coming_soon: { type: 'choice', choices: ['default', 'on', 'off'], fallback: 'default', group: 'Pricing', label: 'Paid plans "Coming soon"', help: 'default = on in production and off elsewhere. on = hide prices and block checkout. off = paid plans are sold.' },
   plan_exempt_emails: { type: 'emails', fallback: [], group: 'Access', label: 'Never-limited accounts', help: 'Emails (one per line) that are never limited by plan rules. The owner email is always exempt.' },
-  ai_monthly_limit: { type: 'int', min: 1, max: 100000, fallback: 100, group: 'Safety', label: 'AI actions per account per month', help: 'Cost safeguard that applies to every account.' },
+  paid_story_limit_monthly: { type: 'int', min: 0, max: 100000, fallback: 0, group: 'Paid plans', label: 'Paid plans: stories per month', help: 'New stories a paying account can create per calendar month. 0 means no plan limit (the AI cap below still applies).' },
+  ai_monthly_limit: { type: 'int', min: 1, max: 100000, fallback: 100, group: 'Limits & safeguards', label: 'AI actions per account per month', help: 'Cost safeguard that applies to every account, including paying and exempt ones.' },
+  story_requests_per_15min: { type: 'int', min: 1, max: 1000, fallback: 30, group: 'Limits & safeguards', label: 'Story requests per 15 minutes (whole site)', help: 'Abuse protection: how many story-generation requests the site accepts in any 15-minute window.' },
+  roster_import_max: { type: 'int', min: 1, max: 1000, fallback: 100, group: 'Limits & safeguards', label: 'Classroom CSV import: max learners', help: 'Largest number of learners one CSV roster import can add.' },
 };
 
 export function validateSetting(key, raw) {
@@ -46,12 +52,21 @@ export function validateSetting(key, raw) {
   return { ok: false, error: 'Unsupported setting type.' };
 }
 
-export function createSettingsStore(pool, { fallbacks = {} } = {}) {
+export function createSettingsStore(pool, { fallbacks = {}, fileDefaults = {} } = {}) {
   const cache = new Map(); // key -> value saved in the database
+  const fileValues = new Map(); // key -> value from config/settings.json
+  for (const [key, raw] of Object.entries(fileDefaults || {})) {
+    if (key.startsWith('_')) continue; // _comment and similar
+    const check = validateSetting(key, raw);
+    if (check.ok) fileValues.set(key, check.value);
+    else console.warn(`config/settings.json: ignoring ${key}: ${check.ok === false ? check.error : 'invalid'}`);
+  }
   const meta = new Map();  // key -> { updatedAt, updatedBy }
   let timer = null;
 
-  const fallbackFor = key => (Object.prototype.hasOwnProperty.call(fallbacks, key) ? fallbacks[key] : SETTING_DEFS[key].fallback);
+  const baseFallback = key => (Object.prototype.hasOwnProperty.call(fallbacks, key) ? fallbacks[key] : SETTING_DEFS[key].fallback);
+  // the value in effect when the database has nothing: the config file, else the built-in default
+  const fallbackFor = key => (fileValues.has(key) ? fileValues.get(key) : baseFallback(key));
 
   async function load() {
     const { rows } = await pool.query('SELECT key, value, updated_at, updated_by FROM app_settings');
@@ -79,7 +94,8 @@ export function createSettingsStore(pool, { fallbacks = {} } = {}) {
       max: def.max ?? null,
       value: get(key),
       default: fallbackFor(key),
-      source: cache.has(key) ? 'database' : 'default',
+      source: cache.has(key) ? 'database' : fileValues.has(key) ? 'file' : 'default',
+      builtIn: baseFallback(key),
       updatedAt: meta.get(key)?.updatedAt || null,
       updatedBy: meta.get(key)?.updatedBy || null,
     }));
@@ -113,11 +129,28 @@ export function createSettingsStore(pool, { fallbacks = {} } = {}) {
     return { ok: true, changed: prepared.map(item => item.key) };
   }
 
+  // Writes the readable catalog (table app_settings_catalog, shown through the settings_overview view)
+  // so every setting, its description, default and config-file value can be read with plain SQL.
+  async function syncCatalog() {
+    for (const [key, def] of Object.entries(SETTING_DEFS)) {
+      await pool.query(
+        `INSERT INTO app_settings_catalog (key, group_name, label, help, type, choices, min_value, max_value, default_value, file_value, synced_at)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb, $10::jsonb, NOW())
+         ON CONFLICT (key) DO UPDATE SET group_name = EXCLUDED.group_name, label = EXCLUDED.label, help = EXCLUDED.help, type = EXCLUDED.type,
+           choices = EXCLUDED.choices, min_value = EXCLUDED.min_value, max_value = EXCLUDED.max_value,
+           default_value = EXCLUDED.default_value, file_value = EXCLUDED.file_value, synced_at = NOW()`,
+        [key, def.group, def.label, def.help, def.type, def.choices ? JSON.stringify(def.choices) : null, def.min ?? null, def.max ?? null,
+          JSON.stringify(baseFallback(key)), fileValues.has(key) ? JSON.stringify(fileValues.get(key)) : null],
+      );
+    }
+    await pool.query('DELETE FROM app_settings_catalog WHERE NOT (key = ANY($1::text[]))', [Object.keys(SETTING_DEFS)]);
+  }
+
   function startRefresh(ms = 30000) {
     if (timer) return;
     timer = setInterval(() => { load().catch(error => console.warn('app_settings refresh failed:', error.message)); }, ms);
     timer.unref?.();
   }
 
-  return { load, get, all, setMany, startRefresh };
+  return { load, get, all, setMany, syncCatalog, startRefresh };
 }

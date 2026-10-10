@@ -73,3 +73,17 @@ test('public entitlement is JSON-safe', () => {
   assert.equal(json.storiesLimit, FREE_STORY_LIMIT);
   assert.equal(json.learnersLimit, 1);
 });
+
+test('paid monthly story limit: 0 means unlimited, a number caps the month, exempt is never capped', () => {
+  const base = { plan: 'family', status: 'active', freeStartedAt: start, now: at(100) };
+  const rules = limit => ({ freePeriodDays: 14, freeStoryLimit: 5, freeLearnerLimit: 1, planLearnerLimits: { family: 5 }, paidStoryLimitMonthly: limit });
+  assert.equal(computeEntitlement({ ...base, storiesThisMonth: 500, rules: rules(0) }).canCreateStory, true);
+  assert.equal(computeEntitlement({ ...base, storiesThisMonth: 9, rules: rules(10) }).canCreateStory, true);
+  const capped = computeEntitlement({ ...base, storiesThisMonth: 10, rules: rules(10) });
+  assert.equal(capped.canCreateStory, false);
+  assert.match(storyLimitMessage(capped), /all 10 stories included in your plan this month/);
+  assert.equal(computeEntitlement({ ...base, storiesThisMonth: 99, exempt: true, rules: rules(10) }).canCreateStory, true);
+  // the limit does not affect free accounts
+  const free = computeEntitlement({ freeStartedAt: start, now: at(2), storiesUsed: 1, storiesThisMonth: 50, rules: rules(10) });
+  assert.equal(free.canCreateStory, true);
+});
