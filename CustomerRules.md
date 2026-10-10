@@ -122,7 +122,8 @@ Every number in this file is a **setting**. A setting's value comes from the fir
 | Setting key | Built-in default | What it does |
 |---|---|---|
 | `free_period_days` | 14 | Days a new account can create stories for free |
-| `free_story_limit` | 5 | New stories allowed during the free period |
+| `free_story_limit` | 5 | New AI-written stories allowed during the free period |
+| `free_library_story_limit` | 10 | Ready-made library stories allowed during the free period (separate from the AI limit) |
 | `free_learner_limit` | 1 | Learners on a free account |
 | `learner_limit_individual` / `_family` / `_classroom` | 1 / 5 / 30 | Learners per paid plan |
 | `paid_story_limit_monthly` | 0 | New stories a paying account can create per calendar month. **0 = no plan limit** |

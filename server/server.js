@@ -1570,10 +1570,10 @@ async function getEntitlement(accountId) {
     pool.query(`SELECT
         (SELECT COUNT(*)::int FROM learners WHERE account_id = $1) AS learners,
         (SELECT COUNT(*)::int FROM stories s JOIN learners l ON l.id = s.learner_id
-          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL
+          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL AND s.created_by <> 'library'
             AND s.created_at >= (SELECT free_started_at FROM accounts WHERE id = $1)) AS stories,
         (SELECT COUNT(*)::int FROM stories s JOIN learners l ON l.id = s.learner_id
-          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL
+          WHERE l.account_id = $1 AND s.shared_from_story_id IS NULL AND s.created_by <> 'library'
             AND s.created_at >= date_trunc('month', NOW())) AS stories_month`, [accountId]),
   ]);
   const account = accountRes.rows[0];
@@ -2039,7 +2039,13 @@ app.post('/api/library/stories/:id/start', requireAuth, async (req, res, next) =
     if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
     const lib = await pool.query("SELECT * FROM library_stories WHERE id = $1 AND status = 'approved'", [req.params.id]);
     if (!lib.rowCount) return res.status(404).json({ error: 'That story is not available.' });
-    await assertCanCreateStory(req.auth.sub);
+    const ent = await getEntitlement(req.auth.sub);
+    if (!ent.paid) {
+      if (!ent.freeActive) throw new PlanLimitError(storyLimitMessage(ent, { comingSoon: isPricingComingSoon() }));
+      const used = await pool.query("SELECT COUNT(*)::int AS n FROM stories s JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.created_by = 'library' AND s.created_at >= (SELECT free_started_at FROM accounts WHERE id = $1)", [req.auth.sub]);
+      const cap = settingsStore.get('free_library_story_limit');
+      if (used.rows[0].n >= cap) throw new PlanLimitError(`Your free trial includes ${cap} ready-made stories and you have used them all.${isPricingComingSoon() ? ' Paid plans are coming soon.' : ' Upgrade to keep reading.'}`);
+    } else if (!ent.canCreateStory) await assertCanCreateStory(req.auth.sub);
     const row = lib.rows[0];
     const friend = parsed.data.friendName || '';
     const version = friend ? 'duo' : 'solo';

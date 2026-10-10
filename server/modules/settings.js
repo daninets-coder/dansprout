@@ -17,6 +17,7 @@ import { IMAGE_STYLES, IMAGE_STYLE_KEYS } from './image-styles.js';
 
 export const SETTING_DEFS = {
   free_period_days: { type: 'int', min: 1, max: 365, fallback: 14, group: 'Free Explorer', label: 'Free period (days)', help: 'How many days a new account can create stories for free.' },
+  free_library_story_limit: { type: 'int', min: 0, max: 1000, fallback: 10, group: 'Free Explorer', label: 'Free ready-made stories', help: 'Ready-made library stories a free account can start during the free period (separate from the AI story limit).' },
   free_story_limit: { type: 'int', min: 0, max: 1000, fallback: 5, group: 'Free Explorer', label: 'Free stories', help: 'New stories a free account can create during the free period.' },
   free_learner_limit: { type: 'int', min: 1, max: 50, fallback: 1, group: 'Free Explorer', label: 'Free learners', help: 'Learner profiles a free account can have.' },
   learner_limit_individual: { type: 'int', min: 1, max: 500, fallback: 1, group: 'Paid plans', label: 'Individual plan: learners', help: 'Learner profiles on the Individual plan.' },
