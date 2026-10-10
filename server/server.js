@@ -28,6 +28,7 @@ import { narrationRequest, NARRATION_VERSION } from './modules/narration-voices.
 import { createStoryGeneration } from './modules/story-generation.js';
 import { createReadingRouter } from './modules/reading-experience.js';
 import { storyQualityIssues } from './story-quality.js';
+import { renderTemplate } from './modules/library-slots.js';
 
 const app = express();
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -2019,6 +2020,52 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     return res.status(error.status || 503).json({ error: error.message || 'OpenAI story generation failed.', ...(error.code ? { code: error.code } : {}) });
+  }
+});
+
+// ---- Ready-made story library: approved stories only; each family gets a personalised copy saved like any other story
+app.get('/api/library/stories', requireAuth, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query("SELECT id, title, grade_level, domain, theme, story_length, assets->>'cover' AS cover FROM library_stories WHERE status = 'approved' ORDER BY slug");
+    return res.json({ stories: rows });
+  } catch (error) { return next(error); }
+});
+
+app.post('/api/library/stories/:id/start', requireAuth, async (req, res, next) => {
+  try {
+    const parsed = z.object({ learnerId: z.string().uuid(), friendName: z.string().trim().max(30).optional() }).safeParse(req.body);
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: 'Please choose a learner and a story.' });
+    const learnerQuery = await pool.query('SELECT id, first_name FROM learners WHERE id = $1 AND account_id = $2', [parsed.data.learnerId, req.auth.sub]);
+    if (!learnerQuery.rowCount) return res.status(404).json({ error: 'Learner not found.' });
+    const lib = await pool.query("SELECT * FROM library_stories WHERE id = $1 AND status = 'approved'", [req.params.id]);
+    if (!lib.rowCount) return res.status(404).json({ error: 'That story is not available.' });
+    await assertCanCreateStory(req.auth.sub);
+    const row = lib.rows[0];
+    const friend = parsed.data.friendName || '';
+    const version = friend ? 'duo' : 'solo';
+    let pages;
+    try {
+      pages = row.content[version].pages.map(p => renderTemplate(p, { child: learnerQuery.rows[0].first_name, friend }));
+    } catch {
+      return res.status(400).json({ error: 'Please use letters only for the names (up to 30 characters).' });
+    }
+    const storyId = randomUUID();
+    const content = {
+      pages,
+      questions: row.content.questions.map(q => ({ ...q, type: 'multiple_choice' })),
+      words: row.content.words.map(w => ({ word: w.word, meaning: w.meaning })),
+      reflectionPrompt: '',
+      meta: {
+        seriesId: storyId, previousStoryId: null, chapter: 1, gradeLevel: row.grade_level, domain: row.domain, language: 'English',
+        illustrationUrl: row.assets?.cover || null, curriculumStandard: row.curriculum_standard, curriculumObjective: row.curriculum_objective,
+        libraryStoryId: row.id, model: 'library',
+      },
+    };
+    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [storyId, learnerQuery.rows[0].id, row.title, row.theme, 'Reading growth', 'Ready-made story', content, 'library']);
+    await trackGrowthEvent(req.auth.sub, 'story_from_library', { gradeLevel: row.grade_level, domain: row.domain });
+    return res.status(201).json({ story: { id: storyId, learnerId: learnerQuery.rows[0].id, title: row.title, theme: row.theme, learningGoal: 'Reading growth', prompt: 'Ready-made story', content } });
+  } catch (error) {
+    return res.status(error.status || 503).json({ error: error.message || 'Could not start that story.', ...(error.code ? { code: error.code } : {}) });
   }
 });
 

@@ -247,6 +247,12 @@
                     <div id="apiGenerationStatus" class="story-generation-status">Your choices shape the story, questions, and vocabulary.</div>
                     <div id="apiGenerationProgress" class="story-generation-progress hidden" role="progressbar" aria-label="Story generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
                   </div>
+                  <div id="apiLibrary" class="story-generation-panel" style="margin-top:18px">
+                    <label class="en-label">Or pick a ready-made story (instant, no waiting)</label>
+                    <select id="apiLibraryPick" class="en-select" aria-label="Ready-made story"><option value="">Loading ready-made stories…</option></select>
+                    <input id="apiLibraryFriend" class="en-input" maxlength="30" placeholder="Add a friend or sibling's name (optional)" style="margin-top:8px">
+                    <button id="apiLibraryStart" class="en-button" type="button" style="margin-top:8px"><span><strong>Read this story</strong><small>Uses the learner's name in the story</small></span></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1879,6 +1885,26 @@
     });
   });
   loadCurriculumOptions($('#apiGradeLevel').value);
+  (async () => {
+    if (isChildSession) { $('#apiLibrary')?.remove(); return; }
+    try {
+      const { stories } = await api('/api/library/stories');
+      const pick = $('#apiLibraryPick');
+      if (!stories.length) { $('#apiLibrary').remove(); return; }
+      pick.innerHTML = stories.map(s => `<option value="${s.id}">${String(s.title).replace(/</g, '&lt;')} (grade ${s.grade_level})</option>`).join('');
+      $('#apiLibraryStart').onclick = async () => {
+        const learnerId = $('#apiLearner').value;
+        if (!learnerId) return notify('Choose a learner first.');
+        const button = $('#apiLibraryStart');
+        button.disabled = true;
+        try {
+          const response = await api(`/api/library/stories/${pick.value}/start`, { method: 'POST', body: JSON.stringify({ learnerId, friendName: $('#apiLibraryFriend').value.trim() }) });
+          await refresh();
+          await openServerStory(response.story);
+        } catch (error) { notify(error.message); } finally { button.disabled = false; }
+      };
+    } catch { $('#apiLibrary')?.remove(); }
+  })();
   $('#apiHome').onclick = () => show('home');
   $('#apiChildMode').onclick = openChildModeSetup;
   $('#apiLogout').onclick = () => {
