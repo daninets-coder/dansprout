@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { passwordProblem, createLoginGuard } from '../server/modules/password-policy.js';
 
 test('new passwords: length, repetition and common-password rules', () => {
-  assert.match(passwordProblem('short1'), /at least 10/);
+  assert.match(passwordProblem('abc12'), /at least 6/);
   assert.match(passwordProblem('aaaaaaaaaaaa'), /repetitive/);
   assert.match(passwordProblem('Password123'), /too common/);
   assert.match(passwordProblem('pass-word-1234'.replace('-', '')), /./); // 'password-1234' style variants are caught after stripping symbols

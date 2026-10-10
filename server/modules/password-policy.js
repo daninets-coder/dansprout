@@ -1,5 +1,5 @@
 // Password rules for new parent accounts and password resets (existing passwords still work for sign-in).
-export const MIN_PASSWORD_LENGTH = 10;
+export const MIN_PASSWORD_LENGTH = 6;
 
 const COMMON = new Set([
   'password', 'password1', 'password12', 'password123', 'password1234', '1234567890', '12345678910', 'qwertyuiop', 'qwerty12345',
