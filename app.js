@@ -121,6 +121,18 @@
           </ol>
         </section>
 
+        <section class="landing-section landing-video" id="how-to-use">
+          <div class="eyebrow">HOW TO USE IT</div>
+          <h2>Your first story, in eight easy steps.</h2>
+          <p class="landing-section-lede">Follow along from creating your family account to reading together and seeing what your child understood.</p>
+          <div class="landing-video-frame">
+            <video controls playsinline preload="none" poster="images/brand/howto-poster.jpg" aria-label="Step-by-step video showing how to use ${brandName}">
+              <source src="video/StoryAura_Land_How_To_Use.mp4" type="video/mp4">
+              Your browser cannot play this video. You can still read a sample story above.
+            </video>
+          </div>
+        </section>
+
         <section class="landing-section landing-inside" id="inside">
           <div class="eyebrow">INSIDE EVERY STORY</div>
           <h2>More than a story: words, questions, and sharing built in.</h2>
