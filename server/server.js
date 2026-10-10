@@ -2106,7 +2106,7 @@ app.get('/admin', (req, res) => {
   res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
   res.sendFile(path.join(rootDir, 'admin.html'));
 });
-app.use('/api/admin', createAdminRouter({
+app.use('/api/admin', createAdminRouter({ jwtSecret,
   pool, bcrypt, settingsStore, ownerEmail, requireAuth, requireAdultAccount, isPricingComingSoon,
   systemInfo: () => ({
     nodeEnv: process.env.NODE_ENV || 'development',

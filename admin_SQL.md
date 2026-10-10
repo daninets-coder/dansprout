@@ -92,3 +92,14 @@ SELECT created_at, actor_email, action, target FROM admin_audit_log ORDER BY cre
 ```
 
 Note: the admin page asks for your password on changes and writes an audit-log row. Plain SQL does neither, so SQL changes are not in the audit log.
+
+## 6. Two-step login (authenticator app)
+
+The admin area asks for a 6-digit authenticator code (good for 8 hours per browser session). First visit: the page walks you through setup.
+
+```sql
+DELETE FROM admin_totp;   -- lost your phone? clears the authenticator; the next admin visit offers setup again
+SELECT created_at, action FROM admin_audit_log WHERE action LIKE 'twofactor%' ORDER BY created_at DESC LIMIT 20;
+```
+
+Anyone who can run SQL on the database can reset it, so keep Railway and GitHub locked down with their own two-step login.

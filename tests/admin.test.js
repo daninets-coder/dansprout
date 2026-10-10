@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import express from 'express';
 import { SETTING_DEFS, validateSetting, createSettingsStore } from '../server/modules/settings.js';
 import { createAdminRouter } from '../server/modules/admin.js';
+import { codeAt, verifyCode, newSecret } from '../server/modules/totp.js';
 
 test('settings validation accepts good values and rejects bad ones', () => {
   assert.deepEqual(validateSetting('free_story_limit', '8'), { ok: true, value: 8 });
@@ -42,10 +43,11 @@ test('settings store: defaults, database values, invalid rows ignored, writes', 
   assert.ok(pool.queries.some(q => q.text === 'COMMIT'));
 });
 
-async function startAdmin({ accountEmail }) {
+async function startAdmin({ accountEmail, require2fa = false, totp = null }) {
   const pool = {
     query: async text => {
       if (/SELECT email, email_verified_at FROM accounts/.test(text)) return { rows: [{ email: accountEmail, email_verified_at: new Date() }] };
+      if (/FROM admin_totp/.test(text)) return { rows: totp ? [totp] : [] };
       return { rows: [] };
     },
   };
@@ -55,6 +57,7 @@ async function startAdmin({ accountEmail }) {
   app.use('/api/admin', createAdminRouter({
     pool, bcrypt: { compare: async () => false }, settingsStore: store, ownerEmail: 'owner@example.com',
     requireAuth, requireAdultAccount: (req, res, next) => next(), isPricingComingSoon: () => true,
+    jwtSecret: 'x'.repeat(40), require2fa,
   }));
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -132,4 +135,47 @@ test('library review needs the owner password and a real decision', async t => {
   assert.equal(await post({ ids: [id], decision: 'approve', currentPassword: 'wrong' }), 401);
   assert.equal(await post({ ids: [id], decision: 'publish', currentPassword: 'x' }), 400);
   assert.equal(await post({ ids: [], decision: 'approve', currentPassword: 'x' }), 400);
+});
+
+test('authenticator codes match the RFC 6238 test vector and reject wrong, reused-window and malformed codes', () => {
+  const rfc = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'; // ASCII "12345678901234567890"
+  assert.equal(codeAt(rfc, Math.floor(59 / 30)), '287082');
+  assert.equal(verifyCode(rfc, '287082', { now: 59000 }), 1);
+  assert.equal(verifyCode(rfc, '287083', { now: 59000 }), null);
+  assert.equal(verifyCode(rfc, 'abcdef', { now: 59000 }), null);
+  assert.equal(verifyCode(rfc, '287082', { now: 59000 + 5 * 30000 }), null); // too old
+  assert.match(newSecret(), /^[A-Z2-7]{32}$/);
+});
+
+test('admin data needs the authenticator step once 2-step is on', async t => {
+  const secret = newSecret();
+  const { server, base } = await startAdmin({ accountEmail: 'owner@example.com', require2fa: true, totp: { secret, confirmed_at: new Date(), last_step: 0 } });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const blocked = await fetch(base + '/api/admin/settings');
+  assert.equal(blocked.status, 428);
+  await blocked.arrayBuffer();
+  const status = await (await fetch(base + '/api/admin/2fa/status')).json();
+  assert.deepEqual([status.required, status.enrolled, status.passed], [true, true, false]);
+  const bad = await fetch(base + '/api/admin/2fa/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: '000000' }) });
+  assert.equal(bad.status, 401);
+  await bad.arrayBuffer();
+  const good = await fetch(base + '/api/admin/2fa/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: codeAt(secret, Math.floor(Date.now() / 30000)) }) });
+  assert.equal(good.status, 200);
+  const { pass } = await good.json();
+  const open = await fetch(base + '/api/admin/settings', { headers: { 'X-Admin-2fa': pass } });
+  assert.equal(open.status, 200);
+  await open.arrayBuffer();
+  const forged = await fetch(base + '/api/admin/settings', { headers: { 'X-Admin-2fa': pass.slice(0, -4) + 'abcd' } });
+  assert.equal(forged.status, 428);
+  await forged.arrayBuffer();
+});
+
+test('non-owners still get 404 on the 2-step routes', async t => {
+  const { server, base } = await startAdmin({ accountEmail: 'someone-else@example.com', require2fa: true });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  for (const [m, p] of [['GET', '/2fa/status'], ['POST', '/2fa/setup'], ['POST', '/2fa/verify']]) {
+    const r = await fetch(base + '/api/admin' + p, { method: m, headers: { 'Content-Type': 'application/json' }, body: m === 'POST' ? '{}' : undefined });
+    assert.equal(r.status, 404, p);
+    await r.arrayBuffer();
+  }
 });

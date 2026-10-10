@@ -8,12 +8,13 @@
 //  - reports show counts and account emails only: never children's names, story text, or passwords
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
+import { newSecret, verifyCode, otpauthUrl } from './totp.js';
 import { SETTING_DEFS } from './settings.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, requireAuth, requireAdultAccount, isPricingComingSoon, systemInfo = () => ({}) }) {
+export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, requireAuth, requireAdultAccount, isPricingComingSoon, systemInfo = () => ({}), jwtSecret = '', require2fa = true }) {
   const router = express.Router();
   const notFound = res => res.status(404).json({ error: 'Not found.' });
 
@@ -45,6 +46,60 @@ export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, req
     if (!ok) await audit(owner, 'password_check_failed', null, {});
     return ok;
   }
+
+  // ------------------------------------------------------------------ second step: authenticator-app code
+  const twoFactorSecret = jwtSecret ? `${jwtSecret}:admin-2fa` : null;
+  const signPass = (id, exp) => createHmac('sha256', twoFactorSecret).update(`${id}.${exp}`).digest('hex');
+  const passFor = id => { const exp = Date.now() + 8 * 60 * 60 * 1000; return `${id}.${exp}.${signPass(id, exp)}`; };
+  function passValid(header, id) {
+    if (!twoFactorSecret || typeof header !== 'string') return false;
+    const [pid, exp, sig] = header.split('.');
+    if (pid !== id || !(Number(exp) > Date.now()) || !sig) return false;
+    const want = Buffer.from(signPass(pid, exp)), got = Buffer.from(sig);
+    return want.length === got.length && timingSafeEqual(want, got);
+  }
+  const codeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
+
+  router.get('/2fa/status', async (req, res, next) => {
+    try {
+      if (!require2fa) return res.json({ required: false, enrolled: true, passed: true });
+      const { rows } = await pool.query('SELECT confirmed_at FROM admin_totp WHERE account_id = $1', [req.owner.id]);
+      return res.json({ required: true, enrolled: Boolean(rows[0]?.confirmed_at), passed: passValid(req.get('x-admin-2fa'), req.owner.id) });
+    } catch (error) { return next(error); }
+  });
+
+  // Start enrolment: needs the password; refused once an authenticator is already confirmed.
+  router.post('/2fa/setup', codeLimiter, express.json({ limit: '4kb' }), async (req, res, next) => {
+    try {
+      if (!(await passwordOk(req.owner, req.body?.currentPassword))) return res.status(401).json({ error: 'Password is incorrect.' });
+      const existing = await pool.query('SELECT confirmed_at FROM admin_totp WHERE account_id = $1', [req.owner.id]);
+      if (existing.rows[0]?.confirmed_at) return res.status(409).json({ error: 'An authenticator is already set up.' });
+      const secret = newSecret();
+      await pool.query('INSERT INTO admin_totp (account_id, secret) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET secret = EXCLUDED.secret, last_step = 0', [req.owner.id, secret]);
+      return res.json({ secret, otpauth: otpauthUrl(secret, req.owner.email) });
+    } catch (error) { return next(error); }
+  });
+
+  // Check a 6-digit code. The first good code confirms enrolment. Returns a pass valid for 8 hours.
+  router.post('/2fa/verify', codeLimiter, express.json({ limit: '4kb' }), async (req, res, next) => {
+    try {
+      const { rows } = await pool.query('SELECT secret, confirmed_at, last_step FROM admin_totp WHERE account_id = $1', [req.owner.id]);
+      const row = rows[0];
+      const step = row ? verifyCode(row.secret, req.body?.code) : null;
+      if (step === null || step <= Number(row.last_step)) {
+        await audit(req.owner, 'twofactor_failed', null, {});
+        return res.status(401).json({ error: 'That code is not right. Wait for a new one and try again.' });
+      }
+      await pool.query('UPDATE admin_totp SET last_step = $2, confirmed_at = COALESCE(confirmed_at, NOW()) WHERE account_id = $1', [req.owner.id, step]);
+      if (!row.confirmed_at) await audit(req.owner, 'twofactor_enrolled', null, {});
+      return res.json({ ok: true, pass: passFor(req.owner.id) });
+    } catch (error) { return next(error); }
+  });
+
+  router.use((req, res, next) => {
+    if (!require2fa || passValid(req.get('x-admin-2fa'), req.owner.id)) return next();
+    return res.status(428).json({ error: 'Authenticator code required.', code: 'two_factor_required' });
+  });
 
   // A report section must never take the page down: failures become null + a console warning.
   async function safe(label, fn) {

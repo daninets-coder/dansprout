@@ -126,11 +126,58 @@ const svg = (tag, attrs) => { const el = document.createElementNS(NS, tag); for 
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 3500); }
 
 async function api(path, opts = {}) {
-  const res = await fetch('/api/admin' + path, { ...opts, headers: { Authorization: 'Bearer ' + token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+  const res = await fetch('/api/admin' + path, { ...opts, headers: { Authorization: 'Bearer ' + token, 'X-Admin-2fa': getPass(), ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+  if (res.status === 428) { setPass(''); throw Object.assign(new Error('two-step'), { needGate: true }); }
   if (res.status === 404 || res.status === 401 || res.status === 403) { if (!opts.keepOn401 || res.status === 404) throw Object.assign(new Error('gone'), { gone: true }); }
   return res;
 }
 const getJSON = async path => { const r = await api(path); if (!r.ok) throw new Error('Request failed'); return r.json(); };
+
+
+/* ---------- second step: authenticator code ---------- */
+const getPass = () => { try { return sessionStorage.getItem('adminPass') || ''; } catch { return ''; } };
+const setPass = v => { try { if (v) sessionStorage.setItem('adminPass', v); else sessionStorage.removeItem('adminPass'); } catch { /* private window */ } };
+async function twoFactorCall(path, body) {
+  const res = await fetch('/api/admin/2fa' + path, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token, 'X-Admin-2fa': getPass(), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 404) throw Object.assign(new Error('gone'), { gone: true });
+  return { ok: res.ok, data: await res.json().catch(() => ({})) };
+}
+async function showGate() {
+  const root = $('#view');
+  $('#tabs').replaceChildren();
+  let status;
+  try { status = (await twoFactorCall('/status')).data; } catch (e) { if (e.gone) return showGone(); throw e; }
+  if (!status.required || status.passed) return render();
+  const msg = h('p', { class: 'hint', style: 'color:#b3261e' });
+  const code = h('input', { inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 7, placeholder: '6-digit code', 'aria-label': '6-digit code', style: 'font-size:22px;letter-spacing:4px;width:190px' });
+  const submit = async () => {
+    msg.textContent = '';
+    const out = await twoFactorCall('/verify', { code: code.value });
+    if (!out.ok) { msg.textContent = out.data.error || 'That did not work.'; return; }
+    setPass(out.data.pass); render();
+  };
+  code.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  const codeBox = h('div', { class: 'toolbar', style: 'margin-top:10px' }, code, h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Unlock'));
+  if (status.enrolled) {
+    root.replaceChildren(h('div', { class: 'card' }, h('h1', null, 'Enter your code'), h('p', { class: 'sub' }, 'Open your authenticator app and type the 6-digit code for StoryAura Land admin.'), codeBox, msg));
+    code.focus(); return;
+  }
+  const setup = h('div');
+  const start = async () => {
+    const pw = await askPassword('Enter your password to set up the authenticator.');
+    if (!pw) return;
+    const out = await twoFactorCall('/setup', { currentPassword: pw });
+    if (!out.ok) { toast(out.data.error || 'Could not start setup.'); return; }
+    setup.replaceChildren(
+      h('p', null, h('b', null, '1. '), 'In an authenticator app (Google Authenticator, Microsoft Authenticator, Authy or 1Password), add a new account with "Enter a setup key" and type this key:'),
+      h('p', { style: 'font:700 20px/1.4 ui-monospace,Consolas,monospace;letter-spacing:2px;word-break:break-all;user-select:all' }, out.data.secret.replace(/(.{4})/g, '$1 ').trim()),
+      h('p', { class: 'hint' }, 'Account name: StoryAura Land admin. Type: time-based. On a phone you can also tap ', h('a', { href: out.data.otpauth }, 'this link'), ' to add it automatically.'),
+      h('p', null, h('b', null, '2. '), 'Type the 6-digit code the app shows now:'), codeBox, msg);
+    code.focus();
+  };
+  setup.append(h('button', { class: 'btn primary', type: 'button', onclick: start }, 'Set up authenticator'));
+  root.replaceChildren(h('div', { class: 'card' }, h('h1', null, 'Add a second step'), h('p', { class: 'sub' }, 'Your admin area now needs a code from an authenticator app, so a stolen password alone is not enough. Setup takes one minute.'), setup));
+}
 
 /* ---------- password prompt ---------- */
 function askPassword(why) {
@@ -476,14 +523,14 @@ async function render() {
   const root = $('#view'); root.replaceChildren(h('p', { class: 'hint' }, 'Loading…'));
   try {
     const next = h('div'); await VIEWS[state.tab](next); root.replaceChildren(...next.childNodes);
-  } catch (e) { if (e.gone) return showGone(); root.replaceChildren(h('div', { class: 'card' }, h('strong', null, 'Could not load this page.'), h('p', { class: 'hint' }, 'Try Refresh. If it keeps happening, check the server logs.'))); console.error(e); }
+  } catch (e) { if (e.gone) return showGone(); if (e.needGate) return showGate(); root.replaceChildren(h('div', { class: 'card' }, h('strong', null, 'Could not load this page.'), h('p', { class: 'hint' }, 'Try Refresh. If it keeps happening, check the server logs.'))); console.error(e); }
 }
 function showGone() { $('#app').hidden = true; $('#notfound').hidden = false; document.title = 'Not found'; }
 
 $('#range').addEventListener('change', e => { state.days = Number(e.target.value); render(); });
 $('#refresh').addEventListener('click', render);
 if (!token) showGone();
-else { $('#app').hidden = false; render(); }
+else { $('#app').hidden = false; showGate(); }
 })();
 </script>
 </body>
