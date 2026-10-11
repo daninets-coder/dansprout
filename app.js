@@ -12,7 +12,7 @@
       <div class="brand"><span class="sprout"></span>${brandName}</div>
       <div class="top-actions">
         <nav class="marketing-nav" aria-label="${brandName} account">
-          <a href="#how-it-works">How it works</a>
+          <a href="#how-to-use">How it works</a>
           <a href="#inside">Inside a story</a>
           <a href="#privacy">Privacy</a>
           <a href="#faq">FAQ</a>
