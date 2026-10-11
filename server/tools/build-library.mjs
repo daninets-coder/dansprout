@@ -114,8 +114,15 @@ async function speak(text, file) {
 }
 
 async function buildOne(spec, runId) {
-  const existing = await pool.query('SELECT 1 FROM library_stories WHERE slug = $1', [spec.slug]);
-  if (existing.rowCount) { log(spec.slug, 'already exists, skipped'); return 'skipped'; }
+  const existing = await pool.query("SELECT id, status, assets FROM library_stories WHERE slug = $1", [spec.slug]);
+  if (existing.rowCount) {
+    const row = existing.rows[0];
+    const complete = (!WITH_IMAGE || row.assets?.cover) && (!WITH_AUDIO || (row.assets?.pages || []).length > 0);
+    // a half-finished DRAFT (an earlier run stopped, for example when credits ran out) is replaced; anything else is left alone
+    if (complete || row.status !== 'draft') { log(spec.slug, 'already exists, skipped'); return 'skipped'; }
+    await pool.query('DELETE FROM library_stories WHERE id = $1', [row.id]);
+    log(spec.slug, 'was incomplete, rebuilding');
+  }
   const curriculumRes = await pool.query('SELECT standard_code, objective FROM curriculum_tracks WHERE grade_level = $1 AND domain = $2 ORDER BY standard_code LIMIT 1', [spec.grade, spec.domain]);
   const curriculum = curriculumRes.rows[0] ? { standard: curriculumRes.rows[0].standard_code, objective: curriculumRes.rows[0].objective } : null;
   const costBefore = spent;
