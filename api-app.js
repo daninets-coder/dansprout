@@ -219,25 +219,25 @@
               </div>
               <div class="story-window-body">
                 <div class="story-window-form">
-                  <label class="en-label">Learner</label>
+                  <label class="en-label"><span class="fi fi-learner" aria-hidden="true"></span>Learner</label>
                   <select id="apiLearner" class="en-select"></select>
                   <div style="width:100%">
-                    <label class="en-label">Grade level</label>
+                    <label class="en-label"><span class="fi fi-grade" aria-hidden="true"></span>Grade level</label>
                     <select id="apiGradeLevel" class="en-select" aria-label="Grade level"><option value="PreK">PreK</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select><p id="apiGradeBandNote" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
                   </div>
                   <details class="story-advanced"><summary>Optional reading skill</summary><div style="width:100%;margin-top:12px">
-                    <label class="en-label">Reading skill for this grade</label>
+                    <label class="en-label"><span class="fi fi-skill" aria-hidden="true"></span>Reading skill for this grade</label>
                     <select id="apiGoal" class="en-select"><option value="comprehension">Comprehension</option><option value="vocabulary">Vocabulary</option><option value="fluency">Fluency</option><option value="phonics">Phonics</option><option value="oral_language">Oral Language</option><option value="writing_response">Writing Response</option><option value="social_emotional_reading">Reading Confidence & SEL</option></select>
                     <p id="apiGoalObjective" class="book-modal-meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0;line-height:1.45"></p>
                     <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">The code identifies the practice area; the sentence above explains the skill in family-friendly language. Curriculum alignment is an instructional aid pending qualified educator review.</p>
                   </div>
-                  </details><label class="en-label" id="apiThemeLabel">Choose a story world</label>
+                  </details><label class="en-label" id="apiThemeLabel"><span class="fi fi-world" aria-hidden="true"></span>Choose a story world</label>
                   <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
                   <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
-                  <label class="en-label">Adventure</label>
+                  <label class="en-label"><span class="fi fi-idea" aria-hidden="true"></span>Adventure</label>
                   <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
                   <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
-                  <label class="en-label">Story length</label>
+                  <label class="en-label"><span class="fi fi-length" aria-hidden="true"></span>Story length</label>
                   <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
                   <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
                   <div class="story-generation-panel" aria-live="polite">
@@ -246,7 +246,7 @@
                     <div id="apiGenerationProgress" class="story-generation-progress hidden" role="progressbar" aria-label="Story generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
                   </div>
                   <div id="apiLibrary" class="story-generation-panel" style="margin-top:18px">
-                    <label class="en-label">Or pick a ready-made story (instant, no waiting)</label>
+                    <label class="en-label"><span class="fi fi-book" aria-hidden="true"></span>Or pick a ready-made story (instant, no waiting)</label>
                     <select id="apiLibraryPick" class="en-select" aria-label="Ready-made story"><option value="">Loading ready-made stories…</option></select>
                     <input id="apiLibraryFriend" class="en-input" maxlength="30" placeholder="Add a friend or sibling's name (optional)" style="margin-top:8px">
                     <button id="apiLibraryStart" class="en-button" type="button" style="margin-top:8px"><span><strong>Read this story</strong><small>Uses the learner's name in the story</small></span></button>
@@ -566,7 +566,7 @@
     const theme = themeSelect?.value || 'Moonlight';
     $('#apiCustomTheme')?.classList.toggle('hidden', theme !== 'Custom');
     const themeLabel = $('#apiThemeLabel');
-    if (themeLabel) themeLabel.textContent = middleSchool ? 'Choose a genre or world' : 'Choose a story world';
+    if (themeLabel) themeLabel.innerHTML = '<span class="fi fi-world" aria-hidden="true"></span>' + (middleSchool ? 'Choose a genre or world' : 'Choose a story world');
     const gradeBandNote = $('#apiGradeBandNote');
     const selectedStandard = $('#apiGoal')?.value || '';
     const storyLength = $('#apiStoryLength');

@@ -62,3 +62,49 @@
 #apiHomeView .home-hero .en-title { font-size: clamp(26px, 3.4vw, 36px); margin: 4px 0 0; }
 #apiHomeView .home-hero .en-lede, #apiHomeView .home-hero .hero-pills { display: none; }
 #apiHomeView .content-notice { margin: 8px 0 14px !important; }
+
+/* ---- Home screen polish: two columns, stronger buttons, soft cards, field icons ---- */
+.fi{display:inline-block;width:18px;height:18px;margin-right:8px;vertical-align:-3px;background-position:center;background-repeat:no-repeat;background-size:contain}
+.fi-learner{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%228%22%20r%3D%224%22%2F%3E%3Cpath%20d%3D%22M4%2021c0-4.4%203.6-7%208-7s8%202.6%208%207%22%2F%3E%3C%2Fsvg%3E")}
+.fi-grade{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%209l10-5%2010%205-10%205z%22%2F%3E%3Cpath%20d%3D%22M6%2011.5V16c0%201.5%203%203%206%203s6-1.5%206-3v-4.5%22%2F%3E%3Cpath%20d%3D%22M22%209v6%22%2F%3E%3C%2Fsvg%3E")}
+.fi-skill{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224.5%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3C%2Fsvg%3E")}
+.fi-world{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cpath%20d%3D%22M3%2012h18%22%2F%3E%3Cpath%20d%3D%22M12%203c3%203.2%203%2014.8%200%2018M12%203c-3%203.2-3%2014.8%200%2018%22%2F%3E%3C%2Fsvg%3E")}
+.fi-idea{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9%2018h6M10%2021h4%22%2F%3E%3Cpath%20d%3D%22M12%203a6%206%200%200%200-3.6%2010.8c.7.6%201.1%201.3%201.1%202.2h5c0-.9.4-1.6%201.1-2.2A6%206%200%200%200%2012%203z%22%2F%3E%3C%2Fsvg%3E")}
+.fi-length{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cpath%20d%3D%22M12%207v5l3%202%22%2F%3E%3C%2Fsvg%3E")}
+.fi-book{background-image:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23b85435%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205.5C6.5%204%209.5%204%2012%205.5v14C9.5%2018%206.5%2018%204%2019.5z%22%2F%3E%3Cpath%20d%3D%22M20%205.5C17.5%204%2014.5%204%2012%205.5v14c2.5-1.5%205.5-1.5%208%200z%22%2F%3E%3C%2Fsvg%3E")}
+
+#apiHomeView .en-card, #apiHomeView .home-hero { border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(33, 53, 60, .10); border-color: #eadfce; }
+#apiHomeView .story-window-body .en-label { display: block; margin-top: 20px; font-weight: 800; color: #173b42; }
+#apiHomeView .story-window-body .en-select, #apiHomeView .story-window-body .en-input { margin-top: 8px; padding: 12px 14px; border-radius: 10px; }
+#apiHomeView .en-button { background: #c4502c; color: #fff; border-radius: 12px; box-shadow: 0 6px 14px rgba(196, 80, 44, .28); }
+#apiHomeView .en-button:hover, #apiHomeView .en-button:focus { background: #a8421f; }
+#apiHomeView #apiLibraryStart { background: #143f4a; box-shadow: 0 6px 14px rgba(20, 63, 74, .25); }
+#apiHomeView #apiLibraryStart:hover, #apiHomeView #apiLibraryStart:focus { background: #0d2c35; }
+.steps3-watch { background: #143f4a; color: #fff; border-color: #143f4a; }
+.steps3-watch:hover, .steps3-watch:focus { background: #0d2c35; }
+#apiHowTo summary { color: #143f4a; }
+#apiHowTo summary > span:last-child { color: #a8421f; text-decoration: underline; }
+
+/* friendly mascot beside the headline */
+#apiHomeView .home-hero { background: linear-gradient(135deg, #fffaf0 0%, #f6eefb 100%); min-height: 150px; padding-right: 130px; position: relative; }
+#apiHomeView .home-hero::after { content: ''; position: absolute; right: 18px; bottom: 0; width: 100px; height: 112px; background: url(images/Speak/speakpanda.png) center bottom / contain no-repeat; }
+#apiHomeView .home-hero .en-title { font-size: clamp(24px, 2.6vw, 32px); }
+
+/* readable text in the "Welcome back" card (it was pale-on-pale) */
+#apiLastActivity *:not(h2):not(h3):not(strong):not(button):not([class*="eyebrow"]):not(svg) { color: #3f5c63 !important; }
+
+/* wide screens: headline, steps and video on the left; the story builder on the right */
+@media (min-width: 1100px) {
+  #apiHomeView { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 24px; row-gap: 18px; align-items: start; grid-template-rows: repeat(5, min-content) 1fr; }
+  #apiHomeView > .en-grid { display: contents; }
+  #apiHomeView > .home-hero { grid-column: 1; grid-row: 1; }
+  #apiHomeView > .content-notice { grid-column: 1; grid-row: 2; }
+  #apiHomeView > #apiGettingStarted { grid-column: 1; grid-row: 3; margin: 0; }
+  #apiHomeView > #apiHowTo { grid-column: 1; grid-row: 4; margin: 0 !important; }
+  #apiHomeView > .en-grid > .en-card:first-child { grid-column: 2; grid-row: 1 / span 6; margin: 0; }
+  #apiHomeView > .en-grid > aside { grid-column: 1; grid-row: 5; margin: 0; }
+  #apiHomeView > :not(.home-hero):not(.content-notice):not(#apiGettingStarted):not(#apiHowTo):not(.en-grid) { grid-column: 1 / -1; }
+  #apiHomeView .steps3-grid { grid-template-columns: 1fr; }
+  #apiHomeView .steps3-tile { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+  #apiHomeView .steps3-text { flex-basis: 100%; }
+}
