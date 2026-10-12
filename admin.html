@@ -169,7 +169,9 @@ async function showGate() {
     const out = await twoFactorCall('/setup', { currentPassword: pw });
     if (!out.ok) { toast(out.data.error || 'Could not start setup.'); return; }
     setup.replaceChildren(
-      h('p', null, h('b', null, '1. '), 'In an authenticator app (Google Authenticator, Microsoft Authenticator, Authy or 1Password), add a new account with "Enter a setup key" and type this key:'),
+      h('p', null, h('b', null, '1. '), 'Open an authenticator app (Google Authenticator, Microsoft Authenticator, Authy or 1Password), add an account and scan this code:'),
+      out.data.qrSvg ? h('img', { alt: 'Authenticator setup QR code', width: 240, height: 240, style: 'display:block;background:#fff;border:1px solid var(--border);border-radius:10px;padding:6px', src: 'data:image/svg+xml;utf8,' + encodeURIComponent(out.data.qrSvg) }) : null,
+      h('p', { class: 'hint' }, 'Cannot scan? Choose "Enter a setup key" in the app and type this key instead:'),
       h('p', { style: 'font:700 20px/1.4 ui-monospace,Consolas,monospace;letter-spacing:2px;word-break:break-all;user-select:all' }, out.data.secret.replace(/(.{4})/g, '$1 ').trim()),
       h('p', { class: 'hint' }, 'Account name: DanSprout Stories admin. Type: time-based. On a phone you can also tap ', h('a', { href: out.data.otpauth }, 'this link'), ' to add it automatically.'),
       h('p', null, h('b', null, '2. '), 'Type the 6-digit code the app shows now:'), codeBox, msg);

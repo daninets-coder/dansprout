@@ -9,6 +9,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
+import QRCode from 'qrcode';
 import { newSecret, verifyCode, otpauthUrl } from './totp.js';
 import { SETTING_DEFS } from './settings.js';
 
@@ -76,7 +77,9 @@ export function createAdminRouter({ pool, bcrypt, settingsStore, ownerEmail, req
       if (existing.rows[0]?.confirmed_at) return res.status(409).json({ error: 'An authenticator is already set up.' });
       const secret = newSecret();
       await pool.query('INSERT INTO admin_totp (account_id, secret) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET secret = EXCLUDED.secret, last_step = 0', [req.owner.id, secret]);
-      return res.json({ secret, otpauth: otpauthUrl(secret, req.owner.email) });
+      const otpauth = otpauthUrl(secret, req.owner.email);
+      const qrSvg = await QRCode.toString(otpauth, { type: 'svg', margin: 1, width: 240, errorCorrectionLevel: 'M' }); // drawn on our server, so the key is never sent to a third party
+      return res.json({ secret, otpauth, qrSvg });
     } catch (error) { return next(error); }
   });
 

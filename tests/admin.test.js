@@ -179,3 +179,29 @@ test('non-owners still get 404 on the 2-step routes', async t => {
     await r.arrayBuffer();
   }
 });
+
+test('authenticator setup returns a QR code drawn on our own server', async t => {
+  const queries = [];
+  const pool = {
+    query: async (text, params) => {
+      queries.push(text);
+      if (/SELECT email, email_verified_at FROM accounts/.test(text)) return { rows: [{ email: 'owner@example.com', email_verified_at: new Date() }] };
+      if (/SELECT password_hash FROM accounts/.test(text)) return { rows: [{ password_hash: 'x' }] };
+      return { rows: [] };
+    },
+  };
+  const app = express();
+  app.use('/api/admin', createAdminRouter({
+    pool, bcrypt: { compare: async () => true }, settingsStore: createSettingsStore(fakePool(), {}), ownerEmail: 'owner@example.com',
+    requireAuth: (req, res, next) => { req.auth = { sub: 'u1' }; next(); }, requireAdultAccount: (req, res, next) => next(), isPricingComingSoon: () => true,
+    jwtSecret: 'x'.repeat(40), require2fa: true,
+  }));
+  const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const r = await fetch(`http://127.0.0.1:${server.address().port}/api/admin/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: 'pw' }) });
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.match(body.qrSvg, /^<svg/);
+  assert.match(body.otpauth, /^otpauth:\/\/totp\//);
+  assert.match(body.secret, /^[A-Z2-7]{32}$/);
+});
