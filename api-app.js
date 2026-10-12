@@ -196,20 +196,18 @@
           </div>
         </div>
         <p class="content-notice" style="margin:12px 0 20px;padding:11px 13px;border-left:4px solid #c88455;background:#fff8ed;color:#597076;font:13px/1.45 Arial,sans-serif"><strong>AI-generated content:</strong> Stories, questions, and vocabulary are created with AI for reading practice. Parents should review each story before sharing it with a child.</p>
-        <section class="en-card" style="margin-top:18px;border:1px solid #d8c7ad;background:linear-gradient(135deg,#fff8ea 0%,#f2f8ef 100%);box-shadow:0 8px 18px rgba(33,70,60,.04)">
-          <div class="en-eyebrow">WHY FAMILIES STAY</div>
-          <h2 style="margin-top:8px">A child gets a story. A parent gets evidence. Everyone gets a next step.</h2>
-          <div class="en-stat-grid" style="margin-top:16px">
-            <div class="en-stat"><strong>1</strong><span>Make a story that fits the child.</span></div>
-            <div class="en-stat"><strong>2</strong><span>See what was read and how it went.</span></div>
-            <div class="en-stat"><strong>3</strong><span>Know exactly what to do next.</span></div>
-          </div>
-        </section>
-
-        <section class="en-card" style="margin-bottom:20px">
-          <h2>Getting started</h2>
+        <section id="apiGettingStarted" class="en-card steps3-card">
+          <div class="steps3-head"><h2>Start in 3 easy steps</h2><button type="button" class="steps3-watch" id="apiWatchHowTo">&#9654; Watch the 2-minute video</button></div>
           <div id="apiOnboarding"></div>
         </section>
+
+        <details id="apiHowTo" class="en-card" style="margin:0 0 20px;padding:0;overflow:hidden">
+          <summary style="cursor:pointer;padding:15px 20px;font:700 17px Georgia,serif;color:#173b42;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px"><span>&#9654;&nbsp; Watch how it works <small style="font:600 13px Arial,sans-serif;color:#597076">(2 minutes)</small></span><span style="font:700 13px Arial,sans-serif;color:#b85435">Show / hide</span></summary>
+          <div style="padding:0 20px 20px">
+            <video controls playsinline preload="none" poster="${asset('images/brand/howto-poster.jpg')}" style="display:block;width:100%;max-width:720px;margin:0 auto;border-radius:14px;background:#0e2429" aria-label="Step-by-step video showing how to use DanSprout Stories"><source src="${asset('video/DanSprout_How_To_Use.mp4')}" type="video/mp4"></video>
+            <p style="text-align:center;margin:12px 0 0;color:#597076;font:14px/1.5 Arial,sans-serif">Ready? Pick a learner and an idea in <strong>Create a story together</strong> below, or choose a ready-made story.</p>
+          </div>
+        </details>
 
         <div class="en-grid">
           <section class="en-card">
@@ -533,14 +531,19 @@
     const doneLearner = learners.length > 0;
     const doneStory = stories.length > 0;
     const donePlan = stories.some(story => story.completed_at);
-    $('#apiOnboarding').innerHTML = `<div class="onboarding-progress"><strong>${[doneLearner, doneStory, donePlan].filter(Boolean).length} of 3 started</strong><span>Add a learner, create a short story, then read and talk about it together.</span></div><div class="en-stat-grid"><button type="button" class="en-stat apiStartStep ${doneLearner ? 'is-done' : ''}" data-step="learner"><strong>${doneLearner ? '✓' : '1'}</strong><span>${doneLearner ? 'Learner added' : 'Add a learner'}</span></button><button type="button" class="en-stat apiStartStep ${doneStory ? 'is-done' : ''}" data-step="story"><strong>${doneStory ? '✓' : '2'}</strong><span>${doneStory ? 'First story created' : 'Create your first story'}</span></button><button type="button" class="en-stat apiStartStep ${donePlan ? 'is-done' : ''}" data-step="read"><strong>${donePlan ? '✓' : '3'}</strong><span>${donePlan ? 'First reading finished' : 'Read your first story'}</span></button></div>`;
+    const allDone = doneLearner && doneStory && donePlan;
+    $('#apiGettingStarted')?.classList.toggle('hidden', allDone); // finished families do not need the checklist
+    const step = (n, key, done, title, text, button) => `<button type="button" class="steps3-tile apiStartStep ${done ? 'is-done' : ''}" data-step="${key}"><span class="steps3-num">${done ? '&#10003;' : n}</span><span class="steps3-title">${title}</span><span class="steps3-text">${text}</span><span class="steps3-go">${done ? 'Done' : button}</span></button>`;
+    $('#apiOnboarding').innerHTML = `<div class="steps3-grid">${step(1, 'learner', doneLearner, 'Add your child', 'Type a first name and pick a reading level.', 'Add a child &rarr;')}${step(2, 'story', doneStory, 'Pick a story', 'Choose a ready-made story, or type an idea for a new one.', 'Pick a story &darr;')}${step(3, 'read', donePlan, 'Read together', 'Listen, tap new words, then answer 3 quick questions.', 'Read it &rarr;')}</div>`;
+    const watchButton = $('#apiWatchHowTo'); if (watchButton) watchButton.onclick = () => { const d = $('#apiHowTo'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     document.querySelectorAll('.apiStartStep').forEach(button => {
       button.onclick = () => {
         if (button.dataset.step === 'learner') { show('learners'); $('#apiFirstName')?.focus(); }
         if (button.dataset.step === 'read') { const next = stories.find(story => !story.completed_at) || stories[0]; if (next) openServerStory(next); else { show('home'); $('#apiPrompt')?.focus(); } }
         if (button.dataset.step === 'story') {
           show('home');
-          $('#apiPrompt')?.focus();
+          $('#apiPrompt')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          $('#apiPrompt')?.focus({ preventScroll: true });
         }
       };
     });
