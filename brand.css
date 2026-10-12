@@ -82,8 +82,6 @@
 #apiHomeView #apiLibraryStart:hover, #apiHomeView #apiLibraryStart:focus { background: #0d2c35; }
 .steps3-watch { background: #143f4a; color: #fff; border-color: #143f4a; }
 .steps3-watch:hover, .steps3-watch:focus { background: #0d2c35; }
-#apiHowTo summary { color: #143f4a; }
-#apiHowTo summary > span:last-child { color: #a8421f; text-decoration: underline; }
 
 /* friendly mascot beside the headline */
 #apiHomeView .home-hero { background: linear-gradient(135deg, #fffaf0 0%, #f6eefb 100%); min-height: 150px; padding-right: 130px; position: relative; }
@@ -108,3 +106,16 @@
   #apiHomeView .steps3-tile { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
   #apiHomeView .steps3-text { flex-basis: 100%; }
 }
+
+/* how-to video: a slim bar on the page, a large pop-up player when clicked */
+.howto-bar { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; border: 1px solid #e3d3b8; background: #fff; border-radius: 16px; padding: 14px 18px; box-shadow: 0 10px 25px -5px rgba(33, 53, 60, .10); font-family: Nunito, Arial, sans-serif; color: #143f4a; }
+.howto-bar:hover, .howto-bar:focus { background: #fff8ee; }
+.howto-play { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #c4502c; color: #fff; font-size: 16px; padding-left: 3px; }
+.howto-text { flex: 1; display: flex; flex-direction: column; }
+.howto-text strong { font: 800 17px Nunito, Arial, sans-serif; }
+.howto-text small { font: 600 13px Nunito, Arial, sans-serif; color: #597076; }
+.howto-go { font: 800 14px Nunito, Arial, sans-serif; color: #a8421f; text-decoration: underline; }
+.howto-modal { position: fixed; inset: 0; z-index: 3000; background: rgba(10, 24, 28, .82); display: grid; place-items: center; padding: 18px; }
+.howto-modal-card { position: relative; width: min(1100px, 100%); }
+.howto-modal-card video { display: block; width: 100%; max-height: 86vh; border-radius: 14px; background: #0e2429; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+.howto-modal-close { position: absolute; top: -14px; right: -6px; z-index: 2; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #fff; color: #143f4a; font: 700 26px/1 Arial, sans-serif; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }

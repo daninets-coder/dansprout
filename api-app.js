@@ -201,13 +201,7 @@
           <div id="apiOnboarding"></div>
         </section>
 
-        <details id="apiHowTo" class="en-card" style="margin:0 0 20px;padding:0;overflow:hidden">
-          <summary style="cursor:pointer;padding:15px 20px;font:700 17px Georgia,serif;color:#173b42;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px"><span>&#9654;&nbsp; Watch how it works <small style="font:600 13px Arial,sans-serif;color:#597076">(2 minutes)</small></span><span style="font:700 13px Arial,sans-serif;color:#b85435">Show / hide</span></summary>
-          <div style="padding:0 20px 20px">
-            <video controls playsinline preload="none" poster="${asset('images/brand/howto-poster.jpg')}" style="display:block;width:100%;max-width:720px;margin:0 auto;border-radius:14px;background:#0e2429" aria-label="Step-by-step video showing how to use DanSprout Stories"><source src="${asset('video/DanSprout_How_To_Use.mp4')}" type="video/mp4"></video>
-            <p style="text-align:center;margin:12px 0 0;color:#597076;font:14px/1.5 Arial,sans-serif">Ready? Pick a learner and an idea in <strong>Create a story together</strong> below, or choose a ready-made story.</p>
-          </div>
-        </details>
+        <button type="button" id="apiHowTo" class="howto-bar"><span class="howto-play" aria-hidden="true">&#9654;</span><span class="howto-text"><strong>Watch how it works</strong><small>A 2-minute video, full screen</small></span><span class="howto-go">Play</span></button>
 
         <div class="en-grid">
           <section class="en-card">
@@ -535,7 +529,21 @@
     $('#apiGettingStarted')?.classList.toggle('hidden', allDone); // finished families do not need the checklist
     const step = (n, key, done, title, text, button) => `<button type="button" class="steps3-tile apiStartStep ${done ? 'is-done' : ''}" data-step="${key}"><span class="steps3-num">${done ? '&#10003;' : n}</span><span class="steps3-title">${title}</span><span class="steps3-text">${text}</span><span class="steps3-go">${done ? 'Done' : button}</span></button>`;
     $('#apiOnboarding').innerHTML = `<div class="steps3-grid">${step(1, 'learner', doneLearner, 'Add your child', 'Type a first name and pick a reading level.', 'Add a child &rarr;')}${step(2, 'story', doneStory, 'Pick a story', 'Choose a ready-made story, or type an idea for a new one.', 'Pick a story &darr;')}${step(3, 'read', donePlan, 'Read together', 'Listen, tap new words, then answer 3 quick questions.', 'Read it &rarr;')}</div>`;
-    const watchButton = $('#apiWatchHowTo'); if (watchButton) watchButton.onclick = () => { const d = $('#apiHowTo'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
+    const playHowTo = () => {
+      const old = document.getElementById('apiHowToModal'); if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'apiHowToModal'; overlay.className = 'howto-modal'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', 'How DanSprout Stories works');
+      overlay.innerHTML = `<div class="howto-modal-card"><button type="button" class="howto-modal-close" aria-label="Close video">&times;</button><video controls autoplay playsinline poster="${asset('images/brand/howto-poster.jpg')}"><source src="${asset('video/DanSprout_How_To_Use.mp4')}" type="video/mp4"></video></div>`;
+      const close = () => { overlay.querySelector('video')?.pause(); overlay.remove(); document.removeEventListener('keydown', onKey); };
+      const onKey = e => { if (e.key === 'Escape') close(); };
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      overlay.querySelector('.howto-modal-close').onclick = close;
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+      overlay.querySelector('.howto-modal-close').focus();
+    };
+    const watchButton = $('#apiWatchHowTo'); if (watchButton) watchButton.onclick = playHowTo;
+    const howToBar = $('#apiHowTo'); if (howToBar) howToBar.onclick = playHowTo;
     document.querySelectorAll('.apiStartStep').forEach(button => {
       button.onclick = () => {
         if (button.dataset.step === 'learner') { show('learners'); $('#apiFirstName')?.focus(); }
