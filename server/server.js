@@ -803,15 +803,40 @@ app.post('/api/stories/:storyId/narration', requireAuth, requireChildStoryScope,
   try {
     const parsed = z.object({
       pageIndex: z.number().int().min(0).max(50).optional(),
+      questionIndex: z.number().int().min(0).max(30).optional(),
+      word: z.string().trim().min(1).max(40).regex(/^[A-Za-z][A-Za-z'-]*$/).optional(),
       voice: z.enum(['warm', 'calm', 'playful']).default('warm'),
     }).safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: 'Invalid narration request.' });
 
     const storyRes = await pool.query('SELECT content FROM stories WHERE id = $1 AND deleted_at IS NULL', [req.params.storyId]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
-    const pages = storyRes.rows[0].content?.pages || [];
-    const { pageIndex } = parsed.data;
-    const text = pageIndex === undefined ? pages.join(' ') : (pages[pageIndex] || '');
+    const content = storyRes.rows[0].content || {};
+    const pages = content.pages || [];
+    const { pageIndex, questionIndex, word } = parsed.data;
+    let text; let clipName;
+    if (questionIndex !== undefined) {
+      // a comprehension question, read together with its answer choices (the same wording the ready-made library was recorded with)
+      const q = (content.questions || [])[questionIndex];
+      if (!q?.prompt) return res.status(400).json({ error: 'Question not found.' });
+      const libraryId = content.meta?.libraryStoryId;
+      if (typeof libraryId === 'string' && /^[0-9a-f-]{36}$/i.test(libraryId) && existsSync(path.join(storageDir, 'library', libraryId, `q${questionIndex + 1}.mp3`))) {
+        return res.json({ url: `/library/${libraryId}/q${questionIndex + 1}.mp3` }); // already recorded: free and instant
+      }
+      text = `${q.prompt} ${(q.options || []).join(', or ')}?`;
+      clipName = `q${questionIndex}`;
+    } else if (word !== undefined) {
+      // a single word, only if it belongs to this story (so this cannot be used as a free text-to-speech service)
+      const lower = word.toLowerCase();
+      const inWords = (content.words || []).some(w => String(w.word || '').toLowerCase() === lower);
+      const inPages = pages.join(' ').toLowerCase().match(/[a-z][a-z'-]*/g)?.includes(lower);
+      if (!inWords && !inPages) return res.status(400).json({ error: 'That word is not in this story.' });
+      text = lower;
+      clipName = `word-${createHash('sha1').update(lower).digest('hex').slice(0, 16)}`;
+    } else {
+      text = pageIndex === undefined ? pages.join(' ') : (pages[pageIndex] || '');
+      clipName = `${req.params.storyId}-${pageIndex === undefined ? 'full' : pageIndex}`;
+    }
     if (!text.trim()) return res.status(400).json({ error: 'Nothing to read for this page.' });
     if (text.length > 4000) return res.status(400).json({ error: 'This story is too long to narrate all at once. Try reading one page at a time.' });
 
@@ -819,7 +844,7 @@ app.post('/api/stories/:storyId/narration', requireAuth, requireChildStoryScope,
     if (!apiKey) return res.status(403).json({ error: 'Read-aloud is not configured for this deployment.' });
     await assertAiBudget(req.auth.sub);
 
-    const cacheKey = `${req.params.storyId}-${pageIndex === undefined ? 'full' : pageIndex}-${parsed.data.voice}-${NARRATION_VERSION}.mp3`;
+    const cacheKey = questionIndex !== undefined ? `${req.params.storyId}-${clipName}-${parsed.data.voice}-${NARRATION_VERSION}.mp3` : `${clipName}-${parsed.data.voice}-${NARRATION_VERSION}.mp3`;
     const filePath = path.join(audioDir, cacheKey);
     if (!existsSync(filePath)) {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {

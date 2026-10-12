@@ -258,3 +258,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 /* the Privacy / Terms links also live in the footer, so drop the header copy when the screen is tight */
 @media (max-width: 1599px) { .legal-header-links { display: none !important; } }
+
+/* "Read to me" on questions: big, friendly and easy to find for early readers */
+button.apiSpeakQuestion { background: linear-gradient(180deg, #5aa9ff 0%, #2e7be8 100%) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; padding: 10px 20px !important; min-height: 44px; font: 800 15px Nunito, Arial, sans-serif !important; box-shadow: 0 4px 0 #1b56a8, 0 8px 16px rgba(46, 123, 232, .25) !important; text-shadow: 0 1px 0 rgba(0, 40, 100, .3); }
+button.apiSpeakQuestion:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1b56a8, 0 12px 20px rgba(46, 123, 232, .3) !important; }
+button.apiSpeakQuestion:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b56a8 !important; }

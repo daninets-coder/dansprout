@@ -983,12 +983,27 @@
       inner.querySelector('#apiReadPage')?.removeAttribute('disabled');
       inner.querySelector('#apiReadStory')?.removeAttribute('disabled');
     };
+    // One word or one question, read in the same natural voice as the story pages (cached on the server).
+    // If that fails, the browser's own voice is the backup, so a child never gets silence.
+    const playClip = async (body, fallbackText) => {
+      stopNarration();
+      const thisRequest = narrationRequestToken;
+      try {
+        const result = await api(`/api/stories/${story.id}/narration`, { method: 'POST', body: JSON.stringify({ ...body, voice: voiceSelect?.value || 'warm' }) });
+        if (thisRequest !== narrationRequestToken) return;
+        narrationAudio.src = result.url;
+        await narrationAudio.play();
+      } catch (error) {
+        if (thisRequest !== narrationRequestToken) return;
+        if (window.speechSynthesis && fallbackText) {
+          const utterance = new SpeechSynthesisUtterance(fallbackText); utterance.lang = 'en-US'; utterance.rate = 0.85; window.speechSynthesis.speak(utterance); return;
+        }
+        notify(error.message || 'Could not read this aloud right now.');
+      }
+    };
     const speak = async pageIndex => {
       stopNarration();
-      if (typeof pageIndex === 'string') {
-        if (!window.speechSynthesis) return notify('Word pronunciation is unavailable in this browser.');
-        const utterance = new SpeechSynthesisUtterance(pageIndex); utterance.lang = 'en-US'; utterance.rate = 0.85; window.speechSynthesis.speak(utterance); return;
-      }
+      if (typeof pageIndex === 'string') return playClip({ word: pageIndex }, pageIndex); // a tapped word: natural voice, browser voice only as a backup
       const thisRequest = narrationRequestToken;
       const readPageBtn = inner.querySelector('#apiReadPage');
       const readStoryBtn = inner.querySelector('#apiReadStory');
@@ -1090,15 +1105,17 @@
     }
     if (assessment) {
     assessment.innerHTML = questions.map((question, questionIndex) => objectiveQuestions
-      ? `<fieldset class="assessment-question"><legend>${questionIndex + 1}. ${esc(question.prompt)}</legend><div class="assessment-options">${question.options.map(option => `<label class="assessment-option"><input class="apiAssessmentAnswer" type="radio" name="assessment-${questionIndex}" data-question-index="${questionIndex}" value="${esc(option)}" required><span>${esc(option)}</span></label>`).join('')}</div><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">Read aloud</button></fieldset>`
+      ? `<fieldset class="assessment-question"><legend>${questionIndex + 1}. ${esc(question.prompt)}</legend><div class="assessment-options">${question.options.map(option => `<label class="assessment-option"><input class="apiAssessmentAnswer" type="radio" name="assessment-${questionIndex}" data-question-index="${questionIndex}" value="${esc(option)}" required><span>${esc(option)}</span></label>`).join('')}</div><button type="button" class="en-outline apiSpeakQuestion" data-question-index="${questionIndex}" aria-label="Read question aloud">&#128266; Read to me</button></fieldset>`
       : `<label class="en-label" style="display:block;margin-top:12px">${questionIndex + 1}. ${esc(typeof question === 'string' ? question : question.prompt || '')}<textarea class="en-input apiAssessmentAnswer" data-question-index="${questionIndex}" rows="2" maxlength="1000" required></textarea></label>`).join('') + (questions.length ? '<button type="submit" class="en-button" style="margin-top:14px">Check answers</button>' : '<p class="book-modal-empty">No questions provided.</p>');
     if (questions.length) {
       assessment.innerHTML += `<p class="book-modal-meta" style="margin-top:14px">${objectiveQuestions ? 'Choose the best answer from the story. Your score is calculated automatically.' : 'This older story uses written responses and still needs parent review.'}</p>`;
       assessment.querySelectorAll('.apiSpeakQuestion').forEach(button => {
         button.onclick = () => {
-          const question = questions[Number(button.dataset.questionIndex)];
-          const text = typeof question === 'string' ? question : question.prompt || '';
-          speak(text);
+          const index = Number(button.dataset.questionIndex);
+          const question = questions[index];
+          const text = typeof question === 'string' ? question : [question.prompt, ...(question.options || [])].join('. ');
+          if (typeof question === 'string') { stopNarration(); if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 0.85; window.speechSynthesis.speak(u); } return; }
+          playClip({ questionIndex: index }, text);
         };
       });
     }
