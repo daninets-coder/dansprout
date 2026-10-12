@@ -33,7 +33,7 @@ check("Private files are not public: server code", "/server/server.js", 404)
 check("Private files are not public: notes", "/CustomerRules.md", 404)
 check("Story list needs login", "/api/stories", 401)
 check("Ready-made list needs login", "/api/library/stories", 401)
-check("Logo / icon loads", "/images/brand/favicon.svg", 200)
+check("Logo / icon loads", "/images/brand/favicon-64.png", 200)
 
 security = {k.lower() for k in headers}
 for header in ("strict-transport-security", "x-content-type-options"):

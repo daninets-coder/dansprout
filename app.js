@@ -9,7 +9,7 @@
 
   appRoot.innerHTML = `
     <header class="landing-header">
-      <div class="brand"><span class="sprout"></span>DanSprout - Stories</div>
+      <div class="brand"><span class="sprout"></span><span class="brand-text"><span class="brand-name">DanSprout - Stories</span><small class="brand-tag">Personalized stories &middot; Learn new words &middot; Answer questions</small></span></div>
       <div class="top-actions">
         <nav class="marketing-nav" aria-label="${brandName} account">
           <a href="#how-to-use">How it works</a>
@@ -77,7 +77,7 @@
           <p class="landing-section-lede">A quick look at how a story goes from your child&#39;s ideas to a page they can read, hear, and understand.</p>
           <div class="landing-video-frame">
             <video controls playsinline preload="none" poster="images/brand/reel-poster.jpg" aria-label="Short video showing how ${brandName} turns a child&#39;s interests into a story">
-              <source src="video/StoryAura_Land_Reel.mp4" type="video/mp4">
+              <source src="video/DanSprout_Reel.mp4" type="video/mp4">
               Your browser cannot play this video. You can still read a sample story above.
             </video>
           </div>
@@ -127,7 +127,7 @@
           <p class="landing-section-lede">Follow along from creating your family account to reading together and seeing what your child understood.</p>
           <div class="landing-video-frame">
             <video controls playsinline preload="none" poster="images/brand/howto-poster.jpg" aria-label="Step-by-step video showing how to use ${brandName}">
-              <source src="video/StoryAura_Land_How_To_Use.mp4" type="video/mp4">
+              <source src="video/DanSprout_How_To_Use.mp4" type="video/mp4">
               Your browser cannot play this video. You can still read a sample story above.
             </video>
           </div>
@@ -220,7 +220,7 @@
             </ul>
           </div>
           <div class="landing-split-media">
-            <img src="images/storyaura-bed-reading.jpg" loading="lazy" alt="A child reading a book in bed by a bright window">
+            <img src="images/family-bed-reading.jpg" loading="lazy" alt="A child reading a book in bed by a bright window">
           </div>
         </section>
 
@@ -305,7 +305,7 @@
           <span>Vocabulary in context</span>
         </div>
         <div class="sample-story-scene" aria-hidden="true">
-          <img class="sample-story-photo" src="images/storyaura-tent-reading.jpg" alt="">
+          <img class="sample-story-photo" src="images/family-tent-reading.jpg" alt="">
           <span class="sample-scene-tint"></span>
           <span class="sample-moon"></span>
           <span class="sample-cloud sample-cloud-1"></span>

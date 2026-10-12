@@ -89,7 +89,7 @@ Plain-English customer rules live in `CustomerRules.md`. This file explains the 
 
 - **Status:** Accepted (2026-10-08)
 - **Context:** The landing page needed the demo reel, but it is about 19 MB.
-- **Decision:** A native `<video controls playsinline preload="none">` with a poster image, placed above "How it works". There is no autoplay. The file downloads only when someone presses play. It is served from `video/StoryAura_Land_Reel.mp4` (see ADR-005 for why it must be in that folder).
+- **Decision:** A native `<video controls playsinline preload="none">` with a poster image, placed above "How it works". There is no autoplay. The file downloads only when someone presses play. It is served from `video/DanSprout_Reel.mp4` (see ADR-005 for why it must be in that folder).
 - **Alternatives considered:** autoplay (data cost on phones, unwanted sound); a third-party host (adds a tracker and a vendor, which conflicts with the privacy promises).
 - **Consequences:** The page stays fast, and there is no analytics on plays because the site has no analytics. Re-editing the video means replacing one file and redeploying.
 
