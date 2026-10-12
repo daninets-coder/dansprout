@@ -2,13 +2,13 @@
   border: 0;
   padding: 20px 0 22px;
   margin: 0;
-  border-bottom: 1px solid #ead8bb;
+  border-bottom: 1px solid #e6dff2;
 }
 
 .assessment-question legend {
   width: 100%;
   padding: 0;
-  color: #173b42;
+  color: #1f2a46;
   font: 700 18px/1.35 Georgia, 'Times New Roman', serif;
 }
 
@@ -27,10 +27,10 @@
   margin: 0 !important;
   min-height: 54px;
   padding: 11px 13px;
-  border: 1px solid #d8c8b5;
+  border: 1px solid #d9d2ea;
   border-radius: 8px;
   background: #fffdf9;
-  color: #29424b;
+  color: #2b3556;
   font: 700 14px/1.3 Arial, sans-serif !important;
   cursor: pointer;
   box-shadow: 0 3px 0 rgba(23,59,66,.08);
@@ -39,12 +39,12 @@
 
 .assessment-option:hover {
   transform: translateY(-2px);
-  border-color: #db704b;
+  border-color: #e0533a;
   background: #fff4d8;
 }
 
 .assessment-option.is-correct {
-  border-color: #43815b;
+  border-color: #2ea36a;
   background: #e3f2df;
 }
 
@@ -55,7 +55,7 @@
 
 .assessment-option[data-feedback]::after {
   margin-left: auto;
-  color: #597076;
+  color: #5b6580;
   font-size: 11px;
   white-space: nowrap;
   content: attr(data-feedback);
@@ -66,7 +66,7 @@
   width: 18px;
   height: 18px;
   margin: 1px 0 0;
-  accent-color: #db704b;
+  accent-color: #e0533a;
 }
 
 .assessment-option:nth-child(3n + 1) { border-top: 4px solid #efb72f; }
@@ -95,18 +95,18 @@
 }
 
 .assessment-score {
-  color: #173b42;
+  color: #1f2a46;
   font: 700 54px/.95 Georgia, 'Times New Roman', serif;
 }
 
 .assessment-score span {
-  color: #597076;
+  color: #5b6580;
   font-size: 22px;
 }
 
 .assessment-score-detail {
   max-width: 540px;
-  color: #29424b;
+  color: #2b3556;
   font: 700 15px/1.45 Arial, sans-serif;
 }
 
@@ -158,7 +158,7 @@
   align-items: center;
   padding: 7px 11px;
   border-radius: 999px;
-  background: #eef6ec;
+  background: #eaf8f0;
   border: 1px solid #cce0c9;
   color: #235d3d;
   font: 700 12px Arial, sans-serif;
@@ -228,7 +228,7 @@
 }
 
 .story-generation-button.is-complete {
-  background: #43815b;
+  background: #2ea36a;
 }
 
 .story-generation-icon {
@@ -264,7 +264,7 @@
 .story-generation-status {
   min-height: 18px;
   margin-top: 9px;
-  color: #597076;
+  color: #5b6580;
   font: 12px/1.45 Arial, sans-serif;
   text-align: center;
 }
@@ -306,7 +306,7 @@
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #db704b, #f1ba3e, #43815b);
+  background: linear-gradient(90deg, #e0533a, #f1ba3e, #2ea36a);
   transition: width .45s ease;
 }
 
@@ -320,12 +320,12 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #29424b;
+  color: #2b3556;
   font: 13px/1.4 Arial, sans-serif;
 }
 
 .progress-line span {
-  color: #687a7c;
+  color: #6b7592;
 }
 
 .progress-track {
@@ -340,7 +340,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #db704b, #43815b);
+  background: linear-gradient(90deg, #e0533a, #2ea36a);
   transition: width .45s ease;
 }
 
@@ -353,17 +353,17 @@
 
 .achievement {
   padding: 8px 10px;
-  border: 1px dashed #d7c7b2;
+  border: 1px dashed #d9d2ea;
   border-radius: 999px;
-  color: #687a7c;
+  color: #6b7592;
   font: 700 12px Arial, sans-serif;
 }
 
 .achievement.earned {
   border-style: solid;
-  border-color: #43815b;
+  border-color: #2ea36a;
   background: #e3f2df;
-  color: #2f6c50;
+  color: #23895a;
 }
 
 .achievement-icon {
@@ -384,7 +384,7 @@
 .reader-level-next {
   display: block;
   margin-top: 6px;
-  color: #687a7c;
+  color: #6b7592;
   font: 13px/1.4 Arial, sans-serif;
 }
 
@@ -401,18 +401,18 @@
 
 .habit-card strong {
   grid-row: span 2;
-  color: #b85435;
+  color: #c43f29;
   font: 700 25px Georgia, 'Times New Roman', serif;
 }
 
 .habit-card span,
 .habit-card small {
-  color: #29424b;
+  color: #2b3556;
   font: 700 13px/1.35 Arial, sans-serif;
 }
 
 .habit-card small {
-  color: #687a7c;
+  color: #6b7592;
   font-weight: 400;
 }
 
@@ -425,7 +425,7 @@
 
 .learner-report {
   padding: 12px;
-  border: 1px solid #e5d5bf;
+  border: 1px solid #e6dff2;
   border-radius: 7px;
   background: #fffdf9;
 }
@@ -436,13 +436,13 @@
 }
 
 .learner-report strong {
-  color: #173b42;
+  color: #1f2a46;
   font: 700 15px Georgia, 'Times New Roman', serif;
 }
 
 .learner-report span {
   margin-top: 4px;
-  color: #687a7c;
+  color: #6b7592;
   font: 12px/1.4 Arial, sans-serif;
 }
 
@@ -455,7 +455,7 @@
   align-items: center;
   gap: 8px;
   margin: 10px 0 0;
-  color: #29424b;
+  color: #2b3556;
   font: 700 13px/1.4 Arial, sans-serif;
   cursor: pointer;
 }
@@ -465,7 +465,7 @@
   width: 17px;
   height: 17px;
   margin: 0;
-  accent-color: #43815b;
+  accent-color: #2ea36a;
 }
 
 @media (max-width: 680px) {

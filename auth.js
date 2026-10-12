@@ -5,16 +5,16 @@
   if (cancelSubscriptionToken) {
     fetch('/api/auth/confirm-subscription-cancellation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: cancelSubscriptionToken }) })
       .then(response => response.ok ? response.json() : response.json().then(data => Promise.reject(new Error(data.error || 'Cancellation confirmation failed.'))))
-      .then(result => { history.replaceState({}, '', location.pathname); document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Subscription canceled</h1><p>${result.message}</p><p>Your learner profiles, stories, and reading progress remain saved.</p><a href="/">Return to DanSprout Stories</a></main>`; })
-      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Cancellation confirmation failed</h1><p>${error.message}</p></main>`; });
+      .then(result => { history.replaceState({}, '', location.pathname); document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#1f2a46"><h1>Subscription canceled</h1><p>${result.message}</p><p>Your learner profiles, stories, and reading progress remain saved.</p><a href="/">Return to DanSprout Stories</a></main>`; })
+      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#1f2a46"><h1>Cancellation confirmation failed</h1><p>${error.message}</p></main>`; });
     return;
   }
   const deleteAccountToken = new URLSearchParams(location.search).get('deleteAccountToken');
   if (deleteAccountToken) {
     fetch('/api/auth/confirm-account-deletion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: deleteAccountToken }) })
       .then(response => response.ok ? response.text() : response.json().then(data => Promise.reject(new Error(data.error || 'Deletion confirmation failed.'))))
-      .then(() => { ['storySproutToken', 'storySproutAccount', 'storySproutEnterprise', 'storySproutProfile', 'storySproutBooksV2', 'storySproutBooks'].forEach(key => localStorage.removeItem(key)); history.replaceState({}, '', location.pathname); document.body.innerHTML = '<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Account deleted</h1><p>Your DanSprout Stories account and learner data were permanently deleted.</p></main>'; })
-      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#173b42"><h1>Deletion confirmation failed</h1><p>${error.message}</p></main>`; });
+      .then(() => { ['storySproutToken', 'storySproutAccount', 'storySproutEnterprise', 'storySproutProfile', 'storySproutBooksV2', 'storySproutBooks'].forEach(key => localStorage.removeItem(key)); history.replaceState({}, '', location.pathname); document.body.innerHTML = '<main style="font-family:Arial,sans-serif;padding:40px;color:#1f2a46"><h1>Account deleted</h1><p>Your DanSprout Stories account and learner data were permanently deleted.</p></main>'; })
+      .catch(error => { document.body.innerHTML = `<main style="font-family:Arial,sans-serif;padding:40px;color:#1f2a46"><h1>Deletion confirmation failed</h1><p>${error.message}</p></main>`; });
     return;
   }
   if (token) return;
@@ -26,10 +26,10 @@
   logoStyle.textContent = '.auth-mark{position:relative;background:url(data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2064%2064%22%3E%3Crect%20width=%2264%22%20height=%2264%22%20rx=%2215%22%20fill=%22%23df7046%22/%3E%3Cpath%20d=%22M14%2042C22%2026%2040%2020%2051%2024%2046%2038%2030%2048%2014%2042Z%22%20fill=%22none%22%20stroke=%22%23fff%22%20stroke-width=%225%22%20stroke-linejoin=%22round%22/%3E%3Ccircle%20cx=%2250%22%20cy=%2214%22%20r=%225%22%20fill=%22%23f4c96d%22/%3E%3C/svg%3E) center/100% 100% no-repeat;border-radius:0}.auth-mark:after{content:none;display:none}';
   document.head.appendChild(logoStyle);
   const consentStyle = document.createElement('style');
-  consentStyle.textContent = '.auth-consent{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e5d5bf;border-radius:6px;background:#fff8ed}.auth-consent input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0;accent-color:#2f6c50}.auth-visual{margin:14px 0 18px;border-radius:18px;overflow:hidden;border:1px solid #e7d8c2;background:#f8f1e6;box-shadow:0 10px 24px rgba(20,48,55,.08)}.auth-visual img{display:block;width:100%;height:180px;object-fit:cover}.auth-visual:after{content:"Parents can create and read together.";display:block;padding:10px 14px;font:700 12px/1.3 Arial,sans-serif;color:#4d6668;background:linear-gradient(135deg,#eef6ec,#fff7ea)}';
+  consentStyle.textContent = '.auth-consent{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e6dff2;border-radius:6px;background:#fff8ed}.auth-consent input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0;accent-color:#23895a}.auth-visual{margin:14px 0 18px;border-radius:18px;overflow:hidden;border:1px solid #e7d8c2;background:#f8f1e6;box-shadow:0 10px 24px rgba(20,48,55,.08)}.auth-visual img{display:block;width:100%;height:180px;object-fit:cover}.auth-visual:after{content:"Parents can create and read together.";display:block;padding:10px 14px;font:700 12px/1.3 Arial,sans-serif;color:#4d6668;background:linear-gradient(135deg,#eaf8f0,#fff7ea)}';
   document.head.appendChild(consentStyle);
   const revealStyle = document.createElement('style');
-  revealStyle.textContent = '.auth-reveal{margin:16px 0 8px;padding:14px 16px;border-radius:8px;background:linear-gradient(135deg,#edf6ec,#fff5dd);border:1px solid #d7d0ba}.auth-reveal strong{display:block;font:700 11px Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;color:#48645c;margin-bottom:4px}.auth-reveal p{margin:0;color:#39525a;font:14px/1.45 Arial,sans-serif}';
+  revealStyle.textContent = '.auth-reveal{margin:16px 0 8px;padding:14px 16px;border-radius:8px;background:linear-gradient(135deg,#edf6ec,#fff5dd);border:1px solid #d7d0ba}.auth-reveal strong{display:block;font:700 11px Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;color:#4a5675;margin-bottom:4px}.auth-reveal p{margin:0;color:#39525a;font:14px/1.45 Arial,sans-serif}';
   document.head.appendChild(revealStyle);
   gate.querySelectorAll('.auth-tab').forEach(button => { button.type = 'button'; });
   gate.querySelector('.auth-card h1').textContent = 'Create personalized reading stories for your child.';
