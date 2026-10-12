@@ -1,4 +1,4 @@
-# StoryAura Land: Customer Rules
+# DanSprout Stories: Customer Rules
 
 Plain-English rules for what customers can and can't do. The code that enforces them is in
 `server/modules/plan-rules.js`. If you change a number here, change it there too (and the tests in

@@ -67,7 +67,7 @@
       modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
     }
     modal.querySelector('#legalBody').innerHTML = '<h2 id="supportTitle"></h2><p id="supportIntro"></p><form id="supportForm"><label class="en-label" for="supportName">Your name</label><input id="supportName" class="en-input" maxlength="80" required><label class="en-label" for="supportEmail">Email for our reply</label><input id="supportEmail" class="en-input" type="email" maxlength="120" required><label class="en-label" for="supportCategory">What do you need help with?</label><select id="supportCategory" class="en-select"><option value="account">Account</option><option value="billing">Billing</option><option value="privacy">Privacy & data</option><option value="story_safety">Story safety</option><option value="technical">Technical problem</option><option value="other">Other</option></select><label class="en-label" for="supportMessage">Message</label><textarea id="supportMessage" class="en-input" rows="5" maxlength="2000" required></textarea><button class="en-button" type="submit" style="margin-top:14px">Send support request</button><p id="supportStatus" role="status" style="margin-top:12px"></p></form>';
-    modal.querySelector('#supportTitle').textContent = opts.title || 'Contact StoryAura Land support';
+    modal.querySelector('#supportTitle').textContent = opts.title || 'Contact DanSprout Stories support';
     modal.querySelector('#supportIntro').textContent = opts.intro || 'Send a question about your account, billing, privacy, story safety, or technical issues. Do not include passwords, payment-card numbers, or secret keys.';
     if (opts.category) modal.querySelector('#supportCategory').value = opts.category;
     if (opts.message) modal.querySelector('#supportMessage').value = opts.message;
@@ -138,7 +138,7 @@
     document.head.appendChild(footerStyle);
     const footer = document.createElement('footer');
     footer.className = 'site-footer';
-    footer.innerHTML = '<div class="site-footer-brand"><span class="site-footer-mark">✦</span><strong>StoryAura Land</strong><span>Personalized reading stories for growing readers.</span></div><div class="site-footer-links"></div><div class="site-footer-note">Parents guide the learning. Children bring the imagination. Printed storybooks are coming later.</div>';
+    footer.innerHTML = '<div class="site-footer-brand"><span class="site-footer-mark">✦</span><strong>DanSprout - Stories</strong><span>Personalized reading stories for growing readers.</span></div><div class="site-footer-links"></div><div class="site-footer-note">Parents guide the learning. Children bring the imagination. Printed storybooks are coming later.</div>';
     const footerLinks = footer.querySelector('.site-footer-links');
     addLink(footerLinks, 'Privacy Policy', privacyContent);
     addLink(footerLinks, 'Terms', termsContent);

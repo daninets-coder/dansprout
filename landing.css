@@ -1,4 +1,4 @@
-/* StoryAura Land marketing landing page (shown to signed-out visitors) */
+/* DanSprout Stories marketing landing page (shown to signed-out visitors) */
 header .brand{font-family:'Fredoka',Georgia,serif;letter-spacing:.2px}
 html:has(#landingView){scroll-behavior:smooth}
 .landing-header{background:rgba(255,253,249,.88);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px)}

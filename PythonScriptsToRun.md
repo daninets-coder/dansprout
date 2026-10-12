@@ -1,6 +1,6 @@
 # PythonScriptsToRun.md
 
-Simple, safe scripts for running routine checks on StoryAura Land. They are written so someone with little experience can run them.
+Simple, safe scripts for running routine checks on DanSprout Stories. They are written so someone with little experience can run them.
 All are in the `scripts/` folder. They use only what Python already includes, so there is nothing to install.
 
 ## Before you start (one time)

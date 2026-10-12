@@ -1,4 +1,4 @@
-# admin_SQL.md: configure StoryAura Land with SQL
+# admin_SQL.md: configure DanSprout Stories with SQL
 
 Run these in the Railway Postgres query console (Railway dashboard, Postgres service, Data/Query).
 Changes apply to the live site within about 30 seconds. No deploy needed.

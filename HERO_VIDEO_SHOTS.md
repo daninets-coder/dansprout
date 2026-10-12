@@ -1,4 +1,4 @@
-# StoryAura Land Hero Video — 6-shot brief (animated 3D cartoon, stylized HD)
+# DanSprout Stories Hero Video — 6-shot brief (animated 3D cartoon, stylized HD)
 
 **Status: draft for review (2026-10-06), revision 2.** The story is created and read in the web app. A parent can print it, so they can read the paper copy together or keep reading on screen. The video shows that flow. It must **not** show shelves of books or a child with a store-bought book, because that is not the product. Everything is stylized 3D cartoon animation, with no photorealistic people, so there are no real-child or model-release issues. Edit freely before generating.
 

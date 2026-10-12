@@ -1,0 +1,16 @@
+/* DanSprout Stories brand marks: the 4Learn Motto hexagon logo replaces every older mark. Loaded last. */
+.sprout, .en-mark, .auth-mark, .site-footer-mark {
+  background: url(images/brand/logo-mark.png) center / contain no-repeat !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  font-size: 0 !important;
+}
+.sprout::before, .sprout::after, .en-mark::before, .en-mark::after, .auth-mark::before, .auth-mark::after {
+  content: none !important;
+  display: none !important;
+}
+.sprout { display: inline-block; width: 34px; height: 34px; vertical-align: middle; margin-right: 8px; }
+.en-mark { width: 32px !important; height: 32px !important; }
+.auth-mark { width: 34px !important; height: 34px !important; }
+.site-footer-mark { width: 30px !important; height: 30px !important; }

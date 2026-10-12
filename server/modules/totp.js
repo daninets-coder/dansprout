@@ -46,4 +46,4 @@ export function verifyCode(secret, code, { now = Date.now(), window = 1 } = {}) 
 }
 
 export const otpauthUrl = (secret, email) =>
-  `otpauth://totp/${encodeURIComponent('StoryAura Land admin')}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent('StoryAura Land admin')}&digits=6&period=30`;
+  `otpauth://totp/${encodeURIComponent('DanSprout Stories admin')}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent('DanSprout Stories admin')}&digits=6&period=30`;

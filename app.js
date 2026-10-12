@@ -5,11 +5,11 @@
   const token = localStorage.getItem('storySproutToken');
   if (token) return;
 
-  const brandName = 'StoryAura Land';
+  const brandName = 'DanSprout Stories';
 
   appRoot.innerHTML = `
     <header class="landing-header">
-      <div class="brand"><span class="sprout"></span>${brandName}</div>
+      <div class="brand"><span class="sprout"></span>DanSprout - Stories</div>
       <div class="top-actions">
         <nav class="marketing-nav" aria-label="${brandName} account">
           <a href="#how-to-use">How it works</a>

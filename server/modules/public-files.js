@@ -5,7 +5,7 @@ const publicFiles = new Set([
   '/api-app.js', '/privacy.js', '/legal.js', '/error-reporting.js',
   '/app.css', '/enterprise.css', '/workspace.css', '/story-shelf.css',
   '/deleted-stories.css', '/reader.css', '/mobile-nav.css', '/story-preview.css',
-  '/auth.css', '/privacy.css', '/assessment.css', '/landing.css',
+  '/auth.css', '/privacy.css', '/assessment.css', '/landing.css', '/brand.css',
   '/story-sprout-ad.mp4'
 ]);
 

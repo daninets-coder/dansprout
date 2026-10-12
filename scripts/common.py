@@ -1,4 +1,4 @@
-"""Shared helpers for the StoryAura Land helper scripts. Standard library only (no pip install needed)."""
+"""Shared helpers for the DanSprout Stories helper scripts. Standard library only (no pip install needed)."""
 import os
 import subprocess
 import sys
@@ -40,7 +40,7 @@ def have(program):
 
 def fetch(url, timeout=20, headers=None):
     """GET a URL. Returns (status_code, body_text, headers). Never raises on HTTP errors."""
-    request = urllib.request.Request(url, headers={"User-Agent": "storyaura-helper-scripts", **(headers or {})})
+    request = urllib.request.Request(url, headers={"User-Agent": "dansprout-helper-scripts", **(headers or {})})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read().decode("utf-8", "replace"), dict(response.headers)

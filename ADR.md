@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Short records of the important technical decisions made for StoryAura Land, and why. Newest at the bottom.
+Short records of the important technical decisions made for DanSprout Stories, and why. Newest at the bottom.
 
 **How to use this file**
 - One decision per entry, numbered. Don't rewrite an old decision. If we change our mind, add a new ADR and mark the old one `Superseded by ADR-00N`.
