@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { pool } from './db.js';
 import { runMigrations } from './migrate.js';
 import { createPublicFiles } from './modules/public-files.js';
+import { renderStoryBook } from './modules/story-book-pdf.js';
 import { createAuthentication } from './modules/authentication.js';
 import { createLearnerAccess } from './modules/learner-access.js';
 import { registerBillingWebhook } from './modules/billing.js';
@@ -1238,69 +1239,9 @@ app.get('/api/stories/:storyId.pdf', requireAuth, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="dansprout-stories-${safeTitle}.pdf"`);
 
-    const doc = new PDFDocument({ size: 'LETTER', margins: { top: 58, bottom: 58, left: 58, right: 58 }, bufferPages: true });
+    const doc = new PDFDocument({ size: 'LETTER', margin: 0, bufferPages: true, autoFirstPage: false });
     doc.pipe(res);
-    const colors = { ink: '#25464e', coral: '#c45f3f', sage: '#6c956d', line: '#dfc9a9', paper: '#fffaf1', muted: '#667779' };
-    const frame = () => {
-      doc.save();
-      doc.rect(28, 28, 556, 736).lineWidth(1).strokeColor(colors.line).stroke();
-      doc.rect(38, 38, 536, 716).lineWidth(0.5).strokeColor('#efe3d1').stroke();
-      doc.restore();
-    };
-    const header = () => {
-      frame();
-      doc.fillColor(colors.coral).fontSize(10).font('Helvetica-Bold').text('STORYAURA LAND', 58, 50, { characterSpacing: 1.5 });
-      doc.fillColor(colors.muted).fontSize(9).font('Helvetica').text('Personalized reading stories for growing readers', 58, 67);
-    };
-
-    header();
-    doc.moveDown(5);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(25).text(story.title, { align: 'center' });
-    doc.moveDown(0.7);
-    doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(12).text(`A story for ${story.learner_name}`, { align: 'center' });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(10).text(`Ages ${story.age_band}  •  ${story.theme}  •  Created ${new Date(story.created_at).toLocaleDateString()}`, { align: 'center' });
-    doc.moveDown(1.2);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(12).text('Reading focus');
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(`${story.learning_goal || 'Reading practice'}${meta.curriculumObjective ? `: ${meta.curriculumObjective}` : ''}`);
-    doc.moveDown(1.3);
-    pages.forEach((page, index) => {
-      if (index > 0) { doc.addPage(); header(); doc.moveDown(2); }
-      doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text(`PAGE ${index + 1} OF ${pages.length}`, { characterSpacing: 1.2 });
-      doc.moveDown(0.7);
-      doc.fillColor(colors.ink).font('Helvetica').fontSize(15).lineGap(5).text(page, { width: 470, align: 'left' });
-      doc.moveDown(1.2);
-      doc.fillColor(colors.muted).fontSize(9).text('Read together. Pause and talk about what the reader notices.', { width: 470 });
-    });
-
-    doc.addPage();
-    header();
-    doc.moveDown(2);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(20).text('Word garden');
-    doc.moveDown(0.7);
-    words.forEach(word => {
-      doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(12).text(String(word.word || ''));
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(String(word.meaning || ''));
-      doc.moveDown(0.45);
-    });
-    doc.moveDown(0.8);
-    doc.fillColor(colors.ink).font('Helvetica-Bold').fontSize(20).text('Talk about the story');
-    doc.moveDown(0.7);
-    questions.forEach((question, index) => {
-      const prompt = typeof question === 'string' ? question : question.prompt || '';
-      doc.fillColor(colors.muted).font('Helvetica').fontSize(11).text(`${index + 1}. ${prompt}`, { width: 470 });
-      doc.moveDown(0.55);
-    });
-    doc.moveDown(1.3);
-    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('PARENT REVIEW REQUIRED', { characterSpacing: 1.1 });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('This story was generated with AI for reading practice and entertainment. A parent, guardian, or qualified educator should review it before sharing it with a child.', { width: 470 });
-    doc.moveDown(0.7);
-    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('PRACTICE FEEDBACK', { characterSpacing: 1.1 });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('Any score connected to this story measures understanding of this story\'s questions only. It is not a complete reading assessment, diagnosis, proof of mastery, or guarantee of educational outcomes.', { width: 470 });
-    doc.moveDown(0.7);
-    doc.fillColor(colors.sage).font('Helvetica-Bold').fontSize(10).text('KEEP THIS STORY PRIVATE', { characterSpacing: 1.1 });
-    doc.fillColor(colors.muted).font('Helvetica').fontSize(9).text('This PDF may contain personalized learner information. Keep it secure, do not share it publicly, and delete it when it is no longer needed. DanSprout Stories is not a substitute for a teacher, school curriculum, or professional advice.', { width: 470 });
-    doc.moveDown(1.2);
-    doc.fillColor(colors.coral).font('Helvetica-Bold').fontSize(10).text('DanSprout Stories  •  dansprout.com', { align: 'center' });
+    renderStoryBook(doc, { story, pages, words, questions, meta });
     doc.end();
   } catch (error) {
     return next(error);
