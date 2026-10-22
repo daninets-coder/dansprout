@@ -20,10 +20,11 @@ export function createPublicFiles(rootDir, { storageDir = rootDir } = {}) {
     if (pathname.includes('\\') || pathname.split('/').some(part => part.startsWith('.'))) return res.sendStatus(404);
     const image = /^\/(?:images|imagesAI|story-illustrations)\/.+\.(?:png|jpe?g|webp|gif|svg|ico)$/i.test(pathname);
     const audio = /^\/story-audio\/[^/]+\.mp3$/i.test(pathname);
+    const font = /^\/fonts\/[A-Za-z0-9_-]+\.(?:woff2|css)$/.test(pathname);
     const video = /^\/video\/[^/]+\.mp4$/i.test(pathname);
     // one folder per library story: /library/<story-id>/<file>.(png|mp3)
     const library = /^\/library\/[a-z0-9_-]+\/[a-z0-9_.-]+\.(?:png|jpe?g|webp|mp3)$/i.test(pathname);
-    if (pathname !== '/' && !publicFiles.has(pathname) && !image && !audio && !video && !library) return res.sendStatus(404);
+    if (pathname !== '/' && !publicFiles.has(pathname) && !image && !audio && !video && !library && !font) return res.sendStatus(404);
     if (pathname === '/' || /\.(?:html|js|css)$/.test(pathname)) res.setHeader('Cache-Control', 'no-store, max-age=0');
     next();
   });
