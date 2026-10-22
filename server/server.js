@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { createStoryPrivacy } from './modules/story-privacy.js';
 import helmet from 'helmet';
 import PDFDocument from 'pdfkit';
 import Stripe from 'stripe';
@@ -226,7 +227,16 @@ app.use(cors({
     return cb(new Error('CORS origin not allowed.'));
   },
 }));
-registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent });
+async function sendSubscriptionAcknowledgment(accountId, { plan, interval, trialEnd }) {
+  if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return;
+  const accountRes = await pool.query('SELECT email, display_name FROM accounts WHERE id = $1', [accountId]);
+  if (!accountRes.rowCount) return;
+  const config = priceConfig[plan === 'individual' ? (interval === 'year' ? 'individual_yearly_7500' : 'individual_1000') : 'family_1500'];
+  const price = config ? `$${(config.cents / 100).toFixed(2)} per ${interval === 'year' ? 'year' : 'month'}` : 'the price shown at checkout';
+  const trialLine = trialEnd ? `Your free trial ends on ${new Date(trialEnd * 1000).toLocaleDateString('en-US')}. Unless you cancel before then, your payment method will be charged ${price} and your plan will renew automatically each billing period until you cancel.` : `Your plan renews automatically each billing period at ${price} until you cancel.`;
+  await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Your DanSprout Stories subscription', text: `Hi ${accountRes.rows[0].display_name},\n\nThank you for subscribing to the DanSprout Stories ${plan} plan.\n\n${trialLine}\n\nYou can cancel at any time in Account Settings; cancellation takes effect at the end of the current billing period and no further charges will occur. The Subscriber Agreement you accepted is available at ${appBaseUrl}/terms.html.\n\nQuestions? Use the Support form in the app.` }) });
+}
+registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent, sendSubscriptionAcknowledgment });
 app.get('/pricing-config.js', (req, res) => {
   res.type('application/javascript').set('Cache-Control', 'no-store').send(`window.PRICING_COMING_SOON=${isPricingComingSoon()};`);
 });
@@ -236,6 +246,7 @@ const registrationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, stan
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Please try again later.' } });
 const verificationEmailLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 3, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many verification emails requested. Please try again later.' } });
 const supportLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many support requests. Please try again later.' } });
+const contentPullLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth?.sub || req.ip, validate: { keyGeneratorIpFallback: false }, handler: (req, res) => { console.warn('content_pull_limit_exceeded', req.auth?.sub || req.ip, req.path); res.status(429).json({ error: 'Too many requests. Please slow down.' }); } });
 const storyGenerationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: () => settingsStore.get('story_requests_per_15min'),
@@ -285,13 +296,14 @@ const registerSchema = z.object({
   guardianConsent: z.literal(true),
   aiExternalConsent: z.literal(true),
   policyVersion: z.string().trim().min(1).max(40).default('2026-09-01'),
+  acknowledgments: z.array(z.string().max(40)).max(10).default([]),
   confirmPassword: z.string().min(6).max(128).optional(),
-}).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
+}).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' }).refine(value => ['authConsent', 'authConsentData', 'authConsentTerms', 'authConsentArb', 'authConsentEsign'].every(id => value.acknowledgments.includes(id)), { path: ['acknowledgments'], message: 'Every acknowledgment is required.' });
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 const passwordResetRequestSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()) });
 const passwordResetSchema = z.object({ token: z.string().min(32).max(200), password: z.string().min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`).max(128).superRefine((value, ctx) => { const problem = passwordProblem(value); if (problem) ctx.addIssue({ code: 'custom', message: problem }); }), confirmPassword: z.string().min(6).max(128).optional() }).refine(value => !value.confirmPassword || value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords must match.' });
 const passwordResetCodeSchema = z.object({ email: z.string().email().max(120).transform(value => value.trim().toLowerCase()), code: z.string().regex(/^\d{6}$/), password: z.string().min(6).max(128) });
-const learnerSchema = z.object({ readingLevel: z.enum(['PreK','K','1','2','3','4','5','6','7','8']).default('2'), firstName: z.string().trim().min(1).max(32), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
+const learnerSchema = z.object({ readingLevel: z.enum(['PreK','K','1','2','3','4','5','6','7','8']).default('2'), firstName: z.string().trim().min(1).max(32).regex(/^[\p{L}][\p{L}'\-]*$/u, 'Use a first name or nickname only, with no spaces or last name.'), ageBand: z.enum(['3-5', '6-8', '9-11']), interests: z.string().trim().max(160).default(''), topicsToAvoid: z.string().trim().max(160).default(''), topicsToAvoidOptions: z.array(z.enum(['scary_creatures', 'storms', 'getting_lost', 'separation', 'loud_noises', 'medical_topics', 'death_or_grief', 'fighting'])).max(8).default([]), goals: z.array(z.string().trim().min(1).max(40)).max(8).default([]) });
 const planSchema = z.object({ plan: z.enum(['explorer', 'individual', 'family', 'classroom']) });
 const storySchema = z.object({
   learnerId: z.string().uuid(),
@@ -325,6 +337,8 @@ const aiStoryResponseSchema = z.object({
 const { tokenFor, childModeTokenFor, parentConfirmationTokenFor, requireAuth, requireChildSession, requireParentConfirmation, requireAdultAccount, requireVerifiedEmail } = createAuthentication({ pool, jwtSecret });
 const { requireChildLearnerScope, requireChildStoryScope } = createLearnerAccess({ pool });
 app.use('/api/reading', requireAuth, requireVerifiedEmail, createReadingRouter({ pool, requireAdultAccount }));
+const storyPrivacy = createStoryPrivacy({ pool, illustrationsDir, audioDir, trackGrowthEvent });
+storyPrivacy.registerRoutes(app, { requireAuth, requireAdultAccount });
 
 function validate(schema, source) { return (req, res, next) => { const result = schema.safeParse(req[source]); if (!result.success) return res.status(400).json({ error: 'Please check the submitted information.', details: result.error.flatten() }); req[source] = result.data; return next(); }; }
 
@@ -346,7 +360,7 @@ app.post('/api/auth/register', registrationLimiter, validate(registerSchema, 'bo
     await client.query('BEGIN');
     await client.query('INSERT INTO accounts (id, email, password_hash, display_name, "role", consented_at, email_verified_at, ai_external_opt_in, ai_opt_in_at, privacy_policy_version, guardian_consent_version, pricing_variant, family_price_cents, trial_days) VALUES ($1, $2, $3, $4, $5, NOW(), $6, TRUE, NOW(), $7, $8, $9, $10, $11)', [account.id, account.email, passwordHash, account.displayName, account.role, emailConfigured ? null : new Date(), account.policyVersion, account.policyVersion, variant, variantConfig.cents, variantConfig.trialDays]);
     await client.query('INSERT INTO reminder_preferences (account_id, weekly_email_enabled) VALUES ($1, $2) ON CONFLICT (account_id) DO UPDATE SET weekly_email_enabled = EXCLUDED.weekly_email_enabled, updated_at = NOW()', [account.id, false]);
-    await client.query('INSERT INTO consent_audit_log (id, account_id, event_type, policy_version, metadata) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true }]);
+    await client.query('INSERT INTO consent_audit_log (id, account_id, event_type, policy_version, metadata) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), account.id, 'register_consent', account.policyVersion, { role: account.role, externalAi: true, termsAndPrivacyAccepted: true, acknowledgments: account.acknowledgments, ip: req.ip, userAgent: String(req.get('user-agent') || '').slice(0, 300) }]);
     await client.query('COMMIT');
 
     trackGrowthEvent(account.id, 'account_registered', { role: account.role, variant }).catch(() => {});
@@ -428,7 +442,7 @@ app.get('/api/child-mode/context', requireAuth, requireChildSession, async (req,
   try {
     const learnerRes = await pool.query('SELECT id, first_name, age_band FROM learners WHERE id = $1 AND account_id = $2', [req.auth.learnerId, req.auth.sub]);
     if (!learnerRes.rowCount) return res.status(404).json({ error: 'Learner not found.' });
-    const storiesRes = await pool.query('SELECT id, title, theme, learning_goal, content, completed_at, created_at FROM stories WHERE learner_id = $1 ORDER BY created_at DESC', [req.auth.learnerId]);
+    const storiesRes = await pool.query('SELECT id, title, theme, learning_goal, content, completed_at, created_at FROM stories WHERE learner_id = $1 AND status = \'saved\' ORDER BY created_at DESC', [req.auth.learnerId]);
     return res.json({ learner: learnerRes.rows[0], stories: storiesRes.rows });
   } catch (error) {
     return next(error);
@@ -496,8 +510,8 @@ app.post('/api/child-mode/stories/generate', requireAuth, requireChildSession, a
     const generated = await generateStoryContent({ learnerName: learner.first_name, interests: learner.interests || '', prompt: parsed.data.prompt, gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, theme: parsed.data.theme, customTheme: parsed.data.customTheme, storyLength: parsed.data.storyLength, language: 'English', topicsToAvoid: learner.topics_to_avoid_options || [], customTopicsToAvoid: learner.topics_to_avoid || '', curriculumRow, accountId: req.auth.sub, allowExternalAI: true });
     const childStoryId = randomUUID();
     const childIllustrationUrl = await generateStoryIllustration({ storyId: childStoryId, title: generated.title, theme: parsed.data.theme, customTheme: parsed.data.customTheme, firstPageText: generated.pages?.[0], accountId: req.auth.sub });
-    const story = { id: childStoryId, learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, reflectionPrompt: generated.reflectionPrompt || '', meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, illustrationUrl: childIllustrationUrl, model: 'gpt-4o-mini' } } };
-    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
+    const story = { id: childStoryId, status: 'draft', learnerId: learner.id, title: generated.title, theme: parsed.data.theme === 'Custom' ? parsed.data.customTheme || 'Custom' : parsed.data.theme, learningGoal: curriculumRow?.strand || 'Reading adventure', prompt: parsed.data.prompt, content: { pages: generated.pages, questions: generated.questions, words: generated.words, reflectionPrompt: generated.reflectionPrompt || '', meta: { gradeLevel, domain: curriculumRow?.domain || parsed.data.domain, language: 'English', customTheme: parsed.data.customTheme, curriculumStandard: curriculumRow?.standard_code || null, curriculumObjective: generated.curriculumObjective, illustrationUrl: childIllustrationUrl, model: 'gpt-4o-mini' } } };
+    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, \'draft\')', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     return res.status(201).json({ story });
   } catch (error) {
     return res.status(error.status || 503).json({ error: error.message || 'Story creation failed.', ...(error.code ? { code: error.code } : {}) });
@@ -633,7 +647,7 @@ app.patch('/api/learners/:learnerId/child-login', requireAuth, requireParentConf
   }
 });
 app.delete('/api/learners/:learnerId', requireAuth, requireParentConfirmation, async (req, res, next) => { try { const result = await pool.query('DELETE FROM learners WHERE id = $1 AND account_id = $2', [req.params.learnerId, req.auth.sub]); if (!result.rowCount) return res.status(404).json({ error: 'Learner not found.' }); return res.status(204).end(); } catch (error) { return next(error); } });
-app.get('/api/stories', requireAuth, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name, COALESCE(sp.is_favorite, FALSE) AS is_favorite, COALESCE(sp.bookmarked_page, 0) AS bookmarked_page, sp.rating FROM stories s INNER JOIN learners l ON l.id = s.learner_id LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1 AND sp.learner_id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
+app.get('/api/stories', requireAuth, contentPullLimiter, async (req, res, next) => { try { const scope = req.auth.childMode === true ? ' AND l.id = $2' : ''; const params = req.auth.childMode === true ? [req.auth.sub, req.auth.learnerId] : [req.auth.sub]; const { rows } = await pool.query(`SELECT s.id, s.title, s.theme, s.learning_goal, s.prompt, s.content, s.completed_at, s.created_at, s.created_by, l.id AS learner_id, l.first_name AS learner_name, COALESCE(sp.is_favorite, FALSE) AS is_favorite, COALESCE(sp.bookmarked_page, 0) AS bookmarked_page, sp.rating FROM stories s INNER JOIN learners l ON l.id = s.learner_id LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1 AND sp.learner_id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NULL AND s.status = 'saved'${scope} ORDER BY s.created_at DESC LIMIT 10`, params); return res.json({ stories: rows }); } catch (error) { return next(error); } });
 app.get('/api/stories/deleted', requireAuth, requireAdultAccount, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT s.id, s.title, s.deleted_at, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE l.account_id = $1 AND s.deleted_at IS NOT NULL ORDER BY s.deleted_at DESC', [req.auth.sub]);
@@ -652,7 +666,7 @@ app.get('/api/story-shelf', requireAuth, async (req, res, next) => {
              MAX(sp.bookmarked_page)::int AS bookmarked_page
       FROM stories s JOIN learners l ON l.id = s.learner_id
       LEFT JOIN story_preferences sp ON sp.story_id = s.id AND sp.account_id = $1
-      WHERE l.account_id = $1 AND s.deleted_at IS NULL${childScope}
+      WHERE l.account_id = $1 AND s.deleted_at IS NULL AND s.status = 'saved'${childScope}
       GROUP BY s.id, l.first_name
       ORDER BY s.created_at DESC
     `, params);
@@ -884,7 +898,11 @@ app.post('/api/stories/:storyId/safety-report', requireAuth, async (req, res, ne
 app.get('/api/subscription', requireAuth, async (req, res, next) => { try { const { rows } = await pool.query('SELECT plan, status, created_at, updated_at FROM subscriptions WHERE account_id = $1 ORDER BY updated_at DESC LIMIT 1', [req.auth.sub]); const entitlement = publicEntitlement(await getEntitlement(req.auth.sub)); return res.json({ subscription: rows[0] || { plan: 'explorer', status: 'active' }, entitlement }); } catch (error) { return next(error); } });
 app.post('/api/subscription/demo', requireAuth, validate(planSchema, 'body'), async (req, res, next) => { try { if (isPricingComingSoon() && req.body.plan !== 'explorer') return res.status(403).json({ error: 'Paid plans are coming soon.' }); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE account_id = $2', ['canceled', req.auth.sub]); const subscription = { id: randomUUID(), plan: req.body.plan }; await pool.query('INSERT INTO subscriptions (id, account_id, plan, status) VALUES ($1, $2, $3, $4)', [subscription.id, req.auth.sub, subscription.plan, 'demo']); const variantRes = await pool.query('SELECT pricing_variant FROM accounts WHERE id = $1', [req.auth.sub]); await trackGrowthEvent(req.auth.sub, 'plan_selected', { plan: subscription.plan, status: 'demo', variant: variantRes.rows?.[0]?.pricing_variant || null }); return res.status(201).json({ subscription: { plan: subscription.plan, status: 'demo' } }); } catch (error) { return next(error); } });
 app.post('/api/subscription/cancel', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); return res.status(410).json({ error: 'Cancellation now requires email confirmation. Request a confirmation email first.' }); } catch (error) { return next(error); } });
-app.post('/api/subscription/cancellation-request', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), reason: z.string().trim().max(120).optional() }); const parsed = bodySchema.safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to request cancellation.' }); const accountRes = await pool.query('SELECT id, email, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount || !(await bcrypt.compare(parsed.data.currentPassword, accountRes.rows[0].password_hash))) return res.status(401).json({ error: 'Password is incorrect.' }); const subscriptionRes = await pool.query('SELECT plan, status FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [req.auth.sub, 'active', 'demo']); if (!subscriptionRes.rowCount || subscriptionRes.rows[0].plan === 'explorer') return res.json({ message: 'There is no paid subscription to cancel.' }); if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Cancellation email is not configured.' }); const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query('UPDATE subscription_cancellation_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [req.auth.sub]); await pool.query('INSERT INTO subscription_cancellation_tokens (id, account_id, token_hash, reason, expires_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), req.auth.sub, tokenHash, parsed.data.reason || null]); const confirmUrl = `${appBaseUrl}/?cancelSubscriptionToken=${encodeURIComponent(token)}`; const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Confirm DanSprout Stories subscription cancellation', text: `A request was made to cancel your DanSprout Stories subscription. If this was you, confirm cancellation within 30 minutes by opening this link:\n${confirmUrl}\n\nYour learner profiles, stories, and progress will remain saved. If you did not request this, ignore this email.` }) }); if (!response.ok) return res.status(503).json({ error: 'Unable to send the cancellation confirmation email.' }); return res.json({ message: 'Check your email to confirm cancellation.' }); } catch (error) { return next(error); } });
+app.post('/api/subscription/cancellation-request', requireAuth, async (req, res, next) => { try { const parsed = z.object({ reason: z.string().trim().max(120).optional() }).passthrough().safeParse(req.body || {}); if (!parsed.success) return res.status(400).json({ error: 'Please check the submitted information.' }); const accountRes = await pool.query('SELECT id, email, display_name FROM accounts WHERE id = $1', [req.auth.sub]); if (!accountRes.rowCount) return res.status(404).json({ error: 'Account not found.' }); const subscriptionRes = await pool.query('SELECT id, plan, provider_subscription_id FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [req.auth.sub, 'active', 'demo']); const subscription = subscriptionRes.rows[0]; if (!subscription || subscription.plan === 'explorer') return res.json({ message: 'There is no paid subscription to cancel.' }); let effectiveAt = null; if (stripe && subscription.provider_subscription_id) { const remote = await stripe.subscriptions.update(subscription.provider_subscription_id, { cancel_at_period_end: true }); effectiveAt = remote.current_period_end ? new Date(remote.current_period_end * 1000).toISOString() : null; } await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE id = $2', ['canceled', subscription.id]); await pool.query('INSERT INTO consent_audit_log (id, account_id, event_type, policy_version, metadata) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), req.auth.sub, 'subscription_canceled', null, { plan: subscription.plan, reason: parsed.data.reason || null, ip: req.ip, effectiveAt }]).catch(() => {}); const accessLine = effectiveAt ? `Your ${subscription.plan} plan stays available until ${new Date(effectiveAt).toLocaleDateString('en-US')}.` : `Your ${subscription.plan} plan was canceled.`; if (emailProvider === 'resend' && resendApiKey && emailFrom) { fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [accountRes.rows[0].email], subject: 'Your DanSprout Stories subscription was canceled', text: `Hi ${accountRes.rows[0].display_name},
+
+Your DanSprout Stories subscription has been canceled. ${accessLine} You will not be charged again after the current billing period.
+
+Your learner profiles, stories, and progress remain saved. If you did not request this, contact Support.` }) }).catch(() => {}); } return res.json({ effectiveAt, message: `${accessLine} No further charges will occur after the current billing period. A confirmation was sent to your email.` }); } catch (error) { return next(error); } });
 app.post('/api/auth/confirm-subscription-cancellation', async (req, res, next) => { try { const parsed = z.object({ token: z.string().min(32).max(200) }).safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'The cancellation confirmation link is invalid.' }); const tokenHash = createHash('sha256').update(parsed.data.token).digest('hex'); const tokenRes = await pool.query('SELECT id, account_id FROM subscription_cancellation_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()', [tokenHash]); if (!tokenRes.rowCount) return res.status(400).json({ error: 'This cancellation link is invalid or expired.' }); const subscriptionRes = await pool.query('SELECT id, plan, provider_subscription_id FROM subscriptions WHERE account_id = $1 AND status IN ($2, $3) ORDER BY updated_at DESC LIMIT 1', [tokenRes.rows[0].account_id, 'active', 'demo']); const subscription = subscriptionRes.rows[0]; if (!subscription) return res.status(404).json({ error: 'No active subscription was found.' }); let effectiveAt = null; if (stripe && subscription.provider_subscription_id) { const remote = await stripe.subscriptions.update(subscription.provider_subscription_id, { cancel_at_period_end: true }); effectiveAt = remote.current_period_end ? new Date(remote.current_period_end * 1000).toISOString() : null; } await pool.query('UPDATE subscription_cancellation_tokens SET used_at = NOW() WHERE id = $1', [tokenRes.rows[0].id]); await pool.query('UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE id = $2', ['canceled', subscription.id]); return res.json({ effectiveAt, message: effectiveAt ? `Your ${subscription.plan} plan will remain available until ${new Date(effectiveAt).toLocaleDateString()}. No future renewal will be charged.` : `Your ${subscription.plan} plan was canceled. Your learner data remains saved.` }); } catch (error) { return next(error); } });
 app.post('/api/account/deletion-request', requireAuth, async (req, res, next) => { try { const bodySchema = z.object({ currentPassword: z.string().min(1).max(128), confirmText: z.literal('DELETE') }); const parsed = bodySchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'Please confirm deletion with password and DELETE text.' }); const acctRes = await pool.query('SELECT id, email, password_hash FROM accounts WHERE id = $1', [req.auth.sub]); if (!acctRes.rowCount) return res.status(404).json({ error: 'Account not found.' }); const ok = await bcrypt.compare(parsed.data.currentPassword, acctRes.rows[0].password_hash); if (!ok) return res.status(401).json({ error: 'Password is incorrect.' }); const token = randomBytes(48).toString('hex'); const tokenHash = createHash('sha256').update(token).digest('hex'); await pool.query('UPDATE account_deletion_tokens SET used_at = NOW() WHERE account_id = $1 AND used_at IS NULL', [req.auth.sub]); await pool.query('INSERT INTO account_deletion_tokens (id, account_id, token_hash, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL \'30 minutes\')', [randomUUID(), req.auth.sub, tokenHash]); const confirmUrl = `${appBaseUrl}/?deleteAccountToken=${encodeURIComponent(token)}`; if (emailProvider !== 'resend' || !resendApiKey || !emailFrom) return res.status(503).json({ error: 'Account deletion email is not configured.' }); const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: emailFrom, to: [acctRes.rows[0].email], subject: 'Confirm DanSprout Stories account deletion', text: `A request was made to permanently delete your DanSprout Stories account and learner data. If this was you, confirm deletion within 30 minutes by opening this link:\n${confirmUrl}\n\nIf you did not request this, ignore this email.` }) }); if (!response.ok) return res.status(503).json({ error: 'Unable to send the account deletion confirmation email.' }); return res.json({ message: 'Check your email to confirm account deletion.' }); } catch (error) { return next(error); } });
 app.post('/api/auth/confirm-account-deletion', async (req, res, next) => { const client = await pool.connect(); try { const parsed = z.object({ token: z.string().min(32).max(200) }).safeParse(req.body); if (!parsed.success) return res.status(400).json({ error: 'The deletion confirmation link is invalid.' }); const tokenHash = createHash('sha256').update(parsed.data.token).digest('hex'); await client.query('BEGIN'); const tokenRes = await client.query('SELECT id, account_id FROM account_deletion_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE', [tokenHash]); if (!tokenRes.rowCount) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'This deletion link is invalid or expired.' }); } await client.query('UPDATE account_deletion_tokens SET used_at = NOW() WHERE id = $1', [tokenRes.rows[0].id]); const result = await client.query('DELETE FROM accounts WHERE id = $1 RETURNING id', [tokenRes.rows[0].account_id]); if (!result.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found.' }); } await client.query('COMMIT'); return res.status(204).end(); } catch (error) { await client.query('ROLLBACK'); return next(error); } finally { client.release(); } });
@@ -950,7 +968,7 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
   try {
     if (isPricingComingSoon()) return res.status(403).json({ error: 'Paid plans are coming soon.' });
     if (!stripe) return res.status(501).json({ error: 'Stripe is not configured yet.' });
-    const bodySchema = z.object({ plan: z.enum(['individual', 'family', 'classroom']), interval: z.enum(['month', 'year']).default('month') });
+    const bodySchema = z.object({ plan: z.enum(['individual', 'family', 'classroom']), interval: z.enum(['month', 'year']).default('month'), renewalConsent: z.literal(true) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid checkout plan.' });
 
@@ -985,11 +1003,13 @@ app.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
       }];
     if (plan === 'family' && learnerCount > 5) return res.status(400).json({ error: 'Family is capped at five learners. For larger groups, choose a custom plan or contact us.' });
 
+    await pool.query('INSERT INTO consent_audit_log (id, account_id, event_type, policy_version, metadata) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), req.auth.sub, 'auto_renewal_consent', 'agreement-1.1-2026-10-21', { plan, interval, priceCents: baseConfig.cents, ip: req.ip, userAgent: String(req.get('user-agent') || '').slice(0, 300) }]).catch(() => {});
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       success_url: `${appBaseUrl}/index.html?billing=success`,
       cancel_url: `${appBaseUrl}/index.html?billing=cancel`,
       customer_email: account.email,
+      custom_text: { submit: { message: `By clicking Subscribe, you agree to our Terms of Service and Privacy Policy. You authorize 4Learn Motto LLC to charge your card $${(baseConfig.cents / 100).toFixed(2)} per ${interval} on a recurring basis until you cancel${baseConfig.trialDays ? `, after your ${baseConfig.trialDays}-day free trial` : ''}. You can cancel at any time in your Account Settings.` } },
       metadata: { accountId: account.id, plan, interval },
       subscription_data: {
         metadata: { accountId: account.id, plan, interval },
@@ -1272,6 +1292,10 @@ async function trackGrowthEvent(accountId, eventName, metadata = null) {
 }
 
 async function ensureGrowthSchema() {
+  await pool.query("ALTER TABLE stories ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'saved'");
+  await pool.query('ALTER TABLE stories ADD COLUMN IF NOT EXISTS review_confirmed_at TIMESTAMPTZ');
+  await pool.query('ALTER TABLE stories ADD COLUMN IF NOT EXISTS review_confirmed_by UUID');
+  await pool.query('CREATE TABLE IF NOT EXISTS story_deletion_audit (id UUID PRIMARY KEY, story_id UUID NOT NULL, account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), source TEXT NOT NULL)');
   await pool.query("ALTER TABLE stories ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'local_app'");
   await pool.query("ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'pending'");
   await pool.query('ALTER TABLE reading_assessments ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES accounts(id) ON DELETE SET NULL');
@@ -1935,6 +1959,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
     });
 
     const story = {
+      status: 'draft',
       id: storyId,
       learnerId: learner.id,
       title: generated.title,
@@ -1964,7 +1989,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
       },
     };
 
-    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
+    await pool.query('INSERT INTO stories (id, learner_id, title, theme, learning_goal, prompt, content, created_by, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, \'draft\')', [story.id, story.learnerId, story.title, story.theme, story.learningGoal, story.prompt, story.content, generated.createdBy || 'openai']);
     await trackGrowthEvent(req.auth.sub, 'story_generated', { source: generated.createdBy || 'openai', gradeLevel: data.gradeLevel, domain: data.domain });
 
     if (generated.createdBy === 'openai') {
@@ -1994,7 +2019,7 @@ app.post('/api/stories/generate', requireAuth, async (req, res, next) => {
 });
 
 // ---- Ready-made story library: approved stories only; each family gets a personalised copy saved like any other story
-app.get('/api/library/stories', requireAuth, async (req, res, next) => {
+app.get('/api/library/stories', requireAuth, contentPullLimiter, async (req, res, next) => {
   try {
     const { rows } = await pool.query("SELECT id, title, grade_level, domain, theme, story_length, assets->>'cover' AS cover FROM library_stories WHERE status = 'approved' ORDER BY slug");
     return res.json({ stories: rows });
@@ -2108,6 +2133,7 @@ ensureBaseSchema()
   .then(() => settingsStore.syncCatalog().catch(error => console.warn('settings catalog sync failed:', error.message)))
   .then(() => {
     settingsStore.startRefresh();
+    storyPrivacy.startDraftPurgeJob();
     app.listen(port, () => {
       structuredLog('info', 'server_started', { port, environment: process.env.NODE_ENV || 'development' });
     });

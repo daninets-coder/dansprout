@@ -10,7 +10,7 @@ import { createAuthentication } from '../server/modules/authentication.js';
 
 test('sharing stays within a family and creates independent, idempotent copies', async t => {
  const db=newDb();
- db.public.none(`CREATE TABLE accounts(id UUID PRIMARY KEY, role TEXT); CREATE TABLE learners(id UUID PRIMARY KEY, account_id UUID REFERENCES accounts(id), first_name TEXT); CREATE TABLE stories(id UUID PRIMARY KEY,learner_id UUID REFERENCES learners(id),title TEXT,theme TEXT,learning_goal TEXT,prompt TEXT,content JSONB,created_by TEXT,completed_at TIMESTAMPTZ,deleted_at TIMESTAMPTZ);`);
+ db.public.none(`CREATE TABLE accounts(id UUID PRIMARY KEY, role TEXT); CREATE TABLE learners(id UUID PRIMARY KEY, account_id UUID REFERENCES accounts(id), first_name TEXT); CREATE TABLE stories(id UUID PRIMARY KEY,learner_id UUID REFERENCES learners(id),title TEXT,theme TEXT,learning_goal TEXT,prompt TEXT,content JSONB,created_by TEXT,completed_at TIMESTAMPTZ,deleted_at TIMESTAMPTZ,status TEXT DEFAULT 'saved');`);
  db.public.none(await readFile(new URL('../server/migrations/011_sibling_sharing.sql',import.meta.url),'utf8'));
  const {Pool}=db.adapters.createPg();const pool=new Pool();
  const family=randomUUID(),other=randomUUID(),child=randomUUID(),sibling=randomUUID(),outsider=randomUUID(),story=randomUUID();

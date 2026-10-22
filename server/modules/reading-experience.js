@@ -43,7 +43,7 @@ export function createReadingRouter({ pool, requireAdultAccount }) {
       const sessions = await pool.query('SELECT COALESCE(SUM(rs.active_seconds), 0) AS seconds FROM reading_sessions rs JOIN stories s ON s.id = rs.story_id WHERE s.learner_id = $1 AND s.deleted_at IS NULL', [id]);
       const observations = await pool.query('SELECT o.*, s.title FROM reading_observations o JOIN stories s ON s.id = o.story_id WHERE s.learner_id = $1 AND s.deleted_at IS NULL ORDER BY o.updated_at DESC LIMIT 5', [id]);
       const assessments = await pool.query('SELECT ra.score, ra.standards_evidence, ra.review_status, ra.created_at, s.title, s.id AS story_id FROM reading_assessments ra JOIN stories s ON s.id = ra.story_id WHERE s.learner_id = $1 AND s.deleted_at IS NULL ORDER BY ra.created_at DESC LIMIT 5', [id]);
-      const unfinished = await pool.query('SELECT s.* FROM stories s WHERE s.learner_id = $1 AND s.deleted_at IS NULL AND s.completed_at IS NULL ORDER BY s.created_at DESC LIMIT 1', [id]);
+      const unfinished = await pool.query('SELECT s.* FROM stories s WHERE s.learner_id = $1 AND s.deleted_at IS NULL AND s.status = \'saved\' AND s.completed_at IS NULL ORDER BY s.created_at DESC LIMIT 1', [id]);
       res.json({ activeSeconds: Number(sessions.rows[0].seconds), observations: observations.rows, assessments: assessments.rows, continueStory: unfinished.rows[0] || null });
     } catch (error) { next(error); }
   });

@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS stories (
     completed_at TIMESTAMPTZ,
     created_by TEXT NOT NULL DEFAULT 'local_app',
         deleted_at TIMESTAMPTZ,
+    status TEXT NOT NULL DEFAULT 'saved',
+    review_confirmed_at TIMESTAMPTZ,
+    review_confirmed_by UUID,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

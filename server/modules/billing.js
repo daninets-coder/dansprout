@@ -1,5 +1,5 @@
 import express from 'express';
-export function registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent }) {
+export function registerBillingWebhook(app, { pool, stripe, stripeWebhookSecret, recordOpsEvent, upsertSubscriptionFromStripe, trackGrowthEvent, sendSubscriptionAcknowledgment }) {
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   if (!stripe || !stripeWebhookSecret) return res.status(501).json({ error: 'Stripe is not configured.' });
   const signature = req.headers['stripe-signature'];
@@ -28,6 +28,10 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
           subscriptionId: object?.subscription || null,
         });
         await trackGrowthEvent(accountId, 'plan_selected', { plan: object?.metadata?.plan || 'family', status: 'active', source: 'stripe_checkout' });
+        try {
+          const remote = object?.subscription && stripe ? await stripe.subscriptions.retrieve(object.subscription) : null;
+          await sendSubscriptionAcknowledgment?.(accountId, { plan: object?.metadata?.plan || 'family', interval: object?.metadata?.interval || 'month', trialEnd: remote?.trial_end || null });
+        } catch (emailError) { void recordOpsEvent('subscription_ack_email_failed', 'warn', emailError.message, {}, req.requestId); }
       }
     }
 

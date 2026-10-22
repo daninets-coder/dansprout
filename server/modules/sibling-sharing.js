@@ -13,7 +13,7 @@ export function registerSiblingSharing(router, { pool, requireAdultAccount }) {
   });
   async function source(req, db) {
     if (!z.string().uuid().safeParse(req.params.storyId).success) return null;
-    const result = await db.query('SELECT s.* FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2 AND s.deleted_at IS NULL', [req.params.storyId, req.auth.sub]);
+    const result = await db.query('SELECT s.* FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2 AND s.deleted_at IS NULL AND s.status = \'saved\'', [req.params.storyId, req.auth.sub]);
     const story = result.rows[0];
     return story && (!req.auth.childMode || story.learner_id === req.auth.learnerId) ? story : null;
   }

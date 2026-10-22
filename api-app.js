@@ -231,6 +231,7 @@
                   <label class="en-label"><span class="fi fi-idea" aria-hidden="true"></span>Adventure</label>
                   <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
                   <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
+                  <p id="apiNameHint" class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">First names work best. Please don't add last names, school names, addresses, or phone numbers.</p>
                   <label class="en-label"><span class="fi fi-length" aria-hidden="true"></span>Story length</label>
                   <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
                   <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">Length is adjusted to fit the reader's grade level.</p>
@@ -262,6 +263,12 @@
             </div>
           </aside>
         </div>
+
+        <section id="apiDraftsCard" class="en-card hidden" style="margin-top:20px">
+          <h2>Drafts</h2>
+          <p class="book-modal-meta" style="margin:0 0 12px;text-transform:none;letter-spacing:0">New stories wait here until you review and save them. Drafts that aren't saved are deleted automatically after 30 days.</p>
+          <div id="apiDrafts"></div>
+        </section>
 
         <section class="en-card" style="margin-top:20px">
           <h2>Saved stories</h2>
@@ -428,7 +435,7 @@
           <article class="plan selected"><h3>Family</h3>${pricingSoon ? '<div class="plan-price">Coming soon</div><p>Up to 5 learners, with a shared library and progress tracking.</p><button class="en-button" disabled style="opacity:.55;cursor:not-allowed">Coming soon</button>' : '<div class="plan-price"><span id="apiFamilyPrice">$14.99</span> <small>/ month</small></div><p>Up to 5 learners. The monthly price stays capped at this amount.</p><button class="en-button apiPlan" data-plan="family">Choose Family demo</button><button class="en-outline apiCheckout" data-plan="family" style="margin-top:8px">Start paid checkout</button>'}</article>
           <article class="plan"><h3>Classroom</h3><div class="plan-price">Contact us</div><p>Best for schools and teacher-led pilots. We’ll set up a classroom plan that fits your rollout.</p>${pricingSoon ? '' : '<button class="en-outline apiPlan" data-plan="classroom">Choose Classroom demo</button>'}<button class="en-outline apiCheckout" data-plan="classroom" style="margin-top:8px">Contact us</button></article>
         </div>
-        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p><p style="color:#5b6580;font:13px/1.45 Arial,sans-serif">Cancellation stops future renewal. If you need help with billing, refunds, or a duplicate charge, contact Support.</p><div id="apiCancelPanel" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2"><h3 style="margin:0 0 7px;color:#8f352b">Before you cancel</h3><p style="margin:0;color:#5b6580;font:14px/1.5 Arial,sans-serif">Your learner profiles, stories, and progress will remain saved. No future renewal will be charged after the parent confirms through email.</p><label class="en-label" style="margin-top:12px">Current password</label><input id="apiCancelPassword" class="en-input" type="password" autocomplete="current-password"><label class="en-label" style="margin-top:12px">Why are you canceling? <span style="font-weight:400">Optional</span></label><select id="apiCancelReason" class="en-select"><option value="">Choose a reason</option><option>Too expensive</option><option>Not using it right now</option><option>Needs a different learning experience</option><option>Technical problem</option><option>Other</option></select><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="en-outline" id="apiKeepSubscription">Keep my plan</button><button type="button" class="en-button" id="apiConfirmCancel">Send confirmation email</button></div><p id="apiCancelError" role="alert" style="margin:10px 0 0;color:#a63e31;font:13px Arial,sans-serif"></p></div><button type="button" class="en-outline" id="apiStartCancel" style="margin-top:12px">Cancel subscription</button></div>
+        <div class="en-card" style="margin-top:20px"><h2>Subscription</h2><p id="apiBillingStatus"></p><p style="color:#5b6580;font:13px/1.45 Arial,sans-serif">Cancellation stops future renewal. If you need help with billing, refunds, or a duplicate charge, contact Support.</p><div id="apiCancelPanel" class="hidden" style="margin-top:16px;padding:16px;border:1px solid #dfb9a8;border-radius:8px;background:#fff7f2"><h3 style="margin:0 0 7px;color:#8f352b">Before you cancel</h3><p style="margin:0;color:#5b6580;font:14px/1.5 Arial,sans-serif">Your learner profiles, stories, and progress will remain saved. No further charges will occur after the current billing period. Cancellation takes effect immediately and a confirmation is emailed to you.</p><label class="en-label" style="margin-top:12px">Why are you canceling? <span style="font-weight:400">Optional</span></label><select id="apiCancelReason" class="en-select"><option value="">Choose a reason</option><option>Too expensive</option><option>Not using it right now</option><option>Needs a different learning experience</option><option>Technical problem</option><option>Other</option></select><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="en-outline" id="apiKeepSubscription">Keep my plan</button><button type="button" class="en-button" id="apiConfirmCancel">Cancel subscription now</button></div><p id="apiCancelError" role="alert" style="margin:10px 0 0;color:#a63e31;font:13px Arial,sans-serif"></p></div><button type="button" class="en-outline" id="apiStartCancel" style="margin-top:12px">Cancel subscription</button></div>
       </section>
     </main>
     <div id="apiToast" class="toast" role="status" aria-live="polite"></div>
@@ -615,6 +622,91 @@
     }
   }
 
+  // ---- Story privacy checkpoint (parent-only): drafts, save review, permanent delete ----
+  function choiceDialog({ title, html, buttons, checkbox }) {
+    return new Promise(resolve => {
+      const previousFocus = document.activeElement;
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(20,63,74,.38)';
+      const box = document.createElement('div');
+      box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'choiceDialogTitle');
+      box.style.cssText = 'width:min(520px,100%);padding:26px;background:#fffdf9;border:1px solid #cbdcc9;border-radius:10px;box-shadow:0 20px 50px rgba(20,63,74,.25)';
+      box.innerHTML = `<h2 id="choiceDialogTitle" style="margin:0 0 8px;color:#2b3556">${esc(title)}</h2><div style="color:#5b6580;font:15px/1.5 Arial,sans-serif">${html}</div>${checkbox ? `<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;font:14px/1.4 Arial,sans-serif"><input id="choiceDialogCheck" type="checkbox" style="width:auto;margin-top:3px"> <span>${checkbox}</span></label>` : ''}<div id="choiceDialogButtons" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"></div>`;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      const finish = value => { overlay.remove(); if (previousFocus?.isConnected) previousFocus.focus(); resolve(value); };
+      const row = box.querySelector('#choiceDialogButtons');
+      const check = box.querySelector('#choiceDialogCheck');
+      buttons.forEach(button => {
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = button.primary ? 'en-button' : 'en-outline';
+        el.textContent = button.label;
+        if (button.danger) el.style.color = '#a3402e';
+        if (button.needsCheck && check) { el.disabled = true; check.addEventListener('change', () => { el.disabled = !check.checked; }); }
+        el.onclick = () => finish(button.value);
+        row.appendChild(el);
+      });
+      overlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(null); }
+        if (event.key !== 'Tab') return;
+        const focusable = [...box.querySelectorAll('button, input')].filter(el => !el.disabled);
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      });
+      (check || row.querySelector('button'))?.focus();
+    });
+  }
+
+  const trackPrivacy = event => api('/api/stories/privacy-events', { method: 'POST', body: JSON.stringify({ event }) }).catch(() => {});
+
+  async function confirmAndDiscard(story, source) {
+    const choice = await choiceDialog({ title: 'Delete this story forever?', html: 'This cannot be undone. The story, its pictures, and its read-aloud audio will be permanently removed.', buttons: [{ label: 'Delete forever', value: 'delete', danger: true }, { label: 'Keep it', value: 'keep', primary: true }] });
+    if (choice !== 'delete') return false;
+    try {
+      await api(`/api/stories/${encodeURIComponent(story.id)}/discard`, { method: 'POST', body: JSON.stringify({ source }) });
+      stories = stories.filter(item => item.id !== story.id);
+      await refresh();
+      notify('Story deleted.');
+      return true;
+    } catch (error) { notify(error.message); return false; }
+  }
+
+  // Returns 'saved' | 'deleted' | 'review' | 'cancel'. Every path that stores a draft goes through this prompt.
+  async function saveWithCheckpoint(story) {
+    trackPrivacy('prompt_shown');
+    const choice = await choiceDialog({ title: 'Quick check before we save', html: 'Does this story include anything personal, like a last name, a school name, an address, or a phone number?', buttons: [{ label: 'Look it over', value: 'review' }, { label: 'Save to our library', value: 'save', primary: true }, { label: 'Delete the story', value: 'delete', danger: true }] });
+    if (choice === 'review') { trackPrivacy('choice_review'); return 'review'; }
+    if (choice === 'save') {
+      try {
+        await api(`/api/stories/${encodeURIComponent(story.id)}/save`, { method: 'POST', body: JSON.stringify({ reviewConfirmed: true }) });
+        trackPrivacy('choice_save');
+        story.status = 'saved';
+        await refresh();
+        notify('Story saved to your library.');
+        return 'saved';
+      } catch (error) { notify(error.message); return 'cancel'; }
+    }
+    if (choice === 'delete') {
+      trackPrivacy('choice_delete');
+      return (await confirmAndDiscard(story, 'save-prompt')) ? 'deleted' : 'cancel';
+    }
+    return 'cancel';
+  }
+
+  function renderDrafts(drafts) {
+    const card = $('#apiDraftsCard');
+    const container = $('#apiDrafts');
+    if (!card || !container) return;
+    card.classList.toggle('hidden', isChildSession || !drafts.length);
+    container.innerHTML = drafts.map(draft => `<div class="story-row" style="display:grid;grid-template-columns:minmax(0,1.6fr) auto;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid #eee"><div><div style="font-weight:700">${esc(draft.title)}</div><div style="font-size:12px;color:#666">For ${esc(draft.learner_name || 'your reader')} · Deletes automatically on ${esc(formatStoryDate(draft.expires_at))}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="en-outline draft-open" data-id="${esc(draft.id)}">Open</button><button type="button" class="en-button draft-save" data-id="${esc(draft.id)}">Save to library</button><button type="button" class="en-outline draft-delete" data-id="${esc(draft.id)}" style="color:#a3402e">Delete</button></div></div>`).join('');
+    const find = id => drafts.find(item => item.id === id);
+    container.querySelectorAll('.draft-open').forEach(button => button.onclick = () => { const draft = find(button.dataset.id); if (draft) openServerStory({ ...draft, status: 'draft' }); });
+    container.querySelectorAll('.draft-save').forEach(button => button.onclick = () => { const draft = find(button.dataset.id); if (draft) saveWithCheckpoint(draft); });
+    container.querySelectorAll('.draft-delete').forEach(button => button.onclick = () => { const draft = find(button.dataset.id); if (draft) confirmAndDiscard(draft, 'drafts'); });
+  }
+
   function renderStoryList() {
     const container = $('#apiStoryList');
     if (!container) return;
@@ -728,6 +820,7 @@
       btn.onclick = async () => {
         const story = stories.find(item => item.id === btn.dataset.id);
         if (!story) return;
+        if (!isChildSession) { await confirmAndDiscard(story, 'library'); renderStoryList(); return; }
         const previousLabel = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Deleting…';
@@ -809,6 +902,9 @@
   });
 
   async function openServerStory(story) {
+    const draftMode = story?.status === 'draft' && !isChildSession;
+    let draftSaved = false;
+    let closePromptOpen = false;
     if (!story?.content?.words?.length) {
       try {
         const result = await api(`/api/stories/${story.id}/vocabulary`, { method: 'POST' });
@@ -845,7 +941,7 @@
     const modalMeta = [story.learner_name || '', story.content?.meta?.customTheme || story.theme || '', story.learning_goal || '', modalGrade, modalDomain].filter(Boolean).join(' • ');
     const modalCreated = formatStoryDate(story.created_at);
     const modalGradeBadge = gradeBadgeMap[story?.content?.meta?.gradeLevel] || gradeBadgeMap['2'];
-    inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2></div><button id="closeApiStory" class="en-outline">Close</button></div><img class="book-modal-hero" src="${esc(story?.content?.meta?.illustrationUrl || themeBannerMap[story.theme] || themeBannerMap.Moonlight)}" alt="Story illustration" onerror="this.onerror=null;this.src='${themeBannerMap[story.theme] || themeBannerMap.Moonlight}';"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eaf8f0;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#5b6580">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #e6dff2"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${reflectionMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
+    inner.innerHTML = `<div class="book-modal-head"><div><div class="book-modal-meta" style="margin:0 0 5px">Story time</div><h2 class="book-modal-title">${esc(story.title)}</h2>${draftMode ? '<p id="apiDraftNotice" class="book-modal-meta" style="margin:6px 0 0;text-transform:none;letter-spacing:0">Draft: not in your library yet. Save it to keep it. Unsaved drafts are deleted after 30 days.</p>' : ''}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${draftMode ? '<button id="saveDraftStory" class="en-button" type="button">Save to library</button>' : ''}<button id="closeApiStory" class="en-outline">Close</button></div></div><img class="book-modal-hero" src="${esc(story?.content?.meta?.illustrationUrl || themeBannerMap[story.theme] || themeBannerMap.Moonlight)}" alt="Story illustration" onerror="this.onerror=null;this.src='${themeBannerMap[story.theme] || themeBannerMap.Moonlight}';"><div class="reader-toolbar" role="toolbar" aria-label="Story reading controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;padding:10px;background:#eaf8f0;border-radius:8px"><button id="apiReadPage" type="button" class="en-button">Read this page</button><button id="apiReadStory" type="button" class="en-outline">Read story</button><button id="apiStopReading" type="button" class="en-outline">Stop</button><span style="margin-left:auto;font:12px Arial,sans-serif;color:#5b6580">Text size</span><button id="apiTextSmaller" type="button" class="en-outline" aria-label="Make text smaller">A-</button><button id="apiTextLarger" type="button" class="en-outline" aria-label="Make text larger">A+</button></div><div id="apiStoryPages"></div><div class="book-modal-actions"><button id="apiCompleteStory" class="en-button">Mark completed</button></div><section class="story-meta-footer" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:24px;padding-top:18px;border-top:1px solid #e6dff2"><img src="${modalGradeBadge}" alt="${esc(modalGrade || 'Grade')}" style="display:block;flex:0 0 150px;width:150px;height:64px;object-fit:contain;border-radius:8px"><div style="min-width:220px;flex:1"><div class="book-modal-meta">${esc(modalMeta)}</div>${modalCreated ? `<div class="book-modal-meta" style="margin-top:4px">Created ${esc(modalCreated)}</div>` : ''}<div class="book-modal-meta" style="margin-top:4px">Story ID: ${esc(story.id)}</div>${modalStandard ? `<div class="book-modal-meta" style="margin-top:4px">U.S. standard: ${esc(modalStandard)}</div>` : ''}${modalObjective ? `<div class="book-modal-meta" style="margin-top:4px">Objective: ${esc(modalObjective)}</div>` : ''}</div></section><div id="apiUpgradeCta" class="book-modal-upgrade"></div>${adultEditorMarkup}${reflectionMarkup}${assessmentMarkup}<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="book-modal-subtitle">Word garden</h3><button id="apiRefreshWords" type="button" class="en-outline">Refresh word garden</button></div><p class="book-modal-meta" style="text-transform:none;letter-spacing:0">Click any word in the story to add a simple definition here.</p><div id="apiStoryWords" class="book-modal-list"></div>`;
     modal.appendChild(inner);
     document.body.appendChild(modal);
     const shelfControls = document.createElement('div');
@@ -1120,8 +1216,31 @@
       });
     }
     }
-    const closeReader = () => { stopNarration(); modal.remove(); if (returnFocus?.isConnected) returnFocus.focus(); };
+    const closeReaderNow = () => { stopNarration(); modal.remove(); if (returnFocus?.isConnected) returnFocus.focus(); };
+    const closeReader = async () => {
+      if (!draftMode || draftSaved) return closeReaderNow();
+      if (closePromptOpen) return;
+      closePromptOpen = true;
+      try {
+        trackPrivacy('close_prompt_shown');
+        const choice = await choiceDialog({ title: 'Close this story?', html: 'This story is still a draft and is not in your library.', buttons: [{ label: 'Save to library', value: 'save', primary: true }, { label: 'Delete it forever', value: 'delete', danger: true }, { label: 'Keep reading', value: 'keep' }] });
+        if (choice === 'save') {
+          trackPrivacy('close_save');
+          const outcome = await saveWithCheckpoint(story);
+          if (outcome === 'saved') { draftSaved = true; closeReaderNow(); } else if (outcome === 'deleted') closeReaderNow();
+        } else if (choice === 'delete') {
+          trackPrivacy('close_delete');
+          if (await confirmAndDiscard(story, 'close-prompt')) closeReaderNow();
+        }
+      } finally { closePromptOpen = false; }
+    };
     inner.querySelector('#closeApiStory').onclick = closeReader;
+    const saveDraftButton = inner.querySelector('#saveDraftStory');
+    if (saveDraftButton) saveDraftButton.onclick = async () => {
+      const outcome = await saveWithCheckpoint(story);
+      if (outcome === 'saved') { draftSaved = true; saveDraftButton.remove(); inner.querySelector('#apiDraftNotice')?.remove(); }
+      else if (outcome === 'deleted') closeReaderNow();
+    };
     modal.onclick = event => { if (event.target === modal) closeReader(); };
     modal.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.preventDefault(); closeReader(); }
@@ -1525,7 +1644,7 @@
   }
 
   async function refresh() {
-    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData, deletedStoryData] = await Promise.all([
+    const [meData, learnerData, storyData, subscriptionData, scoreData, offerData, reminderData, progressData, shelfData, deletedStoryData, draftData] = await Promise.all([
       api('/api/me'),
       api('/api/learners'),
       api('/api/stories'),
@@ -1536,6 +1655,7 @@
       api('/api/progress'),
       api('/api/story-shelf').catch(() => ({ favorites: [], topRated: [] })),
       api('/api/stories/deleted').catch(() => ({ stories: [] })),
+      isChildSession ? Promise.resolve({ stories: [] }) : api('/api/stories/drafts').catch(() => ({ stories: [] })),
     ]);
 
     me = meData.account;
@@ -1543,6 +1663,7 @@
     stories = storyData.stories || [];
     renderStoryShelf(shelfData);
     renderDeletedStories(deletedStoryData.stories || []);
+    renderDrafts(draftData.stories || []);
     const subscription = subscriptionData.subscription || { plan: 'explorer', status: 'active' };
     const score = scoreData.scorecard;
     const progressNav = $('#apiProgressNav');
@@ -1667,12 +1788,9 @@
     const error = $('#apiCancelError');
     error.textContent = '';
     try {
-      const password = $('#apiCancelPassword').value;
-      if (!password) { error.textContent = 'Enter your current password to continue.'; return; }
-      const result = await api('/api/subscription/cancellation-request', { method: 'POST', body: JSON.stringify({ currentPassword: password, reason: $('#apiCancelReason').value }) });
+      const result = await api('/api/subscription/cancellation-request', { method: 'POST', body: JSON.stringify({ reason: $('#apiCancelReason').value }) });
       $('#apiCancelPanel').classList.add('hidden');
-      $('#apiCancelPassword').value = '';
-      notify(result.message || 'Check your email to confirm cancellation.');
+      notify(result.message || 'Your subscription was canceled.');
     } catch (requestError) { error.textContent = requestError.message; }
   };
       document.querySelectorAll('.apiChildLogin').forEach(button => {
@@ -1979,8 +2097,15 @@
         }
         return;
       }
+      const agreed = await choiceDialog({
+        title: 'Automatic renewal',
+        html: 'Paid plans renew automatically each billing period at the price shown at checkout, and your payment method is charged until you cancel. If your plan includes a free trial, the first charge happens when the trial ends unless you cancel first. You can cancel any time in Account Settings.',
+        checkbox: 'I agree to the auto-renewal terms in Section 5 of the <a href="/terms.html" target="_blank" rel="noopener">Subscriber Agreement</a>.',
+        buttons: [{ label: 'Continue to secure checkout', value: true, primary: true, needsCheck: true }, { label: 'Cancel', value: false }],
+      });
+      if (!agreed) return;
       try {
-        const payload = await api('/api/subscription/checkout', { method: 'POST', body: JSON.stringify({ plan: button.dataset.plan, interval: button.dataset.interval || 'month' }) });
+        const payload = await api('/api/subscription/checkout', { method: 'POST', body: JSON.stringify({ plan: button.dataset.plan, interval: button.dataset.interval || 'month', renewalConsent: true }) });
         if (payload.checkoutUrl) location.href = payload.checkoutUrl;
       } catch (error) {
         notify(error.message);

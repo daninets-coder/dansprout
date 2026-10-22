@@ -1,6 +1,6 @@
 (() => {
-  const policyVersion = '2026-09-12';
-  const reviewStatus = '<p><strong>Effective date:</strong> 2026-09-12 &nbsp; <strong>Status:</strong> Draft for controlled pilot; qualified privacy, child-data, education, and legal review is required before public advertising or school use.</p>';
+  const policyVersion = '2026-10-21';
+  const reviewStatus = '<p><strong>Effective date:</strong> 2026-10-21 &nbsp; <strong>Status:</strong> Draft for controlled pilot; qualified privacy, child-data, education, and legal review is required before public advertising or school use.</p>';
   const privacyContent = `
     <h2>Privacy Policy</h2>
     ${reviewStatus}
@@ -15,30 +15,29 @@
     <p>Stripe processes payment details and subscription billing. Railway hosts the application. PostgreSQL stores application data. OpenAI processes enabled AI story requests. Story Sprout does not store payment card numbers.</p>
     <h3>Retention and deletion</h3>
     <p>We retain account and learner data while the account is active or as needed to provide the service, meet legal obligations, resolve disputes, and maintain security records. An adult can request deletion from Privacy & data settings. Account deletion removes the account, learner profiles, stories, progress, and subscription records from the application database, subject to limited legally required records and provider retention.</p>
+    <p>Generated stories are kept as drafts until a parent chooses to save them; unsaved drafts are deleted automatically after 30 days, and deleted stories are removed from our systems and age out of backups within 30 days.</p>
     <h3>Access and export</h3>
     <p>An authenticated adult can request an account data export. Adults are responsible for reviewing exported data and keeping it secure.</p>
     <h3>Children and schools</h3>
     <p>Story Sprout is an adult-managed service. Before use with children under 13 or by a school, the responsible organization must complete its required privacy, parental-consent, procurement, COPPA, FERPA, and state-law reviews. This policy is not a certification of legal compliance.</p>
     <h3>Contact and changes</h3>
     <p>For privacy questions or requests, use the Support form. We may update this policy and will publish the new effective date.</p>`;
-  const termsContent = `
-    <h2>Terms of Service</h2>
+  const childrenContent = `
+    <h2>Children's Privacy Statement (COPPA)</h2>
     ${reviewStatus}
-    <p>Story Sprout provides adult-managed reading tools, curriculum-informed story generation, saved stories, progress features, and optional subscription services.</p>
-    <h3>Adult responsibility</h3>
-    <p>You must be an adult or authorized educator to create an account. You are responsible for the learner information you enter, reviewing generated content before use, and supervising children's use of the service.</p>
-    <h3>AI-generated content</h3>
-    <p>AI stories are educational support materials, not professional educational, medical, psychological, or legal advice. Review stories for suitability and accuracy. Curriculum connections are instructional aids pending qualified educator review and do not replace a school or educator's curriculum review.</p>
-    <h3>Acceptable use</h3>
-    <p>Do not use the service to submit unlawful, hateful, sexual, dangerous, or otherwise inappropriate content; attempt to access another account; bypass safety controls; or use the service to make high-stakes decisions about a child.</p>
-    <h3>Subscriptions</h3>
-    <p>Paid plans renew according to the checkout terms shown by Stripe. Cancellation stops future renewal and does not automatically issue a prorated refund for the current billing period. We may review refunds for duplicate charges, billing errors, accidental renewals, or service problems. Contact Support and do not send payment-card numbers by email. Applicable consumer law applies. This refund wording is a product draft pending qualified legal review for the locations where Story Sprout operates.</p>
-    <h3>Account termination</h3>
-    <p>We may restrict or terminate access when necessary to protect users, prevent abuse, enforce these terms, or maintain service security. You may delete your account using Privacy & data settings.</p>
-    <h3>Changes and availability</h3>
-    <p>Features, curriculum data, pricing, and availability may change. We will take reasonable steps to protect data and communicate material changes through the service.</p>
-    <h3>Legal review</h3>
-    <p>These terms are a product draft and should be reviewed by qualified counsel before public launch, especially for child privacy, school use, subscriptions, and the jurisdictions where the service operates. Questions can be sent through the Support form.</p>`;
+    <p>Story Sprout is directed to parents, guardians, and educators. Children cannot register themselves. An adult must create the account, verify their email, and agree to our Terms and Privacy Policy before adding a learner profile.</p>
+    <h3>What we collect about a child</h3>
+    <p>A learner profile holds only a first name or nickname, an age range or reading level, reading interests, topics to avoid, and the child's reading activity. We do not ask for or store a child's email address, phone number, home or school address, photo, or last name.</p>
+    <h3>Child sign-in</h3>
+    <p>If a parent creates a child username and password, the child can sign in only to read and practice. Parents control and can reset these credentials.</p>
+    <h3>No advertising</h3>
+    <p>We do not show advertising to children, sell children's information, or use advertising or retargeting trackers inside the signed-in reading and practice areas.</p>
+    <h3>Parent rights</h3>
+    <p>A parent can review a child's information, export it, or delete the child's profile or the entire account from Privacy & data settings, and can refuse further collection by deleting the profile. Use the Support form with any request.</p>
+    <h3>Sharing</h3>
+    <p>Information is shared only with providers needed to run the service (hosting, database, email, payments through Stripe, and AI story generation when an adult enables it), as described in the Privacy Policy.</p>`;
+  // The Terms of Service is the full Subscriber Agreement, published once at /terms.html (built from legal/SUBSCRIBER_AGREEMENT.md).
+  const termsContent = null;
 
   const openLegal = (title, content) => {
     let modal = document.querySelector('#legalModal');
@@ -97,9 +96,14 @@
     link.type = 'button';
     link.className = 'legal-link';
     link.textContent = label;
-    link.onclick = () => openLegal(label, content);
+    link.onclick = () => (content ? openLegal(label, content) : window.open('/terms.html', '_blank', 'noopener'));
     parent.appendChild(link);
   };
+
+  const legalPages = { terms: ['Terms of Service', termsContent], privacy: ['Privacy Policy', privacyContent], 'children-privacy': ["Children's Privacy", childrenContent] };
+  document.querySelectorAll('a[data-legal]').forEach(anchor => anchor.addEventListener('click', event => { const page = legalPages[anchor.dataset.legal]; if (page && page[1]) { event.preventDefault(); openLegal(page[0], page[1]); } }));
+  const hashPage = legalPages[location.hash.slice(1)];
+  if (hashPage && hashPage[1]) openLegal(hashPage[0], hashPage[1]);
 
   const authCard = document.querySelector('.auth-card');
   if (authCard) {
@@ -107,6 +111,7 @@
     links.className = 'legal-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms of Service', termsContent);
+    addLink(links, "Children's Privacy", childrenContent);
     const authSupport = document.createElement('button');
     authSupport.className = 'legal-link';
     authSupport.textContent = 'Support';
@@ -122,6 +127,7 @@
     links.className = 'legal-links legal-header-links';
     addLink(links, 'Privacy Policy', privacyContent);
     addLink(links, 'Terms', termsContent);
+    addLink(links, "Children's Privacy", childrenContent);
     const support = document.createElement('button');
     support.className = 'legal-link';
     support.textContent = 'Support';
@@ -142,6 +148,7 @@
     const footerLinks = footer.querySelector('.site-footer-links');
     addLink(footerLinks, 'Privacy Policy', privacyContent);
     addLink(footerLinks, 'Terms', termsContent);
+    addLink(footerLinks, "Children's Privacy", childrenContent);
     const footerSupport = document.createElement('button');
     footerSupport.type = 'button';
     footerSupport.className = 'legal-link';

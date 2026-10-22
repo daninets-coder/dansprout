@@ -1,7 +1,7 @@
 import express from 'express';
 
 const publicFiles = new Set([
-  '/index.html', '/app.js', '/auth.js', '/child-mode.js', '/reading-experience.js',
+  '/index.html', '/terms.html', '/privacy.html', '/children-privacy.html', '/app.js', '/auth.js', '/child-mode.js', '/reading-experience.js',
   '/api-app.js', '/privacy.js', '/legal.js', '/error-reporting.js',
   '/app.css', '/enterprise.css', '/workspace.css', '/story-shelf.css',
   '/deleted-stories.css', '/reader.css', '/mobile-nav.css', '/story-preview.css',
