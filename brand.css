@@ -414,3 +414,12 @@ button.apiSpeakQuestion:active { transform: translateY(3px); box-shadow: 0 1px 0
 
 #apiAdventureChosen { margin: 6px 0 10px; padding: 10px 14px; background: #fff1cc; border: 2px solid #f0a24d; border-radius: 14px; color: #5a2d3a; font: 800 15px Nunito, Arial, sans-serif; }
 #apiAdventureChosen.hidden { display: none !important; }
+
+/* Adventure picker v2: 3 x 3 grid, "More adventures" swaps in the next nine */
+#apiAdventurePicker { display: block; margin: 6px 0 12px; }
+#apiAdventurePicker .adventure-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+#apiAdventurePicker .adventure-card { min-height: 104px; padding: 10px 6px; font-size: 13.5px; }
+#apiAdventurePicker .adventure-more { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; min-height: 46px; padding: 10px 18px; background: #fff; color: #5a2d3a; border: 2px dashed #e8b987; border-radius: 999px; font: 800 15px Nunito, Arial, sans-serif; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+#apiAdventurePicker .adventure-more:hover { background: #fff3e0; transform: translateY(-1px); }
+#apiAdventurePicker .adventure-more small { font: 700 12px Nunito, Arial, sans-serif; color: #85706a; }
+@media (max-width: 420px) { #apiAdventurePicker .adventure-icon { font-size: 32px; } #apiAdventurePicker .adventure-card { font-size: 12.5px; } }
