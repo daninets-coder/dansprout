@@ -25,6 +25,12 @@ const CATEGORIES = {
     'crush', 'dating', 'date night', 'lover', 'lovers', 'wedding', 'weddings', 'bride', 'groom', 'married', 'marriage', 'husband', 'wife', 'pregnant', 'pregnancy',
     'puberty', 'private parts', 'breasts', 'penis', 'vagina', 'porn', 'seduce',
   ],
+  offensive_or_controversial: [
+    'fuck', 'fucking', 'fucked', 'shit', 'shitty', 'bitch', 'bastard', 'damn', 'damned', 'crap', 'dick', 'piss', 'pissed', 'slut', 'whore', 'asshole', 'retard', 'retarded', 'idiot', 'moron',
+    'nazi', 'nazis', 'hitler', 'kkk', 'racist', 'racism', 'terrorist', 'terrorists', 'terrorism', 'genocide', 'holocaust', 'slavery', 'segregation', 'apartheid',
+    'drug', 'drugs', 'cocaine', 'heroin', 'marijuana', 'cannabis', 'alcohol', 'alcoholic', 'beer', 'wine', 'vodka', 'whiskey', 'drunk', 'cigarette', 'cigarettes', 'smoking', 'vape', 'vaping', 'tobacco',
+    'gun', 'guns', 'rifle', 'pistol', 'firearm', 'firearms', 'gunshot', 'bomb', 'bombs', 'weapon', 'weapons', 'murder', 'suicide', 'kill', 'kills', 'killed', 'killing', 'massacre',
+  ],
   gender_and_sexuality: [
     'gay', 'lesbian', 'bisexual', 'transgender', 'trans', 'queer', 'lgbt', 'lgbtq', 'homosexual', 'heterosexual', 'nonbinary', 'non-binary',
     'gender', 'genders', 'genderless', 'pronoun', 'pronouns', 'two moms', 'two dads', 'same-sex', 'sexuality', 'sexual orientation',
@@ -65,3 +71,18 @@ export const CONTENT_RULES_FOR_PROMPT = [
   'Keep the story kind, calm and light: friendship, curiosity, helping, problem solving, nature, animals, everyday adventures.',
   'No frightening scenes, no violence, no death, no meanness that is not gently resolved.',
 ].join(' ');
+
+// The same rules for stories made live from a parent's or child's typed idea. The hero is the learner, so they are
+// referred to by name (or singular "they"), never by gender.
+export const LIVE_CONTENT_RULES = CONTENT_RULES_FOR_PROMPT
+  .replace('Refer to the child hero only by their name slot or with singular "they / their".', 'Refer to the child hero only by their name or with singular "they / their".')
+  + ' Nothing offensive, crude or controversial: no bad words or name-calling, no drugs, alcohol or smoking, no weapons, and no hate or prejudice of any kind.';
+
+export const TOPIC_POLICY_MESSAGE = 'DanSprout stories stay free of religion, politics, romance, and other sensitive topics. Please choose a different adventure.';
+
+// Check typed text. Names are removed first so a child called "Faith" or "Angel" is never blocked.
+export function topicPolicyViolations(texts, names = []) {
+  let text = (Array.isArray(texts) ? texts : [texts]).filter(Boolean).join(' . ');
+  for (const name of names.filter(Boolean)) text = text.replace(new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(String(name))}(?![A-Za-z0-9])`, 'gi'), ' ');
+  return blockedTopicMatches(text);
+}

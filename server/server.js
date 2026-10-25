@@ -11,6 +11,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { createStoryPrivacy } from './modules/story-privacy.js';
 import { createAdventureIdeas } from './modules/adventure-ideas.js';
+import { blockedTopicMatches } from './modules/library-safety.js';
 import helmet from 'helmet';
 import PDFDocument from 'pdfkit';
 import Stripe from 'stripe';
@@ -752,7 +753,7 @@ app.post('/api/stories/:storyId/assessment', requireAuth, async (req, res, next)
     const bodySchema = z.object({ responses: z.array(z.string().trim().max(1000)).min(1).max(8) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Please answer at least one question.' });
-    const storyRes = await pool.query('SELECT s.id, s.content, s.learner_id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    const storyRes = await pool.query('SELECT s.id, s.content, s.learner_id, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const questions = Array.isArray(storyRes.rows[0].content?.questions) ? storyRes.rows[0].content.questions : [];
     const total = Math.min(questions.length, parsed.data.responses.length);
@@ -1511,7 +1512,7 @@ async function defineStoryWord(word, pages, gradeLevel, apiKey) {
   const result = JSON.parse(payload.choices?.[0]?.message?.content || '{}');
   const meaning = cleanText(result.meaning);
   if (!meaning) throw new Error('A definition was not returned.');
-  if (await failsOpenAIModeration(JSON.stringify({ word: normalized, meaning }), apiKey)) throw new Error('The definition did not pass the safety review.');
+  if (blockedTopicMatches(`${normalized} ${meaning}`).length || await failsOpenAIModeration(JSON.stringify({ word: normalized, meaning }), apiKey)) throw new Error('The definition did not pass the safety review.');
   return { word: normalized, meaning };
 }
 
@@ -2078,7 +2079,7 @@ app.patch('/api/stories/:storyId/revise', requireAuth, async (req, res, next) =>
     const bodySchema = z.object({ revisionPrompt: z.string().trim().min(3).max(500) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Describe the change you want to make to this story.' });
-    const storyRes = await pool.query('SELECT s.id, s.title, s.prompt, s.theme, s.learning_goal, s.content, s.learner_id FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
+    const storyRes = await pool.query('SELECT s.id, s.title, s.prompt, s.theme, s.learning_goal, s.content, s.learner_id, l.first_name AS learner_name FROM stories s JOIN learners l ON l.id = s.learner_id WHERE s.id = $1 AND l.account_id = $2', [req.params.storyId, req.auth.sub]);
     if (!storyRes.rowCount) return res.status(404).json({ error: 'Story not found.' });
     const accountRes = await pool.query('SELECT ai_external_opt_in FROM accounts WHERE id = $1', [req.auth.sub]);
     if (accountRes.rows?.[0]?.ai_external_opt_in !== true || !process.env.OPENAI_API_KEY) return res.status(403).json({ error: 'OpenAI is required for story revisions. Please enable AI opt-in and add the OpenAI key.' });

@@ -1,5 +1,7 @@
+import { topicPolicyViolations, LIVE_CONTENT_RULES, TOPIC_POLICY_MESSAGE } from './library-safety.js';
+
 export function createStoryGeneration({ failsLocalSafetyCheck, failsOpenAIModeration, logSafetyEvent, validateGeneratedStory, fillVocabulary, extractTextValue, cleanText, normalizeQuestion }) {
-async function generateStoryContent({ learnerName, interests = '', prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false, continuity = null }) {
+async function generateStoryContentOnce({ learnerName, interests = '', prompt, gradeLevel, domain, theme, customTheme, topicsToAvoid = [], customTopicsToAvoid = '', storyLength = 'standard', language, curriculumRow, accountId, allowExternalAI = false, continuity = null }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) {
     throw new Error('OpenAI is required for story generation. Enable AI opt-in and configure OPENAI_API_KEY.');
@@ -8,6 +10,11 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
   if (failsLocalSafetyCheck(`${prompt} ${customTheme || ''}`)) {
     await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation', reason: 'local_filter' });
     throw new Error('Prompt rejected by child-safety filter. Please use a gentler adventure prompt.');
+  }
+  const inputViolations = topicPolicyViolations([prompt, customTheme, interests], [learnerName]);
+  if (inputViolations.length) {
+    await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_generation', reason: 'topic_policy', categories: [...new Set(inputViolations.map(item => item.category))] });
+    throw Object.assign(new Error(TOPIC_POLICY_MESSAGE), { status: 400 });
   }
   const moderationBlocked = await failsOpenAIModeration(prompt, apiKey);
   if (moderationBlocked) {
@@ -111,7 +118,7 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
         },
         messages: [{
           role: 'system',
-          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal, reflectionPrompt. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Include an evidence field on every question: an exact supporting sentence copied from the finished story. Never use true or false questions.`
+          content: `You write child-safe, developmentally appropriate K-8 stories for reading practice using U.S. educational standards. Never include sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. ${LIVE_CONTENT_RULES} Use the U.S. curriculum objective and standard exactly. Write the story and all questions and definitions in ${language}. Output valid JSON with keys: title, pages, questions, words, readingGoal, reflectionPrompt. Every question must be multiple_choice with exactly 2 or 3 answer options and an answer matching one option exactly. Include an evidence field on every question: an exact supporting sentence copied from the finished story. Never use true or false questions.`
         }, {
           role: 'user',
           content: JSON.stringify({
@@ -161,6 +168,11 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
     if (!text) throw new Error('No content from OpenAI');
     const parsed = validateGeneratedStory(JSON.parse(text));
     const outputText = JSON.stringify({ title: parsed.title, pages: parsed.pages, questions: parsed.questions, words: parsed.words });
+    const outputViolations = topicPolicyViolations([outputText, parsed.readingGoal, parsed.reflectionPrompt], [learnerName]);
+    if (outputViolations.length) {
+      await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_generation', reason: 'topic_policy', categories: [...new Set(outputViolations.map(item => item.category))] });
+      throw Object.assign(new Error(TOPIC_POLICY_MESSAGE), { code: 'TOPIC_POLICY_OUTPUT' });
+    }
     if (await failsOpenAIModeration(outputText, apiKey)) {
       await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_generation' });
       throw new Error('The generated story did not pass the safety review. Please try a different prompt.');
@@ -180,13 +192,27 @@ async function generateStoryContent({ learnerName, interests = '', prompt, grade
       usage: payload.usage || null,
     };
   } catch (error) {
+    if (error.code === 'TOPIC_POLICY_OUTPUT') throw error;
     throw new Error(`OpenAI story generation failed: ${error.message}`);
+  }
+}
+
+// A story that slips past the instructions is thrown away and written again (up to 3 tries); it is never saved.
+async function generateStoryContent(args) {
+  for (let attempt = 0; ; attempt += 1) {
+    try { return await generateStoryContentOnce(args); }
+    catch (error) {
+      if (error.code === 'TOPIC_POLICY_OUTPUT' && attempt < 2) continue;
+      if (error.code === 'TOPIC_POLICY_OUTPUT') throw Object.assign(new Error('We could not write a story for that idea that meets our content rules. Please try a different adventure.'), { status: 422 });
+      throw error;
+    }
   }
 }
 
 async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, language = 'English', curriculumRow, accountId, allowExternalAI = false }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !allowExternalAI) throw new Error('OpenAI is required for story revisions. Enable AI opt-in and configure the OpenAI key.');
+  if (topicPolicyViolations([revisionPrompt], [story?.learner_name]).length) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'topic_policy' }); throw Object.assign(new Error(TOPIC_POLICY_MESSAGE), { status: 400 }); }
   if (failsLocalSafetyCheck(revisionPrompt)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'local_filter' }); throw new Error('Revision rejected by child-safety filter. Please request a gentler change.'); }
   if (await failsOpenAIModeration(revisionPrompt, apiKey)) { await logSafetyEvent(accountId, 'input_blocked', { surface: 'story_revision', reason: 'moderation' }); throw new Error('Revision blocked by safety moderation. Please rewrite the request.'); }
 
@@ -199,7 +225,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
       response_format: { type: 'json_object' },
       messages: [{
         role: 'system',
-        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be multiple_choice with exactly 2 or 3 options and an answer matching one option exactly. Include an evidence field on every question: an exact supporting sentence copied from the finished story. Never use true or false questions.`
+        content: `You revise child-safe K-8 reading stories. Never add sexual content, hate speech, graphic violence, self-harm, or instructions for wrongdoing. ${LIVE_CONTENT_RULES} Keep the reading level at grade ${gradeLevel}, preserve the curriculum objective, and write all output in ${language}. Return valid JSON with title, pages, questions, words, and readingGoal. Every question must be multiple_choice with exactly 2 or 3 options and an answer matching one option exactly. Include an evidence field on every question: an exact supporting sentence copied from the finished story. Never use true or false questions.`
       }, {
         role: 'user',
         content: JSON.stringify({
@@ -216,6 +242,7 @@ async function reviseStoryContent({ story, revisionPrompt, gradeLevel, domain, l
   if (!response.ok) throw new Error(`OpenAI HTTP error ${response.status}`);
   const payload = await response.json();
   const parsed = validateGeneratedStory(JSON.parse(payload.choices?.[0]?.message?.content || '{}'));
+  if (topicPolicyViolations([JSON.stringify(parsed)], [story?.learner_name]).length) { await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_revision', reason: 'topic_policy' }); throw new Error('The revised story did not meet our content rules. Please try a different change.'); }
   if (await failsOpenAIModeration(JSON.stringify(parsed), apiKey)) { await logSafetyEvent(accountId, 'output_blocked', { surface: 'story_revision' }); throw new Error('The revised story did not pass the safety review.'); }
   const words = await fillVocabulary(parsed.words, parsed.pages.map(item => extractTextValue(item)).filter(Boolean), gradeLevel, apiKey);
   return {
