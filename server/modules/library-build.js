@@ -60,7 +60,7 @@ const MORE_PREMISES = [
   'a bakery cat who wants to learn to read', 'a quilt with a story in every square', 'a beach where the footprints tell a tale', 'a clock tower that forgot how to chime',
   'an orchard where the apples roll downhill', 'a night owl and a morning rooster who trade places', 'a shoebox boat in a bathtub sea', 'a hill of pumpkins and one giant surprise',
   'a lonely lamp post that gets visitors', 'a field of dandelions waiting for a wish-sized breeze', 'a cardboard castle with a squeaky drawbridge', 'a compass that points to snacks',
-  'a canoe trip down a gentle river', 'a rainbow that has lost one color',
+  'a canoe trip down a gentle river',
 ];
 export function buildPlan(count) {
   const plan = [];
