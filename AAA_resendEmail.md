@@ -48,7 +48,7 @@ dansprout.com
 Use a verified sender address such as:
 
 ```text
-Story Sprout <no-reply@dansprout.com>
+Story Sprout <contact@4learnmotto.com>
 ```
 
 Do not use an address on an unverified domain for production mail.
@@ -60,7 +60,7 @@ Open the Railway `dansprout` service, select the production environment, and add
 ```env
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=your-production-resend-key
-EMAIL_FROM=Story Sprout <no-reply@dansprout.com>
+EMAIL_FROM=Story Sprout <contact@4learnmotto.com>
 ```
 
 Use the actual Resend key as the value of `RESEND_API_KEY`. Do not commit that value to Git.

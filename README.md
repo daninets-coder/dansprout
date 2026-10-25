@@ -86,7 +86,7 @@ placing illustrations in object storage/CDN rather than the database.
 - Subscription cancellation is kept separate from privacy controls. It stops
 	future renewal but does not delete learner profiles, stories, or progress.
 - A Support form stays inside the website, sends requests through Resend, uses
-	`admin@dansprout.com` as the support destination by default, rate-limits
+	`contact@4learnmotto.com` as the support destination by default, rate-limits
 	submissions, and rejects passwords, payment-card details, and secret keys.
 - Story prompts apply a basic local age-appropriateness screen in demo mode.
 - Authenticated AI generation applies input/output moderation, structured output
@@ -140,8 +140,8 @@ site data, using private browsing, or switching browsers may remove it.
 	 APP_BASE_URL=http://localhost:3000
 	 EMAIL_PROVIDER=resend
 	 RESEND_API_KEY=
-	 EMAIL_FROM=ReadBloom <admin@dansprout.com>
-	 SUPPORT_EMAIL=admin@dansprout.com
+	 EMAIL_FROM=ReadBloom <contact@4learnmotto.com>
+	 SUPPORT_EMAIL=contact@4learnmotto.com
 	 STRIPE_SECRET_KEY=
 	 STRIPE_WEBHOOK_SECRET=
 	 STRIPE_PRICE_FAMILY_1500=

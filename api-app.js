@@ -229,6 +229,7 @@
                   <select id="apiTheme" class="en-select" aria-label="Story world">${themeOptions.map(([value, emoji]) => `<option value="${value}">${emoji} ${value}</option>`).join('')}<option value="Custom">✏️ My own world</option></select>
                   <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
                   <label class="en-label"><span class="fi fi-idea" aria-hidden="true"></span>Adventure</label>
+                  <div id="apiAdventurePicker" class="adventure-picker hidden" role="group" aria-label="Pick an adventure"></div>
                   <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
                   <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
                   <p id="apiNameHint" class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">First names work best. Please don't add last names, school names, addresses, or phone numbers.</p>
@@ -564,6 +565,46 @@
     });
   };
 
+  // Picture picker for early readers (PreK-1): tap a card instead of typing. It only fills the normal Adventure box.
+  const adventureCards = [
+    ['🗺️', 'Find a hidden treasure', 'Finding a hidden treasure map'],
+    ['🐣', 'Help a lost baby animal', 'Helping a lost baby animal find its way home'],
+    ['🚀', 'Fly to the moon', 'Flying a rocket to the moon'],
+    ['🐉', 'Meet a friendly dragon', 'Meeting a friendly dragon who needs help'],
+    ['🌊', 'Explore under the sea', 'Exploring under the sea with a new friend'],
+    ['🏰', 'Visit a magic castle', 'Visiting a magic castle with a surprise inside'],
+    ['🌳', 'Wander in a magic forest', 'A big adventure in a magical forest'],
+    ['🦖', 'Find a friendly dinosaur', 'Finding a friendly dinosaur'],
+  ];
+  // Read the card aloud with a voice that runs on this device, so nothing is sent to an outside speech service.
+  const speakLocal = text => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US'; utterance.rate = 0.85;
+    const voice = window.speechSynthesis.getVoices().find(item => item.localService && /^en/i.test(item.lang));
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  };
+  const renderAdventurePicker = gradeLevel => {
+    const picker = $('#apiAdventurePicker');
+    if (!picker) return;
+    picker.classList.toggle('hidden', !['PreK', 'K', '1'].includes(gradeLevel));
+    if (picker.dataset.built) return;
+    picker.dataset.built = '1';
+    picker.innerHTML = adventureCards.map(([icon, label], index) => `<button type="button" class="adventure-card" data-index="${index}" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">${icon}</span><span class="adventure-label">${esc(label)}</span></button>`).join('')
+      + '<button type="button" class="adventure-card adventure-own" data-own="1" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">✏️</span><span class="adventure-label">Write my own</span></button>';
+    picker.querySelectorAll('.adventure-card').forEach(card => {
+      card.onclick = () => {
+        picker.querySelectorAll('.adventure-card').forEach(other => other.setAttribute('aria-pressed', String(other === card)));
+        if (card.dataset.own) { $('#apiPrompt').focus(); return; }
+        const [, label, prompt] = adventureCards[Number(card.dataset.index)];
+        $('#apiPrompt').value = prompt;
+        speakLocal(label);
+      };
+    });
+  };
+
   const updateStoryVisual = () => {
     const gradeLevel = $('#apiGradeLevel')?.value || '2';
     const middleSchool = ['6', '7', '8'].includes(gradeLevel);
@@ -601,6 +642,7 @@
       [...storyLength.options].forEach(option => { option.textContent = middleSchool ? middleLabels[option.value] : youngerLabels[option.value]; });
     }
     const promptInput = $('#apiPrompt');
+    renderAdventurePicker(gradeLevel);
     if (promptInput) promptInput.placeholder = middleSchool ? 'A secret worth keeping, a choice with real consequences...' : 'Finding a map beneath a moonlit bench';
   };
 
@@ -2093,7 +2135,7 @@
             message: 'Classroom plan inquiry' + String.fromCharCode(10).repeat(2) + ['School or organization:', 'Number of educators:', 'Number of learners:'].join(String.fromCharCode(10)) + String.fromCharCode(10),
           });
         } else {
-          window.location.href = 'mailto:admin@dansprout.com?subject=DanSprout%20Stories%20classroom%20pricing';
+          window.location.href = 'mailto:contact@4learnmotto.com?subject=DanSprout%20Stories%20classroom%20pricing';
         }
         return;
       }

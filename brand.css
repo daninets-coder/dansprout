@@ -263,3 +263,151 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 button.apiSpeakQuestion { background: linear-gradient(180deg, #5aa9ff 0%, #2e7be8 100%) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; padding: 10px 20px !important; min-height: 44px; font: 800 15px Nunito, Arial, sans-serif !important; box-shadow: 0 4px 0 #1b56a8, 0 8px 16px rgba(46, 123, 232, .25) !important; text-shadow: 0 1px 0 rgba(0, 40, 100, .3); }
 button.apiSpeakQuestion:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1b56a8, 0 12px 20px rgba(46, 123, 232, .3) !important; }
 button.apiSpeakQuestion:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b56a8 !important; }
+
+/* ================= Landing page + sign-in polish =================
+   Friendly enough for PreK-5, polished enough for middle school: flat rounded pills with a soft glow
+   (no chunky 3D ledge), calmer type, one consistent look. Scoped to the landing page and the sign-in
+   window only; the signed-in app buttons are untouched. */
+.landing-header button.marketing-cta,
+#landingView button.landing-cta-primary {
+  background: linear-gradient(135deg, #f46f50 0%, #e24f37 100%) !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 12px 26px !important;
+  min-height: 46px;
+  font: 800 15px Nunito, Arial, sans-serif !important;
+  text-shadow: none !important;
+  letter-spacing: .1px;
+  box-shadow: 0 8px 20px rgba(226, 79, 55, .28) !important;
+  filter: none;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.landing-header button.marketing-cta:hover,
+#landingView button.landing-cta-primary:hover { transform: translateY(-1px); filter: none; box-shadow: 0 12px 26px rgba(226, 79, 55, .36) !important; }
+.landing-header button.marketing-cta:active,
+#landingView button.landing-cta-primary:active { transform: translateY(0); box-shadow: 0 5px 12px rgba(226, 79, 55, .3) !important; }
+
+.landing-header button.marketing-link,
+#landingView button.landing-cta-secondary {
+  background: #fff !important;
+  color: #2b2a6e !important;
+  border: 1.5px solid #d6d0f3 !important;
+  border-radius: 999px !important;
+  padding: 11px 24px !important;
+  min-height: 46px;
+  font: 800 15px Nunito, Arial, sans-serif !important;
+  box-shadow: 0 2px 8px rgba(43, 42, 110, .08) !important;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+}
+.landing-header button.marketing-link:hover,
+#landingView button.landing-cta-secondary:hover { transform: translateY(-1px); background: #f7f5ff !important; border-color: #a99df0 !important; box-shadow: 0 6px 16px rgba(43, 42, 110, .14) !important; }
+.landing-header button.marketing-link:active,
+#landingView button.landing-cta-secondary:active { transform: translateY(0); }
+/* on the dark hero and the dark closing banner the second button is a soft glass pill */
+.landing-hero button.landing-cta-secondary,
+.landing-final-cta button.landing-cta-secondary {
+  background: rgba(255, 255, 255, .12) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, .5) !important;
+  box-shadow: none !important;
+}
+.landing-hero button.landing-cta-secondary:hover,
+.landing-final-cta button.landing-cta-secondary:hover { background: rgba(255, 255, 255, .22) !important; border-color: #fff !important; }
+
+/* sign-in / create-account window */
+.auth-gate .auth-card { border: 0; border-radius: 22px; box-shadow: 0 26px 70px rgba(26, 30, 70, .28); font-family: Nunito, Arial, sans-serif; }
+.auth-gate .auth-card h1 { font: 600 clamp(26px, 5.5vw, 34px)/1.15 Fredoka, Nunito, Arial, sans-serif; color: #1f2a46; margin: 22px 0 10px; }
+.auth-gate .auth-card p { font: 400 15px/1.55 Nunito, Arial, sans-serif; color: #55607f; }
+.auth-gate .auth-close { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border-radius: 50%; font: 400 22px/1 Nunito, Arial, sans-serif; color: #55607f; }
+.auth-gate .auth-close:hover { background: #f1eefb; color: #1f2a46; }
+.auth-gate .auth-visual { border-radius: 16px; }
+.auth-gate .auth-tabs { gap: 4px; padding: 4px; margin: 22px 0 16px; border: 0; border-radius: 999px; background: #f1eefb; }
+.auth-gate .auth-tab { flex: 1; border: 0; border-radius: 999px; padding: 9px 6px; font: 800 13px Nunito, Arial, sans-serif; color: #4a4f7a; cursor: pointer; transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
+.auth-gate .auth-tab:hover { color: #1f2a46; }
+.auth-gate .auth-tab.active { background: #fff; color: #1f2a46; border: 0; box-shadow: 0 2px 8px rgba(31, 42, 70, .14); }
+.auth-gate .auth-field label { font: 800 13px Nunito, Arial, sans-serif; color: #2b3556; margin-bottom: 6px; }
+.auth-gate .auth-field input, .auth-gate .auth-field select { font: 400 16px Nunito, Arial, sans-serif; color: #1f2a46; border: 1.5px solid #d6d0f3; border-radius: 12px; padding: 12px 14px; background: #fff; transition: border-color .15s ease, box-shadow .15s ease; }
+.auth-gate .auth-field input:focus, .auth-gate .auth-field select:focus { border-color: #7b6cf0; box-shadow: 0 0 0 3px rgba(123, 108, 240, .2); }
+.auth-gate .auth-field input::placeholder { color: #8d93ad; font-family: Nunito, Arial, sans-serif; }
+.auth-gate .auth-help, .auth-gate .auth-field small { font: 400 12.5px/1.4 Nunito, Arial, sans-serif; color: #6b7592; }
+.auth-gate .auth-card .auth-consent { border-radius: 12px; border-color: #e6dff2; font-family: Nunito, Arial, sans-serif; }
+.auth-gate .auth-card .auth-consent span { font: 400 13px/1.45 Nunito, Arial, sans-serif; }
+.auth-gate button.auth-submit {
+  width: 100%; min-height: 48px; border: 0; border-radius: 999px; padding: 12px 20px;
+  background: linear-gradient(135deg, #f46f50 0%, #e24f37 100%); color: #fff;
+  font: 800 15px Nunito, Arial, sans-serif; letter-spacing: .1px; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(226, 79, 55, .28); transition: transform .15s ease, box-shadow .15s ease;
+}
+.auth-gate button.auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(226, 79, 55, .36); }
+.auth-gate button.auth-submit:active:not(:disabled) { transform: translateY(0); }
+.auth-gate button.auth-submit:disabled { opacity: .5; box-shadow: none; cursor: not-allowed; }
+.auth-gate .auth-error { font: 600 13px/1.4 Nunito, Arial, sans-serif; }
+.auth-gate .auth-link, .auth-gate .auth-demo { font: 800 13px Nunito, Arial, sans-serif; }
+.auth-gate .auth-foot { font: 400 12.5px/1.5 Nunito, Arial, sans-serif; }
+.auth-gate .auth-consent-group { gap: 8px; margin: 14px 0 8px; }
+.auth-gate .auth-card .auth-consent-group .auth-consent { margin: 0; padding: 10px 12px; }
+.auth-gate .auth-consent-group legend { font: 800 13px Nunito, Arial, sans-serif; color: #2b3556; padding: 0; }
+.auth-gate .auth-consent a { color: #1f6f78; font-weight: 700; text-decoration: underline; }
+@media (max-width: 480px) { .auth-gate .auth-tab { font-size: 12px; padding: 8px 4px; line-height: 1.2; } }
+@media (max-width: 650px) {
+  .landing-header button.marketing-cta, .landing-header button.marketing-link { padding: 8px 14px !important; min-height: 38px; font-size: 13px !important; white-space: nowrap; }
+  .landing-header .top-actions, .landing-header .marketing-nav { gap: 6px; }
+}
+@media (max-width: 480px) {
+  .landing-header .brand-name { font-size: 20px; }
+  .landing-header .brand-tag { display: none; }
+  .landing-header .sprout { transform: scale(.75); }
+}
+@media (max-width: 480px) {
+  .landing-header { padding: 0 12px; }
+  .landing-header .brand { gap: 0; }
+  .landing-header .brand-name { font-size: 17px; }
+  .landing-header .sprout { margin-right: -6px; }
+  .landing-header button.marketing-cta, .landing-header button.marketing-link { padding: 8px 11px !important; font-size: 12.5px !important; }
+  .landing-header .top-actions, .landing-header .marketing-nav { gap: 4px; }
+}
+
+/* Adventure picture picker for early readers (PreK-1): big tap cards instead of typing */
+#apiAdventurePicker { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 6px 0 12px; }
+#apiAdventurePicker.hidden { display: none !important; }
+#apiAdventurePicker .adventure-card { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 110px; padding: 12px 8px; background: #fff; color: #2b2a6e; border: 2px solid #d6d0f3; border-radius: 18px; font: 800 14px/1.2 Nunito, Arial, sans-serif; text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(43, 42, 110, .08); transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+#apiAdventurePicker .adventure-card:hover { transform: translateY(-2px); border-color: #a99df0; box-shadow: 0 8px 18px rgba(43, 42, 110, .14); }
+#apiAdventurePicker .adventure-card[aria-pressed="true"] { background: #fff4d6; border-color: #f2a900; box-shadow: 0 0 0 3px rgba(242, 169, 0, .25); }
+#apiAdventurePicker .adventure-icon { font-size: 40px; line-height: 1; }
+#apiAdventurePicker .adventure-own { border-style: dashed; }
+
+/* ================= Warm palette: cream, peach, amber (landing page, sign-in, adventure picker) ================= */
+.landing-hero {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 213, 120, .38), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(255, 140, 90, .55), transparent 52%),
+    radial-gradient(circle at 62% 18%, rgba(214, 112, 140, .35), transparent 50%),
+    linear-gradient(135deg, #4a2a4f 0%, #8a3f5c 52%, #d8694a 100%) !important;
+}
+.landing-header button.marketing-link, #landingView button.landing-cta-secondary { border-color: #efd9c0 !important; background: #fffaf2 !important; color: #5a2d3a !important; box-shadow: 0 2px 8px rgba(120, 70, 40, .10) !important; }
+.landing-header button.marketing-link:hover, #landingView button.landing-cta-secondary:hover { background: #fff3e0 !important; border-color: #e8b987 !important; box-shadow: 0 6px 16px rgba(120, 70, 40, .16) !important; }
+.landing-hero button.landing-cta-secondary, .landing-final-cta button.landing-cta-secondary { background: rgba(255, 255, 255, .14) !important; color: #fff !important; border-color: rgba(255, 255, 255, .55) !important; box-shadow: none !important; }
+.landing-hero button.landing-cta-secondary:hover, .landing-final-cta button.landing-cta-secondary:hover { background: rgba(255, 255, 255, .24) !important; border-color: #fff !important; }
+.landing-header button.marketing-cta, #landingView button.landing-cta-primary { background: linear-gradient(135deg, #ffa24d 0%, #ef6a45 100%) !important; box-shadow: 0 8px 20px rgba(239, 106, 69, .32) !important; }
+.landing-header button.marketing-cta:hover, #landingView button.landing-cta-primary:hover { box-shadow: 0 12px 26px rgba(239, 106, 69, .4) !important; }
+
+.auth-gate { background: rgba(70, 38, 30, .5); }
+.auth-gate .auth-card { background: #fffaf3; box-shadow: 0 26px 70px rgba(90, 45, 30, .3); }
+.auth-gate .auth-card h1 { color: #4a2a35; }
+.auth-gate .auth-card p { color: #6b5a5a; }
+.auth-gate .auth-tabs { background: #fbeedb; }
+.auth-gate .auth-tab { color: #7a5a4a; }
+.auth-gate .auth-tab:hover { color: #4a2a35; }
+.auth-gate .auth-tab.active { color: #4a2a35; }
+.auth-gate .auth-field label { color: #4a2a35; }
+.auth-gate .auth-field input, .auth-gate .auth-field select { border-color: #ecd9c3; background: #fffdf9; }
+.auth-gate .auth-field input:focus, .auth-gate .auth-field select:focus { border-color: #f0a24d; box-shadow: 0 0 0 3px rgba(240, 162, 77, .28); }
+.auth-gate .auth-help, .auth-gate .auth-field small, .auth-gate .auth-foot { color: #85706a; }
+.auth-gate .auth-card .auth-consent { background: #fff5e4; border-color: #f0dcc0; }
+.auth-gate button.auth-submit { background: linear-gradient(135deg, #ffa24d 0%, #ef6a45 100%); box-shadow: 0 8px 20px rgba(239, 106, 69, .32); }
+.auth-gate .auth-close:hover { background: #fbeedb; color: #4a2a35; }
+
+#apiAdventurePicker .adventure-card { background: #fffaf2; color: #5a2d3a; border-color: #efd9c0; box-shadow: 0 2px 8px rgba(120, 70, 40, .1); }
+#apiAdventurePicker .adventure-card:hover { border-color: #e8b987; box-shadow: 0 8px 18px rgba(120, 70, 40, .16); }
+#apiAdventurePicker .adventure-card[aria-pressed="true"] { background: #fff1cc; border-color: #f0a24d; box-shadow: 0 0 0 3px rgba(240, 162, 77, .3); }

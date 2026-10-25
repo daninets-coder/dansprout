@@ -457,8 +457,8 @@ Configuration includes:
 ```env
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=your-key
-EMAIL_FROM=Story Sprout <admin@dansprout.com>
-SUPPORT_EMAIL=admin@dansprout.com
+EMAIL_FROM=Story Sprout <contact@4learnmotto.com>
+SUPPORT_EMAIL=contact@4learnmotto.com
 ```
 
 ### Stripe

@@ -75,7 +75,7 @@ const isPlanExempt = email => { const value = String(email || '').trim().toLower
 const emailProvider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 const emailFrom = String(process.env.EMAIL_FROM || '').trim();
 const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
-const supportEmail = String(process.env.SUPPORT_EMAIL || 'admin@dansprout.com').trim();
+const supportEmail = String(process.env.SUPPORT_EMAIL || 'contact@4learnmotto.com').trim();
 const trustProxy = String(process.env.TRUST_PROXY || (process.env.NODE_ENV === 'production' ? '1' : '')).trim();
 if (trustProxy) {
   const trustProxySetting = trustProxy === 'true' ? 1 : trustProxy === 'false' ? false : /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy;

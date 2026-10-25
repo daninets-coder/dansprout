@@ -152,7 +152,7 @@ Production email requires these Railway variables:
 ```env
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=your-production-key
-EMAIL_FROM=Story Sprout <admin@dansprout.com>
+EMAIL_FROM=Story Sprout <contact@4learnmotto.com>
 ```
 
 The Resend API key must remain in Railway server variables. It must never be placed in browser JavaScript, HTML, public Markdown, or Git.
