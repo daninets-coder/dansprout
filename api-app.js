@@ -230,8 +230,9 @@
                   <input id="apiCustomTheme" class="en-input hidden" maxlength="80" placeholder="Name your world, such as The Cloud Library" style="margin-top:10px" aria-label="Your story world">
                   <label class="en-label"><span class="fi fi-idea" aria-hidden="true"></span>Adventure</label>
                   <div id="apiAdventurePicker" class="adventure-picker hidden" role="group" aria-label="Pick an adventure"></div>
+                  <p id="apiAdventureChosen" class="adventure-chosen hidden" aria-live="polite"></p>
                   <input id="apiPrompt" class="en-input" maxlength="300" placeholder="Finding a map beneath a moonlit bench">
-                  <p class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
+                  <p id="apiAdventureHelp" class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">This is the story idea. Tell us what should happen in the adventure.</p>
                   <p id="apiNameHint" class="book-modal-meta" style="margin:7px 0 0;text-transform:none;letter-spacing:0">First names work best. Please don't add last names, school names, addresses, or phone numbers.</p>
                   <label class="en-label"><span class="fi fi-length" aria-hidden="true"></span>Story length</label>
                   <select id="apiStoryLength" class="en-select" aria-label="Story length"><option value="quick">Quick read</option><option value="standard" selected>Standard story</option><option value="long">Longer adventure</option></select>
@@ -565,44 +566,50 @@
     });
   };
 
-  // Picture picker for early readers (PreK-1): tap a card instead of typing. It only fills the normal Adventure box.
-  const adventureCards = [
-    ['🗺️', 'Find a hidden treasure', 'Finding a hidden treasure map'],
-    ['🐣', 'Help a lost baby animal', 'Helping a lost baby animal find its way home'],
-    ['🚀', 'Fly to the moon', 'Flying a rocket to the moon'],
-    ['🐉', 'Meet a friendly dragon', 'Meeting a friendly dragon who needs help'],
-    ['🌊', 'Explore under the sea', 'Exploring under the sea with a new friend'],
-    ['🏰', 'Visit a magic castle', 'Visiting a magic castle with a surprise inside'],
-    ['🌳', 'Wander in a magic forest', 'A big adventure in a magical forest'],
-    ['🦖', 'Find a friendly dinosaur', 'Finding a friendly dinosaur'],
-  ];
-  // Read the card aloud with a voice that runs on this device, so nothing is sent to an outside speech service.
-  const speakLocal = text => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US'; utterance.rate = 0.85;
-    const voice = window.speechSynthesis.getVoices().find(item => item.localService && /^en/i.test(item.lang));
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.speak(utterance);
+  // Picture picker for early readers (PreK-2nd grade). The choices and their natural-voice recordings come from the
+  // database; older readers just get the text box. The picker only fills the normal Adventure box.
+  const EARLY_GRADES = ['PreK', 'K', '1', '2'];
+  let adventureIdeas = [];
+  let adventureOwn = false;
+  let adventureAudio = null;
+  api('/api/adventure-ideas').then(result => { adventureIdeas = result.ideas || []; updateStoryVisual(); }).catch(() => {});
+  const playAdventureAudio = id => {
+    if (adventureAudio) { adventureAudio.pause(); adventureAudio = null; }
+    adventureAudio = new Audio(`/api/adventure-ideas/${encodeURIComponent(id)}/audio`);
+    adventureAudio.play().catch(() => {});
   };
   const renderAdventurePicker = gradeLevel => {
     const picker = $('#apiAdventurePicker');
-    if (!picker) return;
-    picker.classList.toggle('hidden', !['PreK', 'K', '1'].includes(gradeLevel));
-    if (picker.dataset.built) return;
-    picker.dataset.built = '1';
-    picker.innerHTML = adventureCards.map(([icon, label], index) => `<button type="button" class="adventure-card" data-index="${index}" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">${icon}</span><span class="adventure-label">${esc(label)}</span></button>`).join('')
-      + '<button type="button" class="adventure-card adventure-own" data-own="1" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">✏️</span><span class="adventure-label">Write my own</span></button>';
-    picker.querySelectorAll('.adventure-card').forEach(card => {
-      card.onclick = () => {
-        picker.querySelectorAll('.adventure-card').forEach(other => other.setAttribute('aria-pressed', String(other === card)));
-        if (card.dataset.own) { $('#apiPrompt').focus(); return; }
-        const [, label, prompt] = adventureCards[Number(card.dataset.index)];
-        $('#apiPrompt').value = prompt;
-        speakLocal(label);
-      };
-    });
+    const promptInput = $('#apiPrompt');
+    if (!picker || !promptInput) return;
+    const usePicker = EARLY_GRADES.includes(gradeLevel) && adventureIdeas.length > 0;
+    // A story idea that did not come from a card (for example "continue this story") always shows in the text box.
+    const typed = promptInput.value.trim();
+    const matched = adventureIdeas.find(idea => idea.prompt === typed);
+    const showText = !usePicker || adventureOwn || (typed && !matched);
+    picker.classList.toggle('hidden', !usePicker);
+    promptInput.classList.toggle('hidden', !showText);
+    $('#apiAdventureHelp')?.classList.toggle('hidden', !showText);
+    $('#apiNameHint')?.classList.toggle('hidden', !showText);
+    const chosen = $('#apiAdventureChosen');
+    if (chosen) { chosen.classList.toggle('hidden', !(usePicker && matched && !showText)); chosen.textContent = matched ? `Your adventure: ${matched.label}` : ''; }
+    if (usePicker && picker.dataset.built !== String(adventureIdeas.length)) {
+      picker.dataset.built = String(adventureIdeas.length);
+      picker.innerHTML = adventureIdeas.map(idea => `<button type="button" class="adventure-card" data-id="${esc(idea.id)}" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">${esc(idea.icon)}</span><span class="adventure-label">${esc(idea.label)}</span></button>`).join('')
+        + '<button type="button" class="adventure-card adventure-own" data-own="1" aria-pressed="false"><span class="adventure-icon" aria-hidden="true">✏️</span><span class="adventure-label">Write my own</span></button>';
+      picker.querySelectorAll('.adventure-card').forEach(card => {
+        card.onclick = () => {
+          if (card.dataset.own) { adventureOwn = true; updateStoryVisual(); promptInput.focus(); return; }
+          const idea = adventureIdeas.find(item => item.id === card.dataset.id);
+          if (!idea) return;
+          adventureOwn = false;
+          promptInput.value = idea.prompt;
+          playAdventureAudio(idea.id);
+          updateStoryVisual();
+        };
+      });
+    }
+    picker.querySelectorAll('.adventure-card').forEach(card => { const selected = card.dataset.own ? adventureOwn : Boolean(matched) && card.dataset.id === matched.id; card.setAttribute('aria-pressed', selected ? 'true' : 'false'); });
   };
 
   const updateStoryVisual = () => {
@@ -2009,7 +2016,8 @@
     const theme = $('#apiTheme').value;
     const customTheme = $('#apiCustomTheme').value.trim();
     const storyLength = $('#apiStoryLength').value;
-    if (!learnerId || !prompt) return notify('Choose a learner and add an adventure.');
+    if (!learnerId) return notify('Choose a learner first.');
+    if (!prompt) return notify(EARLY_GRADES.includes(gradeLevel) && adventureIdeas.length ? 'Tap a picture to choose an adventure.' : 'Add an adventure first.');
     if (theme === 'Custom' && !customTheme) return notify('Name your story world first.');
     generationButton.disabled = true;
     generationButton.classList.remove('is-complete');
@@ -2045,6 +2053,8 @@
       continuationStoryId = null;
       $('#apiSeriesNotice')?.remove();
       $('#apiPrompt').value = '';
+      adventureOwn = false;
+      updateStoryVisual();
       await refresh();
       notify(`Story ready for ${learner?.first_name || 'learner'}.`);
       await openServerStory(response.story);

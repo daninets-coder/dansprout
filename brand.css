@@ -411,3 +411,6 @@ button.apiSpeakQuestion:active { transform: translateY(3px); box-shadow: 0 1px 0
 #apiAdventurePicker .adventure-card { background: #fffaf2; color: #5a2d3a; border-color: #efd9c0; box-shadow: 0 2px 8px rgba(120, 70, 40, .1); }
 #apiAdventurePicker .adventure-card:hover { border-color: #e8b987; box-shadow: 0 8px 18px rgba(120, 70, 40, .16); }
 #apiAdventurePicker .adventure-card[aria-pressed="true"] { background: #fff1cc; border-color: #f0a24d; box-shadow: 0 0 0 3px rgba(240, 162, 77, .3); }
+
+#apiAdventureChosen { margin: 6px 0 10px; padding: 10px 14px; background: #fff1cc; border: 2px solid #f0a24d; border-radius: 14px; color: #5a2d3a; font: 800 15px Nunito, Arial, sans-serif; }
+#apiAdventureChosen.hidden { display: none !important; }

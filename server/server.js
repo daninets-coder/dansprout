@@ -10,6 +10,7 @@ import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { createStoryPrivacy } from './modules/story-privacy.js';
+import { createAdventureIdeas } from './modules/adventure-ideas.js';
 import helmet from 'helmet';
 import PDFDocument from 'pdfkit';
 import Stripe from 'stripe';
@@ -339,6 +340,8 @@ const { requireChildLearnerScope, requireChildStoryScope } = createLearnerAccess
 app.use('/api/reading', requireAuth, requireVerifiedEmail, createReadingRouter({ pool, requireAdultAccount }));
 const storyPrivacy = createStoryPrivacy({ pool, illustrationsDir, audioDir, trackGrowthEvent });
 storyPrivacy.registerRoutes(app, { requireAuth, requireAdultAccount });
+const adventureIdeas = createAdventureIdeas({ pool, getWarmVoice: () => settingsStore.get('narration_voice'), log: structuredLog });
+adventureIdeas.registerRoutes(app, { requireAuth, audioLimiter: rateLimit({ windowMs: 60 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }) });
 
 function validate(schema, source) { return (req, res, next) => { const result = schema.safeParse(req[source]); if (!result.success) return res.status(400).json({ error: 'Please check the submitted information.', details: result.error.flatten() }); req[source] = result.data; return next(); }; }
 
@@ -2134,6 +2137,7 @@ ensureBaseSchema()
   .then(() => {
     settingsStore.startRefresh();
     storyPrivacy.startDraftPurgeJob();
+    setTimeout(() => adventureIdeas.warmAudio(), 15 * 1000).unref();
     app.listen(port, () => {
       structuredLog('info', 'server_started', { port, environment: process.env.NODE_ENV || 'development' });
     });
